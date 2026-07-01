@@ -10,21 +10,16 @@ import {
 } from "./lib/db";
 import TaskDetailModal from "./components/TaskDetailModal";
 import TaskRow from "./components/TaskRow";
+import CalendarView from "./components/CalendarView";
+import { todayStr } from "./lib/date";
 
-function todayStr(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-type View = "all" | "today" | "no-date";
+type View = "all" | "today" | "no-date" | "calendar";
 
 const VIEW_LABELS: Record<View, string> = {
   all: "All",
   today: "Today",
   "no-date": "No due date",
+  calendar: "Calendar",
 };
 
 export default function App() {
@@ -107,7 +102,7 @@ export default function App() {
       <h1 style={{ fontSize: 20, fontWeight: 600, marginBottom: 20 }}>Tasks</h1>
 
       <div style={{ display: "flex", gap: 4, marginBottom: 20 }}>
-        {(["all", "today", "no-date"] as View[]).map((v) => (
+        {(["all", "today", "no-date", "calendar"] as View[]).map((v) => (
           <button
             key={v}
             onClick={() => setView(v)}
@@ -195,32 +190,42 @@ export default function App() {
         </button>
       </form>
 
-      <div
-        style={{
-          background: "var(--color-surface)",
-          border: "1px solid var(--color-border)",
-          borderRadius: "var(--radius-md)",
-          boxShadow: "var(--shadow-card)",
-        }}
-      >
-        {topLevelTasks.length === 0 && (
-          <div style={{ padding: 20, color: "var(--color-text-faint)", fontSize: 13 }}>
-            {view === "today" ? "No tasks due today." : view === "no-date" ? "No tasks without a due date." : "No tasks yet."}
-          </div>
-        )}
-        {topLevelTasks.map((task) => (
-          <TaskRow
-            key={task.id}
-            task={task}
-            depth={0}
-            childrenByParent={isFlatView ? new Map() : childrenByParent}
-            onToggle={handleToggle}
-            onDelete={handleDelete}
-            onSelect={setSelectedTask}
-            onAddSubtask={handleAddSubtask}
-          />
-        ))}
-      </div>
+      {view === "calendar" ? (
+        <CalendarView
+          tasks={tasks}
+          onToggle={handleToggle}
+          onDelete={handleDelete}
+          onSelectTask={setSelectedTask}
+          onAddSubtask={handleAddSubtask}
+        />
+      ) : (
+        <div
+          style={{
+            background: "var(--color-surface)",
+            border: "1px solid var(--color-border)",
+            borderRadius: "var(--radius-md)",
+            boxShadow: "var(--shadow-card)",
+          }}
+        >
+          {topLevelTasks.length === 0 && (
+            <div style={{ padding: 20, color: "var(--color-text-faint)", fontSize: 13 }}>
+              {view === "today" ? "No tasks due today." : view === "no-date" ? "No tasks without a due date." : "No tasks yet."}
+            </div>
+          )}
+          {topLevelTasks.map((task) => (
+            <TaskRow
+              key={task.id}
+              task={task}
+              depth={0}
+              childrenByParent={isFlatView ? new Map() : childrenByParent}
+              onToggle={handleToggle}
+              onDelete={handleDelete}
+              onSelect={setSelectedTask}
+              onAddSubtask={handleAddSubtask}
+            />
+          ))}
+        </div>
+      )}
 
       {selectedTask && (
         <TaskDetailModal
