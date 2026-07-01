@@ -19,7 +19,13 @@ function todayStr(): string {
   return `${y}-${m}-${d}`;
 }
 
-type View = "all" | "today";
+type View = "all" | "today" | "no-date";
+
+const VIEW_LABELS: Record<View, string> = {
+  all: "All",
+  today: "Today",
+  "no-date": "No due date",
+};
 
 export default function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -77,7 +83,13 @@ export default function App() {
     await reload();
   }
 
-  const visibleTasks = view === "today" ? tasks.filter((t) => t.dueDate === todayStr()) : tasks;
+  const isFlatView = view === "today" || view === "no-date";
+  const visibleTasks =
+    view === "today"
+      ? tasks.filter((t) => t.dueDate === todayStr())
+      : view === "no-date"
+        ? tasks.filter((t) => t.dueDate == null)
+        : tasks;
   const completedCount = visibleTasks.filter((t) => t.completed).length;
 
   const childrenByParent = new Map<number, Task[]>();
@@ -88,14 +100,14 @@ export default function App() {
       childrenByParent.set(t.parentId, siblings);
     }
   }
-  const topLevelTasks = view === "today" ? visibleTasks : visibleTasks.filter((t) => t.parentId == null);
+  const topLevelTasks = isFlatView ? visibleTasks : visibleTasks.filter((t) => t.parentId == null);
 
   return (
     <div style={{ maxWidth: 560, margin: "0 auto", padding: "40px 24px" }}>
       <h1 style={{ fontSize: 20, fontWeight: 600, marginBottom: 20 }}>Tasks</h1>
 
       <div style={{ display: "flex", gap: 4, marginBottom: 20 }}>
-        {(["all", "today"] as View[]).map((v) => (
+        {(["all", "today", "no-date"] as View[]).map((v) => (
           <button
             key={v}
             onClick={() => setView(v)}
@@ -107,10 +119,9 @@ export default function App() {
               color: view === v ? "var(--color-accent)" : "var(--color-text-muted)",
               fontSize: 13,
               fontWeight: 500,
-              textTransform: "capitalize",
             }}
           >
-            {v}
+            {VIEW_LABELS[v]}
           </button>
         ))}
       </div>
@@ -194,7 +205,7 @@ export default function App() {
       >
         {topLevelTasks.length === 0 && (
           <div style={{ padding: 20, color: "var(--color-text-faint)", fontSize: 13 }}>
-            {view === "today" ? "No tasks due today." : "No tasks yet."}
+            {view === "today" ? "No tasks due today." : view === "no-date" ? "No tasks without a due date." : "No tasks yet."}
           </div>
         )}
         {topLevelTasks.map((task) => (
@@ -202,7 +213,7 @@ export default function App() {
             key={task.id}
             task={task}
             depth={0}
-            childrenByParent={view === "today" ? new Map() : childrenByParent}
+            childrenByParent={isFlatView ? new Map() : childrenByParent}
             onToggle={handleToggle}
             onDelete={handleDelete}
             onSelect={setSelectedTask}

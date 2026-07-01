@@ -3,7 +3,7 @@
 Tauri + React + TypeScript + SQLite
 
 TODO:
-1. **No-due-date view**: filter where `due_date IS NULL`.
+1. ~~**No-due-date view**: filter where `due_date IS NULL`.~~ Done.
 2. **Calendar view**:  group tasks by `due_date`, render a month grid.
 3. **Recurring tasks**:  a `recurrence_rules` table (frequency, interval,
    end date) + a `recurrence_id` column on tasks. When a recurring task is
