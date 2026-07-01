@@ -9,6 +9,7 @@ import {
   updateTaskDueDate,
 } from "./lib/db";
 import TaskDetailModal from "./components/TaskDetailModal";
+import TaskRow from "./components/TaskRow";
 
 function todayStr(): string {
   const now = new Date();
@@ -60,6 +61,11 @@ export default function App() {
     reload();
   }
 
+  async function handleAddSubtask(parentId: number, title: string) {
+    await createTask(title, undefined, parentId);
+    await reload();
+  }
+
   async function handleSaveDescription(id: number, description: string) {
     await updateTaskDescription(id, description);
     await reload();
@@ -72,6 +78,16 @@ export default function App() {
 
   const visibleTasks = view === "today" ? tasks.filter((t) => t.dueDate === todayStr()) : tasks;
   const completedCount = visibleTasks.filter((t) => t.completed).length;
+
+  const childrenByParent = new Map<number, Task[]>();
+  for (const t of tasks) {
+    if (t.parentId != null) {
+      const siblings = childrenByParent.get(t.parentId) ?? [];
+      siblings.push(t);
+      childrenByParent.set(t.parentId, siblings);
+    }
+  }
+  const topLevelTasks = view === "today" ? visibleTasks : visibleTasks.filter((t) => t.parentId == null);
 
   return (
     <div style={{ maxWidth: 560, margin: "0 auto", padding: "40px 24px" }}>
@@ -175,71 +191,22 @@ export default function App() {
           boxShadow: "var(--shadow-card)",
         }}
       >
-        {visibleTasks.length === 0 && (
+        {topLevelTasks.length === 0 && (
           <div style={{ padding: 20, color: "var(--color-text-faint)", fontSize: 13 }}>
             {view === "today" ? "No tasks due today." : "No tasks yet."}
           </div>
         )}
-        {visibleTasks.map((task) => (
-          <div
+        {topLevelTasks.map((task) => (
+          <TaskRow
             key={task.id}
-            onClick={() => setSelectedTask(task)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "10px 14px",
-              borderBottom: "1px solid var(--color-border)",
-              cursor: "pointer",
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={task.completed}
-              onClick={(e) => e.stopPropagation()}
-              onChange={(e) => handleToggle(task.id, e.target.checked)}
-              style={{ width: 16, height: 16, accentColor: "var(--color-accent)" }}
-            />
-            <span
-              style={{
-                flex: 1,
-                textDecoration: task.completed ? "line-through" : "none",
-                color: task.completed ? "var(--color-text-faint)" : "var(--color-text)",
-              }}
-            >
-              {task.title}
-            </span>
-            {task.dueDate && (
-              <span
-                style={{
-                  fontSize: 12,
-                  color: "var(--color-text-muted)",
-                  background: "var(--color-surface-sunken)",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "var(--radius-sm)",
-                  padding: "2px 6px",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {task.dueDate}
-              </span>
-            )}
-            {task.description && (
-              <span
-                title="Has a description"
-                style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--color-accent)" }}
-              />
-            )}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDelete(task.id);
-              }}
-              style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 13 }}
-            >
-              Delete
-            </button>
-          </div>
+            task={task}
+            depth={0}
+            childrenByParent={view === "today" ? new Map() : childrenByParent}
+            onToggle={handleToggle}
+            onDelete={handleDelete}
+            onSelect={setSelectedTask}
+            onAddSubtask={handleAddSubtask}
+          />
         ))}
       </div>
 

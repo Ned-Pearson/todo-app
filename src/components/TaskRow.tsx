@@ -1,0 +1,165 @@
+import { useState, KeyboardEvent } from "react";
+import type { Task } from "../types";
+
+interface Props {
+  task: Task;
+  depth: number;
+  childrenByParent: Map<number, Task[]>;
+  onToggle: (id: number, completed: boolean) => void;
+  onDelete: (id: number) => void;
+  onSelect: (task: Task) => void;
+  onAddSubtask: (parentId: number, title: string) => void;
+}
+
+export default function TaskRow({ task, depth, childrenByParent, onToggle, onDelete, onSelect, onAddSubtask }: Props) {
+  const [addingSubtask, setAddingSubtask] = useState(false);
+  const [subtaskTitle, setSubtaskTitle] = useState("");
+  const children = childrenByParent.get(task.id) ?? [];
+
+  function submitSubtask() {
+    const trimmed = subtaskTitle.trim();
+    if (!trimmed) return;
+    onAddSubtask(task.id, trimmed);
+    setSubtaskTitle("");
+    setAddingSubtask(false);
+  }
+
+  function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") submitSubtask();
+    if (e.key === "Escape") {
+      setAddingSubtask(false);
+      setSubtaskTitle("");
+    }
+  }
+
+  return (
+    <>
+      <div
+        onClick={() => onSelect(task)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          padding: "10px 14px",
+          paddingLeft: 14 + depth * 24,
+          borderBottom: "1px solid var(--color-border)",
+          cursor: "pointer",
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={task.completed}
+          onClick={(e) => e.stopPropagation()}
+          onChange={(e) => onToggle(task.id, e.target.checked)}
+          style={{ width: 16, height: 16, accentColor: "var(--color-accent)" }}
+        />
+        <span
+          style={{
+            flex: 1,
+            textDecoration: task.completed ? "line-through" : "none",
+            color: task.completed ? "var(--color-text-faint)" : "var(--color-text)",
+          }}
+        >
+          {task.title}
+        </span>
+        {task.dueDate && (
+          <span
+            style={{
+              fontSize: 12,
+              color: "var(--color-text-muted)",
+              background: "var(--color-surface-sunken)",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              padding: "2px 6px",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {task.dueDate}
+          </span>
+        )}
+        {task.description && (
+          <span
+            title="Has a description"
+            style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--color-accent)" }}
+          />
+        )}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setAddingSubtask((v) => !v);
+          }}
+          title="Add subtask"
+          style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 13 }}
+        >
+          + Subtask
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(task.id);
+          }}
+          style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 13 }}
+        >
+          Delete
+        </button>
+      </div>
+
+      {addingSubtask && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            display: "flex",
+            gap: 8,
+            padding: "8px 14px",
+            paddingLeft: 14 + (depth + 1) * 24,
+            borderBottom: "1px solid var(--color-border)",
+            background: "var(--color-surface-sunken)",
+          }}
+        >
+          <input
+            autoFocus
+            value={subtaskTitle}
+            onChange={(e) => setSubtaskTitle(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Subtask title…"
+            style={{
+              flex: 1,
+              padding: "6px 8px",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              background: "var(--color-surface)",
+              color: "var(--color-text)",
+              fontSize: 13,
+            }}
+          />
+          <button
+            onClick={submitSubtask}
+            style={{
+              padding: "6px 10px",
+              border: "none",
+              borderRadius: "var(--radius-sm)",
+              background: "var(--color-accent)",
+              color: "#fff",
+              fontSize: 13,
+            }}
+          >
+            Add
+          </button>
+        </div>
+      )}
+
+      {children.map((child) => (
+        <TaskRow
+          key={child.id}
+          task={child}
+          depth={depth + 1}
+          childrenByParent={childrenByParent}
+          onToggle={onToggle}
+          onDelete={onDelete}
+          onSelect={onSelect}
+          onAddSubtask={onAddSubtask}
+        />
+      ))}
+    </>
+  );
+}

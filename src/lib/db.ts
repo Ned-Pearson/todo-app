@@ -16,6 +16,7 @@ function rowToTask(row: any): Task {
     title: row.title,
     description: row.description,
     dueDate: row.due_date,
+    parentId: row.parent_id,
     completed: !!row.completed,
     createdAt: row.created_at,
   };
@@ -27,9 +28,13 @@ export async function getAllTasks(): Promise<Task[]> {
   return rows.map(rowToTask);
 }
 
-export async function createTask(title: string, dueDate?: string): Promise<void> {
+export async function createTask(title: string, dueDate?: string, parentId?: number): Promise<void> {
   const db = await getDb();
-  await db.execute("INSERT INTO tasks (title, due_date) VALUES (?, ?)", [title, dueDate || null]);
+  await db.execute("INSERT INTO tasks (title, due_date, parent_id) VALUES (?, ?, ?)", [
+    title,
+    dueDate || null,
+    parentId ?? null,
+  ]);
 }
 
 export async function setTaskCompleted(id: number, completed: boolean): Promise<void> {
@@ -49,5 +54,9 @@ export async function updateTaskDueDate(id: number, dueDate: string): Promise<vo
 
 export async function deleteTask(id: number): Promise<void> {
   const db = await getDb();
+  const children = await db.select<any[]>("SELECT id FROM tasks WHERE parent_id = ?", [id]);
+  for (const child of children) {
+    await deleteTask(child.id);
+  }
   await db.execute("DELETE FROM tasks WHERE id = ?", [id]);
 }

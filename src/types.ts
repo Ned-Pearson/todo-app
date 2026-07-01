@@ -3,6 +3,7 @@ export interface Task {
   title: string;
   description: string | null;
   dueDate: string | null;
+  parentId: number | null;
   completed: boolean;
   createdAt: string;
 }
