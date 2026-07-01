@@ -62,7 +62,8 @@ export default function App() {
   }
 
   async function handleAddSubtask(parentId: number, title: string) {
-    await createTask(title, undefined, parentId);
+    const parent = tasks.find((t) => t.id === parentId);
+    await createTask(title, parent?.dueDate ?? undefined, parentId);
     await reload();
   }
 
