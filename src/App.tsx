@@ -1,10 +1,12 @@
 import { useEffect, useState, FormEvent } from "react";
 import type { Task } from "./types";
-import { getAllTasks, createTask, setTaskCompleted, deleteTask } from "./lib/db";
+import { getAllTasks, createTask, setTaskCompleted, deleteTask, updateTaskDescription } from "./lib/db";
+import TaskDetailModal from "./components/TaskDetailModal";
 
 export default function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [title, setTitle] = useState("");
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   async function reload() {
     setTasks(await getAllTasks());
@@ -36,6 +38,11 @@ export default function App() {
   async function handleDelete(id: number) {
     await deleteTask(id);
     reload();
+  }
+
+  async function handleSaveDescription(id: number, description: string) {
+    await updateTaskDescription(id, description);
+    await reload();
   }
 
   return (
@@ -87,17 +94,20 @@ export default function App() {
         {tasks.map((task) => (
           <div
             key={task.id}
+            onClick={() => setSelectedTask(task)}
             style={{
               display: "flex",
               alignItems: "center",
               gap: 10,
               padding: "10px 14px",
               borderBottom: "1px solid var(--color-border)",
+              cursor: "pointer",
             }}
           >
             <input
               type="checkbox"
               checked={task.completed}
+              onClick={(e) => e.stopPropagation()}
               onChange={(e) => handleToggle(task.id, e.target.checked)}
               style={{ width: 16, height: 16, accentColor: "var(--color-accent)" }}
             />
@@ -110,8 +120,17 @@ export default function App() {
             >
               {task.title}
             </span>
+            {task.description && (
+              <span
+                title="Has a description"
+                style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--color-accent)" }}
+              />
+            )}
             <button
-              onClick={() => handleDelete(task.id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDelete(task.id);
+              }}
               style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 13 }}
             >
               Delete
@@ -119,6 +138,14 @@ export default function App() {
           </div>
         ))}
       </div>
+
+      {selectedTask && (
+        <TaskDetailModal
+          task={selectedTask}
+          onClose={() => setSelectedTask(null)}
+          onSave={(description) => handleSaveDescription(selectedTask.id, description)}
+        />
+      )}
     </div>
   );
 }

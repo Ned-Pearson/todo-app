@@ -14,6 +14,7 @@ function rowToTask(row: any): Task {
   return {
     id: row.id,
     title: row.title,
+    description: row.description,
     completed: !!row.completed,
     createdAt: row.created_at,
   };
@@ -33,6 +34,11 @@ export async function createTask(title: string): Promise<void> {
 export async function setTaskCompleted(id: number, completed: boolean): Promise<void> {
   const db = await getDb();
   await db.execute("UPDATE tasks SET completed = ? WHERE id = ?", [completed ? 1 : 0, id]);
+}
+
+export async function updateTaskDescription(id: number, description: string): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE tasks SET description = ? WHERE id = ?", [description || null, id]);
 }
 
 export async function deleteTask(id: number): Promise<void> {
