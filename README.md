@@ -3,14 +3,12 @@
 Tauri + React + TypeScript + SQLite
 
 TODO:
-1. **Today view**: filter tasks where `due_date = today`, add a progress
-   bar (`completed / total`).
-2. **No-due-date view**: filter where `due_date IS NULL`.
-3. **Subtasks**:  add a `parent_id` column (self-referencing FK). Subtasks
+1. **No-due-date view**: filter where `due_date IS NULL`.
+2. **Subtasks**:  add a `parent_id` column (self-referencing FK). Subtasks
    are just tasks with a parent — this one column choice gives you
    unlimited nesting without a separate table. Render recursively.
-4. **Calendar view**:  group tasks by `due_date`, render a month grid.
-5. **Recurring tasks**:  a `recurrence_rules` table (frequency, interval,
+3. **Calendar view**:  group tasks by `due_date`, render a month grid.
+4. **Recurring tasks**:  a `recurrence_rules` table (frequency, interval,
    end date) + a `recurrence_id` column on tasks. When a recurring task is
    completed, generate the next instance.
 
