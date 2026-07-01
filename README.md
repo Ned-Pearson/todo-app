@@ -3,7 +3,7 @@
 Tauri + React + TypeScript + SQLite
 
 TODO:
-1. **Due dates**: add `due_date` column, a date picker on the add form.
+1. ~~**Due dates**: add `due_date` column, a date picker on the add form.~~ Done.
 2. **Today view**: filter tasks where `due_date = today`, add a progress
    bar (`completed / total`).
 3. **No-due-date view**: filter where `due_date IS NULL`.

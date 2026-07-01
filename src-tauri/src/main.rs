@@ -14,6 +14,12 @@ fn main() {
             sql: include_str!("../migrations/002_descriptions.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 3,
+            description: "add task due dates",
+            sql: include_str!("../migrations/003_due_dates.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

@@ -1,11 +1,19 @@
 import { useEffect, useState, FormEvent } from "react";
 import type { Task } from "./types";
-import { getAllTasks, createTask, setTaskCompleted, deleteTask, updateTaskDescription } from "./lib/db";
+import {
+  getAllTasks,
+  createTask,
+  setTaskCompleted,
+  deleteTask,
+  updateTaskDescription,
+  updateTaskDueDate,
+} from "./lib/db";
 import TaskDetailModal from "./components/TaskDetailModal";
 
 export default function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [title, setTitle] = useState("");
+  const [dueDate, setDueDate] = useState("");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   async function reload() {
@@ -21,8 +29,9 @@ export default function App() {
     const trimmed = title.trim();
     if (!trimmed) return;
     try {
-      await createTask(trimmed);
+      await createTask(trimmed, dueDate);
       setTitle("");
+      setDueDate("");
       await reload();
     } catch (err) {
       console.error("Failed to add task:", err);
@@ -45,6 +54,11 @@ export default function App() {
     await reload();
   }
 
+  async function handleSaveDueDate(id: number, dueDate: string) {
+    await updateTaskDueDate(id, dueDate);
+    await reload();
+  }
+
   return (
     <div style={{ maxWidth: 560, margin: "0 auto", padding: "40px 24px" }}>
       <h1 style={{ fontSize: 20, fontWeight: 600, marginBottom: 20 }}>Tasks</h1>
@@ -56,6 +70,19 @@ export default function App() {
           placeholder="Add a task…"
           style={{
             flex: 1,
+            padding: "8px 10px",
+            border: "1px solid var(--color-border)",
+            borderRadius: "var(--radius-sm)",
+            background: "var(--color-surface)",
+            color: "var(--color-text)",
+            fontSize: 14,
+          }}
+        />
+        <input
+          type="date"
+          value={dueDate}
+          onChange={(e) => setDueDate(e.target.value)}
+          style={{
             padding: "8px 10px",
             border: "1px solid var(--color-border)",
             borderRadius: "var(--radius-sm)",
@@ -120,6 +147,21 @@ export default function App() {
             >
               {task.title}
             </span>
+            {task.dueDate && (
+              <span
+                style={{
+                  fontSize: 12,
+                  color: "var(--color-text-muted)",
+                  background: "var(--color-surface-sunken)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-sm)",
+                  padding: "2px 6px",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {task.dueDate}
+              </span>
+            )}
             {task.description && (
               <span
                 title="Has a description"
@@ -143,7 +185,9 @@ export default function App() {
         <TaskDetailModal
           task={selectedTask}
           onClose={() => setSelectedTask(null)}
-          onSave={(description) => handleSaveDescription(selectedTask.id, description)}
+          onSave={(description, dueDate) =>
+            Promise.all([handleSaveDescription(selectedTask.id, description), handleSaveDueDate(selectedTask.id, dueDate)])
+          }
         />
       )}
     </div>
