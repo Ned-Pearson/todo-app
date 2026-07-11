@@ -42,9 +42,9 @@ export default function TaskRow({ task, depth, childrenByParent, onToggle, onDel
           display: "flex",
           alignItems: "center",
           gap: 10,
-          padding: "10px 14px",
+          padding: task.description ? "10px 14px 4px" : "10px 14px",
           paddingLeft: 14 + depth * 24,
-          borderBottom: "1px solid var(--color-border)",
+          borderBottom: task.description ? "none" : "1px solid var(--color-border)",
           cursor: "pointer",
         }}
       >
@@ -113,12 +113,6 @@ export default function TaskRow({ task, depth, childrenByParent, onToggle, onDel
             ⟳
           </span>
         )}
-        {task.description && (
-          <span
-            title="Has a description"
-            style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--color-accent)" }}
-          />
-        )}
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -139,6 +133,25 @@ export default function TaskRow({ task, depth, childrenByParent, onToggle, onDel
           Delete
         </button>
       </div>
+
+      {task.description && (
+        <div
+          onClick={() => onSelect(task)}
+          style={{
+            padding: "0 14px 10px",
+            paddingLeft: 14 + depth * 24 + 52,
+            fontSize: 12,
+            color: "var(--color-text-faint)",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            borderBottom: "1px solid var(--color-border)",
+            cursor: "pointer",
+          }}
+        >
+          {task.description}
+        </div>
+      )}
 
       {addingSubtask && (
         <div

@@ -3,7 +3,6 @@
 Tauri + React + TypeScript + SQLite
 
 TODO:
-- Descriptions should display as a singular line cutting off with ... if longer than that beneath the task
 - No due date and today view should also show subtasks the same way as the all view
 - Edit task function (for task name)
     should be within same area as when you add a description, no edit button
@@ -31,7 +30,7 @@ todo-app/
 
 ## Features implemented
 
-- **Descriptions** — each task can have a description, edited from a detail modal opened by clicking the task row.
+- **Descriptions** — each task can have a description, edited from a detail modal opened by clicking the task row; when set, it shows as a single truncated line (with an ellipsis if it overflows) beneath the task.
 - **Due dates** — a date picker on the add form; due dates show as a badge on each task row.
 - **Today view** — filters tasks due today and shows a completed/total progress bar.
 - **No-due-date view** — filters tasks with no due date set.
