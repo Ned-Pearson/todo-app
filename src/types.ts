@@ -23,4 +23,5 @@ export interface Task {
   createdAt: string;
   recurrence: Recurrence | null;
   tags: Tag[];
+  inheritedTags: Tag[];
 }

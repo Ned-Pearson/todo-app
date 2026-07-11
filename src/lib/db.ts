@@ -10,7 +10,7 @@ export async function getDb(): Promise<Database> {
   return dbInstance;
 }
 
-function rowToTask(row: any, tags: Tag[]): Task {
+function rowToTask(row: any, tags: Tag[], inheritedTags: Tag[]): Task {
   return {
     id: row.id,
     title: row.title,
@@ -29,8 +29,32 @@ function rowToTask(row: any, tags: Tag[]): Task {
           }
         : null,
     tags,
+    inheritedTags,
   };
 }
+
+// A subtask inherits tags from every ancestor up the parent_id chain — walked
+// here rather than copied onto the subtask's own task_tags row, so untagging
+// an ancestor instantly stops all descendants from carrying that tag.
+const INHERITED_TAGS_SELECT = `
+  WITH RECURSIVE task_ancestors(task_id, ancestor_id) AS (
+    SELECT id AS task_id, parent_id AS ancestor_id
+    FROM tasks
+    WHERE parent_id IS NOT NULL
+
+    UNION ALL
+
+    SELECT task_ancestors.task_id, tasks.parent_id
+    FROM task_ancestors
+    JOIN tasks ON tasks.id = task_ancestors.ancestor_id
+    WHERE tasks.parent_id IS NOT NULL
+  )
+  SELECT task_ancestors.task_id AS task_id,
+         tags.id AS tag_id, tags.name AS name, tags.color AS color
+  FROM task_ancestors
+  JOIN task_tags ON task_tags.task_id = task_ancestors.ancestor_id
+  JOIN tags ON tags.id = task_tags.tag_id
+`;
 
 const TASKS_WITH_RECURRENCE_SELECT = `
   SELECT tasks.*,
@@ -44,6 +68,7 @@ const TASKS_WITH_RECURRENCE_SELECT = `
 export async function getAllTasks(): Promise<Task[]> {
   const db = await getDb();
   const rows = await db.select<any[]>(`${TASKS_WITH_RECURRENCE_SELECT} ORDER BY tasks.id DESC`);
+
   const tagRows = await db.select<any[]>(`
     SELECT task_tags.task_id AS task_id, tags.id AS tag_id, tags.name AS name, tags.color AS color
     FROM task_tags
@@ -55,7 +80,20 @@ export async function getAllTasks(): Promise<Task[]> {
     list.push({ id: row.tag_id, name: row.name, color: row.color });
     tagsByTask.set(row.task_id, list);
   }
-  return rows.map((row) => rowToTask(row, tagsByTask.get(row.id) ?? []));
+
+  const inheritedTagRows = await db.select<any[]>(INHERITED_TAGS_SELECT);
+  const inheritedTagsByTask = new Map<number, Tag[]>();
+  for (const row of inheritedTagRows) {
+    const ownTagIds = new Set((tagsByTask.get(row.task_id) ?? []).map((t) => t.id));
+    if (ownTagIds.has(row.tag_id)) continue;
+    const list = inheritedTagsByTask.get(row.task_id) ?? [];
+    if (!list.some((t) => t.id === row.tag_id)) {
+      list.push({ id: row.tag_id, name: row.name, color: row.color });
+      inheritedTagsByTask.set(row.task_id, list);
+    }
+  }
+
+  return rows.map((row) => rowToTask(row, tagsByTask.get(row.id) ?? [], inheritedTagsByTask.get(row.id) ?? []));
 }
 
 export async function getAllTags(): Promise<Tag[]> {

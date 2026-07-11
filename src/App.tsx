@@ -192,7 +192,13 @@ export default function App() {
   }
 
   const tagFilteredTasks =
-    activeTagFilter == null ? tasks : tasks.filter((t) => t.tags.some((tag) => tag.id === activeTagFilter));
+    activeTagFilter == null
+      ? tasks
+      : tasks.filter(
+          (t) =>
+            t.tags.some((tag) => tag.id === activeTagFilter) ||
+            t.inheritedTags.some((tag) => tag.id === activeTagFilter)
+        );
 
   const visibleTasks =
     view === "today"

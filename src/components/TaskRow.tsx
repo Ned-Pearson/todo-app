@@ -34,7 +34,7 @@ export default function TaskRow({ task, depth, childrenByParent, onToggle, onDel
     }
   }
 
-  const hasTags = task.tags.length > 0;
+  const hasTags = task.tags.length > 0 || task.inheritedTags.length > 0;
   const hasDescription = !!task.description;
   const mainRowIsLast = !hasTags && !hasDescription;
   const tagsRowIsLast = hasTags && !hasDescription;
@@ -163,6 +163,25 @@ export default function TaskRow({ task, depth, childrenByParent, onToggle, onDel
                 borderRadius: "var(--radius-sm)",
                 padding: "2px 6px",
                 whiteSpace: "nowrap",
+              }}
+            >
+              {tag.name}
+            </span>
+          ))}
+          {task.inheritedTags.map((tag) => (
+            <span
+              key={tag.id}
+              title="Inherited from a parent task"
+              style={{
+                fontSize: 11,
+                fontWeight: 500,
+                color: tag.color,
+                background: "none",
+                border: `1px solid ${tag.color}`,
+                borderRadius: "var(--radius-sm)",
+                padding: "2px 6px",
+                whiteSpace: "nowrap",
+                opacity: 0.75,
               }}
             >
               {tag.name}

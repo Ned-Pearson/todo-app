@@ -152,6 +152,28 @@ export default function TaskDetailModal({ task, allTags, onClose, onSave, onTogg
             );
           })}
         </div>
+        {task.inheritedTags.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginBottom: 8 }}>
+            <span style={{ fontSize: 11, color: "var(--color-text-faint)" }}>Inherited:</span>
+            {task.inheritedTags.map((tag) => (
+              <span
+                key={tag.id}
+                title="Inherited from a parent task — untag the parent to remove it"
+                style={{
+                  fontSize: 12,
+                  fontWeight: 500,
+                  padding: "4px 8px",
+                  borderRadius: "var(--radius-sm)",
+                  border: `1px solid ${tag.color}`,
+                  color: tag.color,
+                  opacity: 0.75,
+                }}
+              >
+                {tag.name}
+              </span>
+            ))}
+          </div>
+        )}
         <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 16 }}>
           <input
             value={newTagName}
