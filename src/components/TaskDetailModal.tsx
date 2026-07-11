@@ -10,13 +10,39 @@ interface Props {
   onCreateTag: (name: string, color: string) => void;
 }
 
+const TAG_COLOR_PALETTE = [
+  "#e07a5f",
+  "#3d5a80",
+  "#81b29a",
+  "#f2cc8f",
+  "#9d4edd",
+  "#588157",
+  "#c9184a",
+  "#277da1",
+  "#f3722c",
+  "#43aa8b",
+  "#ff6392",
+  "#6d597a",
+];
+
+function pickUnusedColor(usedColors: string[]): string {
+  const used = new Set(usedColors.map((c) => c.toLowerCase()));
+  const available = TAG_COLOR_PALETTE.filter((c) => !used.has(c.toLowerCase()));
+  if (available.length > 0) {
+    return available[Math.floor(Math.random() * available.length)];
+  }
+  return `#${Math.floor(Math.random() * 0xffffff)
+    .toString(16)
+    .padStart(6, "0")}`;
+}
+
 export default function TaskDetailModal({ task, allTags, onClose, onSave, onToggleTag, onCreateTag }: Props) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? "");
   const [dueDate, setDueDate] = useState(task.dueDate ?? "");
   const [saving, setSaving] = useState(false);
   const [newTagName, setNewTagName] = useState("");
-  const [newTagColor, setNewTagColor] = useState("#3d4f3a");
+  const [newTagColor, setNewTagColor] = useState(() => pickUnusedColor(allTags.map((t) => t.color)));
 
   async function handleSave() {
     const trimmedTitle = title.trim();
@@ -35,6 +61,7 @@ export default function TaskDetailModal({ task, allTags, onClose, onSave, onTogg
     if (!trimmed) return;
     onCreateTag(trimmed, newTagColor);
     setNewTagName("");
+    setNewTagColor(pickUnusedColor([...allTags.map((t) => t.color), newTagColor]));
   }
 
   return (

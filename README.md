@@ -44,4 +44,4 @@ todo-app/
 - **Recurring tasks** — daily/weekly/monthly/yearly repeat rules with an optional end date; completing a recurring task generates its next instance automatically.
 - **Light/dark mode** — a toggle in the header that persists the choice and falls back to the OS theme preference.
 - **Today view defaults** — the add-task form's due date defaults to today whenever the Today view is selected.
-- **Tags** — user-created, color-coded labels (name + color picker) assigned to tasks from the detail modal; a task can have multiple. Tag chips show on task rows, and a tag filter row lets you narrow any view (including Calendar) down to tasks carrying a chosen tag.
+- **Tags** — user-created, color-coded labels (name + color picker) assigned to tasks from the detail modal; a task can have multiple. New tags default to a random color not already in use (from a curated palette, falling back to fully random once the palette's exhausted) so you don't have to manually pick one unless you want to. Tag chips show on task rows, and a tag filter row lets you narrow any view (including Calendar) down to tasks carrying a chosen tag.
