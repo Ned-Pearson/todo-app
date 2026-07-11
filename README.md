@@ -4,8 +4,10 @@ Tauri + React + TypeScript + SQLite
 
 TODO:
 
-1. 
-
+1. Create a toggle for light mode to dark mode display
+2. When in calendar view, clicking on a day should set that day to the add task date.
+3. When on the today view the add task should be set by default to the current day
+4. 
 
 ## Project structure
 
