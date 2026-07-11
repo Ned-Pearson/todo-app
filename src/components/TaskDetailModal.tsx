@@ -4,18 +4,21 @@ import type { Task } from "../types";
 interface Props {
   task: Task;
   onClose: () => void;
-  onSave: (description: string, dueDate: string) => Promise<unknown>;
+  onSave: (title: string, description: string, dueDate: string) => Promise<unknown>;
 }
 
 export default function TaskDetailModal({ task, onClose, onSave }: Props) {
+  const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? "");
   const [dueDate, setDueDate] = useState(task.dueDate ?? "");
   const [saving, setSaving] = useState(false);
 
   async function handleSave() {
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) return;
     setSaving(true);
     try {
-      await onSave(description, dueDate);
+      await onSave(trimmedTitle, description, dueDate);
       onClose();
     } finally {
       setSaving(false);
@@ -48,7 +51,23 @@ export default function TaskDetailModal({ task, onClose, onSave }: Props) {
           padding: 20,
         }}
       >
-        <h2 style={{ fontSize: 16, fontWeight: 600, marginTop: 0, marginBottom: 12 }}>{task.title}</h2>
+        <input
+          autoFocus
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Task title…"
+          style={{
+            width: "100%",
+            marginBottom: 12,
+            padding: "4px 0",
+            border: "none",
+            background: "none",
+            color: "var(--color-text)",
+            fontSize: 16,
+            fontWeight: 600,
+            fontFamily: "inherit",
+          }}
+        />
 
         <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
           Due date
@@ -72,7 +91,6 @@ export default function TaskDetailModal({ task, onClose, onSave }: Props) {
           Description
         </label>
         <textarea
-          autoFocus
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={6}

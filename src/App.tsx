@@ -7,6 +7,7 @@ import {
   clearTaskRecurrence,
   setTaskCompleted,
   deleteTask,
+  updateTaskTitle,
   updateTaskDescription,
   updateTaskDueDate,
 } from "./lib/db";
@@ -126,6 +127,11 @@ export default function App() {
   async function handleAddSubtask(parentId: number, title: string) {
     const parent = tasks.find((t) => t.id === parentId);
     await createTask(title, parent?.dueDate ?? undefined, parentId);
+    await reload();
+  }
+
+  async function handleSaveTitle(id: number, title: string) {
+    await updateTaskTitle(id, title);
     await reload();
   }
 
@@ -377,8 +383,12 @@ export default function App() {
         <TaskDetailModal
           task={selectedTask}
           onClose={() => setSelectedTask(null)}
-          onSave={(description, dueDate) =>
-            Promise.all([handleSaveDescription(selectedTask.id, description), handleSaveDueDate(selectedTask.id, dueDate)])
+          onSave={(title, description, dueDate) =>
+            Promise.all([
+              handleSaveTitle(selectedTask.id, title),
+              handleSaveDescription(selectedTask.id, description),
+              handleSaveDueDate(selectedTask.id, dueDate),
+            ])
           }
         />
       )}

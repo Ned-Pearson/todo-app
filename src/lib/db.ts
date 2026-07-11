@@ -85,6 +85,11 @@ export async function setTaskCompleted(id: number, completed: boolean): Promise<
   await db.execute("UPDATE tasks SET completed = ? WHERE id = ?", [completed ? 1 : 0, id]);
 }
 
+export async function updateTaskTitle(id: number, title: string): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE tasks SET title = ? WHERE id = ?", [title, id]);
+}
+
 export async function updateTaskDescription(id: number, description: string): Promise<void> {
   const db = await getDb();
   await db.execute("UPDATE tasks SET description = ? WHERE id = ?", [description || null, id]);

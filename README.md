@@ -3,8 +3,6 @@
 Tauri + React + TypeScript + SQLite
 
 TODO:
-- Edit task function (for task name)
-    should be within same area as when you add a description, no edit button
 
 
 
@@ -30,6 +28,7 @@ todo-app/
 ## Features implemented
 
 - **Descriptions** — each task can have a description, edited from a detail modal opened by clicking the task row; when set, it shows as a single truncated line (with an ellipsis if it overflows) beneath the task.
+- **Edit task title** — the same detail modal has the title as an editable field directly (no separate edit button/mode) alongside due date and description.
 - **Due dates** — a date picker on the add form; due dates show as a badge on each task row.
 - **Today view** — filters tasks due today, shows a completed/total progress bar, and nests matching subtasks under their parent the same way the All view does.
 - **No-due-date view** — filters tasks with no due date set, nesting matching subtasks under their parent the same way the All view does.
