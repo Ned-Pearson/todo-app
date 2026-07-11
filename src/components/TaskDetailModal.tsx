@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { open } from "@tauri-apps/plugin-dialog";
 import type { Priority, Tag, Task } from "../types";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "../lib/priority";
 
@@ -62,6 +63,13 @@ export default function TaskDetailModal({ task, allTags, onClose, onSave, onTogg
       onClose();
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleBrowse() {
+    const selected = await open({ multiple: false });
+    if (typeof selected === "string") {
+      setAttachment(selected);
     }
   }
 
@@ -279,20 +287,37 @@ export default function TaskDetailModal({ task, allTags, onClose, onSave, onTogg
         <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
           Attachment / Link
         </label>
-        <input
-          value={attachment}
-          onChange={(e) => setAttachment(e.target.value)}
-          placeholder="URL or file path…"
-          style={{
-            width: "100%",
-            padding: "8px 10px",
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--radius-sm)",
-            background: "var(--color-surface)",
-            color: "var(--color-text)",
-            fontSize: 14,
-          }}
-        />
+        <div style={{ display: "flex", gap: 6 }}>
+          <input
+            value={attachment}
+            onChange={(e) => setAttachment(e.target.value)}
+            placeholder="URL or file path…"
+            style={{
+              flex: 1,
+              padding: "8px 10px",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              background: "var(--color-surface)",
+              color: "var(--color-text)",
+              fontSize: 14,
+            }}
+          />
+          <button
+            type="button"
+            onClick={handleBrowse}
+            style={{
+              padding: "8px 14px",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              background: "none",
+              color: "var(--color-text)",
+              fontSize: 13,
+              whiteSpace: "nowrap",
+            }}
+          >
+            Browse…
+          </button>
+        </div>
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
           <button
