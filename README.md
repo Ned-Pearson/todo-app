@@ -4,8 +4,6 @@ Tauri + React + TypeScript + SQLite
 
 TODO:
 
-1. When in calendar view, clicking on a day should set that day to the add task date.
-2. When on the today view the add task should be set by default to the current day
 
 
 ## Project structure

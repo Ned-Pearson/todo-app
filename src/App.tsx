@@ -58,6 +58,10 @@ export default function App() {
     localStorage.setItem("theme", theme);
   }, [theme]);
 
+  useEffect(() => {
+    if (view === "today") setDueDate(todayStr());
+  }, [view]);
+
   async function reload() {
     setTasks(await getAllTasks());
   }
@@ -321,6 +325,7 @@ export default function App() {
           onDelete={handleDelete}
           onSelectTask={setSelectedTask}
           onAddSubtask={handleAddSubtask}
+          onSelectDate={setDueDate}
         />
       ) : (
         <div

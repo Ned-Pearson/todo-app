@@ -9,6 +9,7 @@ interface Props {
   onDelete: (id: number) => void;
   onSelectTask: (task: Task) => void;
   onAddSubtask: (parentId: number, title: string) => void;
+  onSelectDate: (date: string) => void;
 }
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -27,13 +28,18 @@ const MONTH_NAMES = [
   "December",
 ];
 
-export default function CalendarView({ tasks, onToggle, onDelete, onSelectTask, onAddSubtask }: Props) {
+export default function CalendarView({ tasks, onToggle, onDelete, onSelectTask, onAddSubtask, onSelectDate }: Props) {
   const today = todayStr();
   const [cursor, setCursor] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
   const [selectedDate, setSelectedDate] = useState(today);
+
+  function selectDate(dateStr: string) {
+    setSelectedDate(dateStr);
+    onSelectDate(dateStr);
+  }
 
   const tasksByDate = useMemo(() => {
     const map = new Map<string, Task[]>();
@@ -96,7 +102,7 @@ export default function CalendarView({ tasks, onToggle, onDelete, onSelectTask, 
           return (
             <button
               key={dateStr}
-              onClick={() => setSelectedDate(dateStr)}
+              onClick={() => selectDate(dateStr)}
               style={{
                 display: "flex",
                 flexDirection: "column",
