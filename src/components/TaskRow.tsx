@@ -34,6 +34,11 @@ export default function TaskRow({ task, depth, childrenByParent, onToggle, onDel
     }
   }
 
+  const hasTags = task.tags.length > 0;
+  const hasDescription = !!task.description;
+  const mainRowIsLast = !hasTags && !hasDescription;
+  const tagsRowIsLast = hasTags && !hasDescription;
+
   return (
     <>
       <div
@@ -42,9 +47,9 @@ export default function TaskRow({ task, depth, childrenByParent, onToggle, onDel
           display: "flex",
           alignItems: "center",
           gap: 10,
-          padding: task.description ? "10px 14px 4px" : "10px 14px",
+          padding: mainRowIsLast ? "10px 14px" : "10px 14px 4px",
           paddingLeft: 14 + depth * 24,
-          borderBottom: task.description ? "none" : "1px solid var(--color-border)",
+          borderBottom: mainRowIsLast ? "1px solid var(--color-border)" : "none",
           cursor: "pointer",
         }}
       >
@@ -90,22 +95,6 @@ export default function TaskRow({ task, depth, childrenByParent, onToggle, onDel
         >
           {task.title}
         </span>
-        {task.tags.map((tag) => (
-          <span
-            key={tag.id}
-            style={{
-              fontSize: 11,
-              fontWeight: 500,
-              color: "#fff",
-              background: tag.color,
-              borderRadius: "var(--radius-sm)",
-              padding: "2px 6px",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {tag.name}
-          </span>
-        ))}
         {task.dueDate && (
           <span
             style={{
@@ -149,6 +138,38 @@ export default function TaskRow({ task, depth, childrenByParent, onToggle, onDel
           Delete
         </button>
       </div>
+
+      {hasTags && (
+        <div
+          onClick={() => onSelect(task)}
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 4,
+            padding: tagsRowIsLast ? "0 14px 10px" : "0 14px 6px",
+            paddingLeft: 14 + depth * 24 + 52,
+            borderBottom: tagsRowIsLast ? "1px solid var(--color-border)" : "none",
+            cursor: "pointer",
+          }}
+        >
+          {task.tags.map((tag) => (
+            <span
+              key={tag.id}
+              style={{
+                fontSize: 11,
+                fontWeight: 500,
+                color: "#fff",
+                background: tag.color,
+                borderRadius: "var(--radius-sm)",
+                padding: "2px 6px",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {tag.name}
+            </span>
+          ))}
+        </div>
+      )}
 
       {task.description && (
         <div

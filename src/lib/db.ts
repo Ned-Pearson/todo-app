@@ -75,6 +75,16 @@ export async function deleteTag(id: number): Promise<void> {
   await db.execute("DELETE FROM tags WHERE id = ?", [id]);
 }
 
+export async function updateTagName(id: number, name: string): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE tags SET name = ? WHERE id = ?", [name, id]);
+}
+
+export async function updateTagColor(id: number, color: string): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE tags SET color = ? WHERE id = ?", [color, id]);
+}
+
 export async function addTagToTask(taskId: number, tagId: number): Promise<void> {
   const db = await getDb();
   await db.execute("INSERT OR IGNORE INTO task_tags (task_id, tag_id) VALUES (?, ?)", [taskId, tagId]);

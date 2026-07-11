@@ -7,6 +7,9 @@ import {
   createTag,
   addTagToTask,
   removeTagFromTask,
+  updateTagName,
+  updateTagColor,
+  deleteTag,
   createRecurrenceRule,
   clearTaskRecurrence,
   setTaskCompleted,
@@ -18,6 +21,7 @@ import {
 import TaskDetailModal from "./components/TaskDetailModal";
 import TaskRow from "./components/TaskRow";
 import CalendarView from "./components/CalendarView";
+import ManageTagsModal from "./components/ManageTagsModal";
 import { addInterval, todayStr } from "./lib/date";
 
 type RepeatOption = "none" | RecurrenceFrequency;
@@ -57,6 +61,7 @@ export default function App() {
   const [repeatInterval, setRepeatInterval] = useState(1);
   const [repeatEndDate, setRepeatEndDate] = useState("");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [showManageTags, setShowManageTags] = useState(false);
   const [view, setView] = useState<View>("all");
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
 
@@ -170,6 +175,22 @@ export default function App() {
     await reload();
   }
 
+  async function handleRenameTag(id: number, name: string) {
+    await updateTagName(id, name);
+    await reload();
+  }
+
+  async function handleRecolorTag(id: number, color: string) {
+    await updateTagColor(id, color);
+    await reload();
+  }
+
+  async function handleDeleteTag(id: number) {
+    await deleteTag(id);
+    if (activeTagFilter === id) setActiveTagFilter(null);
+    await reload();
+  }
+
   const tagFilteredTasks =
     activeTagFilter == null ? tasks : tasks.filter((t) => t.tags.some((tag) => tag.id === activeTagFilter));
 
@@ -237,7 +258,7 @@ export default function App() {
       </div>
 
       {tags.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 20 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginBottom: 20 }}>
           {tags.map((tag) => {
             const active = activeTagFilter === tag.id;
             return (
@@ -258,6 +279,12 @@ export default function App() {
               </button>
             );
           })}
+          <button
+            onClick={() => setShowManageTags(true)}
+            style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 12 }}
+          >
+            Edit tags
+          </button>
         </div>
       )}
 
@@ -446,6 +473,16 @@ export default function App() {
           }
           onToggleTag={(tagId, assign) => handleToggleTag(selectedTask.id, tagId, assign)}
           onCreateTag={handleCreateTag}
+        />
+      )}
+
+      {showManageTags && (
+        <ManageTagsModal
+          tags={tags}
+          onClose={() => setShowManageTags(false)}
+          onRename={handleRenameTag}
+          onRecolor={handleRecolorTag}
+          onDelete={handleDeleteTag}
         />
       )}
     </div>
