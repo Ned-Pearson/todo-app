@@ -1,5 +1,6 @@
 import { useState, KeyboardEvent } from "react";
 import type { Task } from "../types";
+import { PRIORITY_COLORS, PRIORITY_LABELS } from "../lib/priority";
 
 interface Props {
   task: Task;
@@ -86,6 +87,14 @@ export default function TaskRow({ task, depth, childrenByParent, onToggle, onDel
           onChange={(e) => onToggle(task.id, e.target.checked)}
           style={{ width: 16, height: 16, accentColor: "var(--color-accent)", flexShrink: 0 }}
         />
+        {task.priority && (
+          <span
+            title={`${PRIORITY_LABELS[task.priority]} priority`}
+            style={{ fontSize: 13, color: PRIORITY_COLORS[task.priority], flexShrink: 0 }}
+          >
+            ⚑
+          </span>
+        )}
         <span
           style={{
             flex: 1,

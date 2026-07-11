@@ -3,7 +3,6 @@
 Tauri + React + TypeScript + SQLite
 
 TODO:
-- Priority levels (low/medium/high) with a visual indicator, and the option to sort by priority within a view.
 - Search — a simple text filter across titles/descriptions, useful once the list grows.
 - A "This Week" view — between Today and the full calendar, useful for weekly planning.
 - Sort/reorder — drag-and-drop manual ordering within a list 
@@ -46,3 +45,4 @@ todo-app/
 - **Today view defaults** — the add-task form's due date defaults to today whenever the Today view is selected.
 - **Tags** — user-created, color-coded labels (name + color picker) assigned to tasks from the detail modal; a task can have multiple. New tags default to a random color not already in use (from a curated palette, falling back to fully random once the palette's exhausted) so you don't have to manually pick one unless you want to. An "Edit tags" link next to the tag filter row opens a management modal to rename, recolor, or delete any tag. Tag chips show on their own wrapping row beneath each task (so a task with many tags doesn't push its title, due date, or buttons out of the row), and a tag filter row lets you narrow any view (including Calendar) down to tasks carrying a chosen tag.
 - **Tag inheritance** — subtasks are considered tagged with anything any ancestor carries, computed at query time via a recursive CTE (not copied onto the subtask), so untagging a parent instantly stops all descendants from matching that tag. Inherited tag chips render outlined/muted to distinguish them from a task's own direct (filled) tags, and the tag filter still nests a matching subtask under its real parent.
+- **Priority levels** — tasks can be set to low/medium/high priority (color-coded pickers on both the add form and detail modal), shown as a small colored flag next to the title. A "Sort by priority" toggle reorders the current view highest-first while preserving the subtask tree (children are sorted within their parent, not flattened).

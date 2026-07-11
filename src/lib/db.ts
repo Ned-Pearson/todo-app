@@ -1,5 +1,5 @@
 import Database from "@tauri-apps/plugin-sql";
-import type { RecurrenceFrequency, Tag, Task } from "../types";
+import type { Priority, RecurrenceFrequency, Tag, Task } from "../types";
 
 let dbInstance: Database | null = null;
 
@@ -30,6 +30,7 @@ function rowToTask(row: any, tags: Tag[], inheritedTags: Tag[]): Task {
         : null,
     tags,
     inheritedTags,
+    priority: row.priority,
   };
 }
 
@@ -151,15 +152,22 @@ export async function createTask(
   title: string,
   dueDate?: string,
   parentId?: number,
-  recurrenceId?: number
+  recurrenceId?: number,
+  priority?: Priority
 ): Promise<void> {
   const db = await getDb();
-  await db.execute("INSERT INTO tasks (title, due_date, parent_id, recurrence_id) VALUES (?, ?, ?, ?)", [
+  await db.execute("INSERT INTO tasks (title, due_date, parent_id, recurrence_id, priority) VALUES (?, ?, ?, ?, ?)", [
     title,
     dueDate || null,
     parentId ?? null,
     recurrenceId ?? null,
+    priority ?? null,
   ]);
+}
+
+export async function updateTaskPriority(id: number, priority: Priority | null): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE tasks SET priority = ? WHERE id = ?", [priority, id]);
 }
 
 export async function clearTaskRecurrence(id: number): Promise<void> {

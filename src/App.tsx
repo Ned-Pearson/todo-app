@@ -1,5 +1,5 @@
 import { useEffect, useState, FormEvent } from "react";
-import type { RecurrenceFrequency, Tag, Task } from "./types";
+import type { Priority, RecurrenceFrequency, Tag, Task } from "./types";
 import {
   getAllTasks,
   getAllTags,
@@ -17,12 +17,14 @@ import {
   updateTaskTitle,
   updateTaskDescription,
   updateTaskDueDate,
+  updateTaskPriority,
 } from "./lib/db";
 import TaskDetailModal from "./components/TaskDetailModal";
 import TaskRow from "./components/TaskRow";
 import CalendarView from "./components/CalendarView";
 import ManageTagsModal from "./components/ManageTagsModal";
 import { addInterval, todayStr } from "./lib/date";
+import { PRIORITY_COLORS, PRIORITY_LABELS, priorityRank } from "./lib/priority";
 
 type RepeatOption = "none" | RecurrenceFrequency;
 
@@ -60,6 +62,8 @@ export default function App() {
   const [repeat, setRepeat] = useState<RepeatOption>("none");
   const [repeatInterval, setRepeatInterval] = useState(1);
   const [repeatEndDate, setRepeatEndDate] = useState("");
+  const [priority, setPriority] = useState<Priority | null>(null);
+  const [sortByPriority, setSortByPriority] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showManageTags, setShowManageTags] = useState(false);
   const [view, setView] = useState<View>("all");
@@ -92,12 +96,13 @@ export default function App() {
     try {
       const recurrenceId =
         repeat === "none" ? undefined : await createRecurrenceRule(repeat, repeatInterval, repeatEndDate);
-      await createTask(trimmed, dueDate, undefined, recurrenceId);
+      await createTask(trimmed, dueDate, undefined, recurrenceId, priority ?? undefined);
       setTitle("");
       setDueDate("");
       setRepeat("none");
       setRepeatInterval(1);
       setRepeatEndDate("");
+      setPriority(null);
       await reload();
     } catch (err) {
       console.error("Failed to add task:", err);
@@ -159,6 +164,11 @@ export default function App() {
     await reload();
   }
 
+  async function handleSavePriority(id: number, priority: Priority | null) {
+    await updateTaskPriority(id, priority);
+    await reload();
+  }
+
   async function handleToggleTag(taskId: number, tagId: number, assign: boolean) {
     if (assign) {
       await addTagToTask(taskId, tagId);
@@ -208,20 +218,27 @@ export default function App() {
         : tagFilteredTasks;
   const completedCount = visibleTasks.filter((t) => t.completed).length;
 
+  // Sorting by priority re-orders the source array before the tree is built,
+  // so both the top-level list and each parent's children list come out in
+  // priority order without needing separate sort passes.
+  const orderedTasks = sortByPriority
+    ? [...visibleTasks].sort((a, b) => priorityRank(b.priority) - priorityRank(a.priority))
+    : visibleTasks;
+
   // Build the parent/child tree over whichever set of tasks is visible in the
   // current view, so filtered views (Today, No due date) nest subtasks the
   // same way the All view does. A task whose parent isn't in the visible set
   // (e.g. filtered out) is promoted to a root within this view.
-  const visibleIds = new Set(visibleTasks.map((t) => t.id));
+  const visibleIds = new Set(orderedTasks.map((t) => t.id));
   const childrenByParent = new Map<number, Task[]>();
-  for (const t of visibleTasks) {
+  for (const t of orderedTasks) {
     if (t.parentId != null && visibleIds.has(t.parentId)) {
       const siblings = childrenByParent.get(t.parentId) ?? [];
       siblings.push(t);
       childrenByParent.set(t.parentId, siblings);
     }
   }
-  const topLevelTasks = visibleTasks.filter((t) => t.parentId == null || !visibleIds.has(t.parentId));
+  const topLevelTasks = orderedTasks.filter((t) => t.parentId == null || !visibleIds.has(t.parentId));
 
   return (
     <div style={{ maxWidth: 560, margin: "0 auto", padding: "40px 24px" }}>
@@ -261,6 +278,21 @@ export default function App() {
             {VIEW_LABELS[v]}
           </button>
         ))}
+        <button
+          onClick={() => setSortByPriority((v) => !v)}
+          style={{
+            marginLeft: "auto",
+            padding: "6px 12px",
+            border: "1px solid var(--color-border)",
+            borderRadius: "var(--radius-sm)",
+            background: sortByPriority ? "var(--color-accent-soft)" : "none",
+            color: sortByPriority ? "var(--color-accent)" : "var(--color-text-muted)",
+            fontSize: 13,
+            fontWeight: 500,
+          }}
+        >
+          Sort by priority
+        </button>
       </div>
 
       {tags.length > 0 && (
@@ -362,6 +394,30 @@ export default function App() {
           >
             Add
           </button>
+        </div>
+
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+          {(["high", "medium", "low"] as Priority[]).map((level) => {
+            const selected = priority === level;
+            return (
+              <button
+                key={level}
+                type="button"
+                onClick={() => setPriority(selected ? null : level)}
+                style={{
+                  fontSize: 12,
+                  fontWeight: 500,
+                  padding: "4px 8px",
+                  borderRadius: "var(--radius-sm)",
+                  border: selected ? "1px solid transparent" : `1px solid ${PRIORITY_COLORS[level]}`,
+                  background: selected ? PRIORITY_COLORS[level] : "none",
+                  color: selected ? "#fff" : PRIORITY_COLORS[level],
+                }}
+              >
+                {PRIORITY_LABELS[level]}
+              </button>
+            );
+          })}
         </div>
 
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -470,11 +526,12 @@ export default function App() {
           task={selectedTask}
           allTags={tags}
           onClose={() => setSelectedTask(null)}
-          onSave={(title, description, dueDate) =>
+          onSave={(title, description, dueDate, priority) =>
             Promise.all([
               handleSaveTitle(selectedTask.id, title),
               handleSaveDescription(selectedTask.id, description),
               handleSaveDueDate(selectedTask.id, dueDate),
+              handleSavePriority(selectedTask.id, priority),
             ])
           }
           onToggleTag={(tagId, assign) => handleToggleTag(selectedTask.id, tagId, assign)}

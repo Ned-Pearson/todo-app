@@ -1,11 +1,12 @@
 import { useState } from "react";
-import type { Tag, Task } from "../types";
+import type { Priority, Tag, Task } from "../types";
+import { PRIORITY_COLORS, PRIORITY_LABELS } from "../lib/priority";
 
 interface Props {
   task: Task;
   allTags: Tag[];
   onClose: () => void;
-  onSave: (title: string, description: string, dueDate: string) => Promise<unknown>;
+  onSave: (title: string, description: string, dueDate: string, priority: Priority | null) => Promise<unknown>;
   onToggleTag: (tagId: number, assign: boolean) => void;
   onCreateTag: (name: string, color: string) => void;
 }
@@ -40,6 +41,7 @@ export default function TaskDetailModal({ task, allTags, onClose, onSave, onTogg
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? "");
   const [dueDate, setDueDate] = useState(task.dueDate ?? "");
+  const [priority, setPriority] = useState<Priority | null>(task.priority);
   const [saving, setSaving] = useState(false);
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState(() => pickUnusedColor(allTags.map((t) => t.color)));
@@ -49,7 +51,7 @@ export default function TaskDetailModal({ task, allTags, onClose, onSave, onTogg
     if (!trimmedTitle) return;
     setSaving(true);
     try {
-      await onSave(trimmedTitle, description, dueDate);
+      await onSave(trimmedTitle, description, dueDate, priority);
       onClose();
     } finally {
       setSaving(false);
@@ -125,6 +127,33 @@ export default function TaskDetailModal({ task, allTags, onClose, onSave, onTogg
             fontSize: 14,
           }}
         />
+
+        <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
+          Priority
+        </label>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
+          {(["high", "medium", "low"] as Priority[]).map((level) => {
+            const selected = priority === level;
+            return (
+              <button
+                key={level}
+                type="button"
+                onClick={() => setPriority(selected ? null : level)}
+                style={{
+                  fontSize: 12,
+                  fontWeight: 500,
+                  padding: "4px 8px",
+                  borderRadius: "var(--radius-sm)",
+                  border: selected ? "1px solid transparent" : `1px solid ${PRIORITY_COLORS[level]}`,
+                  background: selected ? PRIORITY_COLORS[level] : "none",
+                  color: selected ? "#fff" : PRIORITY_COLORS[level],
+                }}
+              >
+                {PRIORITY_LABELS[level]}
+              </button>
+            );
+          })}
+        </div>
 
         <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
           Tags

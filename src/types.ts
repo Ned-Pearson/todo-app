@@ -1,5 +1,7 @@
 export type RecurrenceFrequency = "daily" | "weekly" | "monthly" | "yearly";
 
+export type Priority = "low" | "medium" | "high";
+
 export interface Recurrence {
   id: number;
   frequency: RecurrenceFrequency;
@@ -24,4 +26,5 @@ export interface Task {
   recurrence: Recurrence | null;
   tags: Tag[];
   inheritedTags: Tag[];
+  priority: Priority | null;
 }

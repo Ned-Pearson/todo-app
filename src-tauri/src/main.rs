@@ -38,6 +38,12 @@ fn main() {
             sql: include_str!("../migrations/006_tags.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 7,
+            description: "add task priority",
+            sql: include_str!("../migrations/007_priority.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()
