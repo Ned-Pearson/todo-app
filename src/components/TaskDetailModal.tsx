@@ -60,6 +60,7 @@ export default function TaskDetailModal({
   const [saving, setSaving] = useState(false);
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState(() => pickUnusedColor(allTags.map((t) => t.color)));
+  const [previewPath, setPreviewPath] = useState<string | null>(null);
 
   async function handleSave() {
     const trimmedTitle = title.trim();
@@ -78,6 +79,15 @@ export default function TaskDetailModal({
     if (!selected) return;
     for (const path of Array.isArray(selected) ? selected : [selected]) {
       onAddAttachment(path);
+    }
+  }
+
+  async function handleOpenAttachment(path: string) {
+    try {
+      await openPath(path);
+    } catch (err) {
+      console.error("Failed to open attachment:", err);
+      window.alert(`Couldn't open "${fileNameFromPath(path)}": ${err}`);
     }
   }
 
@@ -304,12 +314,14 @@ export default function TaskDetailModal({
                     src={convertFileSrc(a.path)}
                     alt={fileNameFromPath(a.path)}
                     title={a.path}
+                    onClick={() => setPreviewPath(a.path)}
                     style={{
                       width: 72,
                       height: 72,
                       objectFit: "cover",
                       borderRadius: "var(--radius-sm)",
                       border: "1px solid var(--color-border)",
+                      cursor: "pointer",
                     }}
                   />
                   <button
@@ -349,7 +361,7 @@ export default function TaskDetailModal({
                 >
                   <button
                     type="button"
-                    onClick={() => openPath(a.path)}
+                    onClick={() => handleOpenAttachment(a.path)}
                     title={a.path}
                     style={{
                       border: "none",
@@ -426,6 +438,32 @@ export default function TaskDetailModal({
           </button>
         </div>
       </div>
+
+      {previewPath && (
+        <div
+          onClick={(e) => {
+            e.stopPropagation();
+            setPreviewPath(null);
+          }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0, 0, 0, 0.8)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 40,
+            zIndex: 20,
+            cursor: "zoom-out",
+          }}
+        >
+          <img
+            src={convertFileSrc(previewPath)}
+            alt={fileNameFromPath(previewPath)}
+            style={{ maxWidth: "100%", maxHeight: "100%", borderRadius: "var(--radius-md)" }}
+          />
+        </div>
+      )}
     </div>
   );
 }
