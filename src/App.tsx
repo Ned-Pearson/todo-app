@@ -1,8 +1,12 @@
 import { useEffect, useState, FormEvent } from "react";
-import type { RecurrenceFrequency, Task } from "./types";
+import type { RecurrenceFrequency, Tag, Task } from "./types";
 import {
   getAllTasks,
+  getAllTags,
   createTask,
+  createTag,
+  addTagToTask,
+  removeTagFromTask,
   createRecurrenceRule,
   clearTaskRecurrence,
   setTaskCompleted,
@@ -45,6 +49,8 @@ function getInitialTheme(): Theme {
 
 export default function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [activeTagFilter, setActiveTagFilter] = useState<number | null>(null);
   const [title, setTitle] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [repeat, setRepeat] = useState<RepeatOption>("none");
@@ -64,7 +70,10 @@ export default function App() {
   }, [view]);
 
   async function reload() {
-    setTasks(await getAllTasks());
+    const [updatedTasks, updatedTags] = await Promise.all([getAllTasks(), getAllTags()]);
+    setTasks(updatedTasks);
+    setTags(updatedTags);
+    setSelectedTask((prev) => (prev ? (updatedTasks.find((t) => t.id === prev.id) ?? null) : prev));
   }
 
   useEffect(() => {
@@ -145,12 +154,31 @@ export default function App() {
     await reload();
   }
 
+  async function handleToggleTag(taskId: number, tagId: number, assign: boolean) {
+    if (assign) {
+      await addTagToTask(taskId, tagId);
+    } else {
+      await removeTagFromTask(taskId, tagId);
+    }
+    await reload();
+  }
+
+  async function handleCreateTag(name: string, color: string) {
+    if (!selectedTask) return;
+    const tagId = await createTag(name, color);
+    await addTagToTask(selectedTask.id, tagId);
+    await reload();
+  }
+
+  const tagFilteredTasks =
+    activeTagFilter == null ? tasks : tasks.filter((t) => t.tags.some((tag) => tag.id === activeTagFilter));
+
   const visibleTasks =
     view === "today"
-      ? tasks.filter((t) => t.dueDate === todayStr())
+      ? tagFilteredTasks.filter((t) => t.dueDate === todayStr())
       : view === "no-date"
-        ? tasks.filter((t) => t.dueDate == null)
-        : tasks;
+        ? tagFilteredTasks.filter((t) => t.dueDate == null)
+        : tagFilteredTasks;
   const completedCount = visibleTasks.filter((t) => t.completed).length;
 
   // Build the parent/child tree over whichever set of tasks is visible in the
@@ -207,6 +235,31 @@ export default function App() {
           </button>
         ))}
       </div>
+
+      {tags.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 20 }}>
+          {tags.map((tag) => {
+            const active = activeTagFilter === tag.id;
+            return (
+              <button
+                key={tag.id}
+                onClick={() => setActiveTagFilter(active ? null : tag.id)}
+                style={{
+                  fontSize: 12,
+                  fontWeight: 500,
+                  padding: "4px 10px",
+                  borderRadius: "var(--radius-sm)",
+                  border: active ? "1px solid transparent" : `1px solid ${tag.color}`,
+                  background: active ? tag.color : "none",
+                  color: active ? "#fff" : tag.color,
+                }}
+              >
+                {tag.name}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {view === "today" && (
         <div style={{ marginBottom: 20 }}>
@@ -343,7 +396,7 @@ export default function App() {
 
       {view === "calendar" ? (
         <CalendarView
-          tasks={tasks}
+          tasks={tagFilteredTasks}
           onToggle={handleToggle}
           onDelete={handleDelete}
           onSelectTask={setSelectedTask}
@@ -382,6 +435,7 @@ export default function App() {
       {selectedTask && (
         <TaskDetailModal
           task={selectedTask}
+          allTags={tags}
           onClose={() => setSelectedTask(null)}
           onSave={(title, description, dueDate) =>
             Promise.all([
@@ -390,6 +444,8 @@ export default function App() {
               handleSaveDueDate(selectedTask.id, dueDate),
             ])
           }
+          onToggleTag={(tagId, assign) => handleToggleTag(selectedTask.id, tagId, assign)}
+          onCreateTag={handleCreateTag}
         />
       )}
     </div>

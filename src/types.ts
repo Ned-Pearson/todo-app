@@ -7,6 +7,12 @@ export interface Recurrence {
   endDate: string | null;
 }
 
+export interface Tag {
+  id: number;
+  name: string;
+  color: string;
+}
+
 export interface Task {
   id: number;
   title: string;
@@ -16,4 +22,5 @@ export interface Task {
   completed: boolean;
   createdAt: string;
   recurrence: Recurrence | null;
+  tags: Tag[];
 }

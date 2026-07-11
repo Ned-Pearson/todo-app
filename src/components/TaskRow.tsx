@@ -90,6 +90,22 @@ export default function TaskRow({ task, depth, childrenByParent, onToggle, onDel
         >
           {task.title}
         </span>
+        {task.tags.map((tag) => (
+          <span
+            key={tag.id}
+            style={{
+              fontSize: 11,
+              fontWeight: 500,
+              color: "#fff",
+              background: tag.color,
+              borderRadius: "var(--radius-sm)",
+              padding: "2px 6px",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {tag.name}
+          </span>
+        ))}
         {task.dueDate && (
           <span
             style={{

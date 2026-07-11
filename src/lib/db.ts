@@ -1,5 +1,5 @@
 import Database from "@tauri-apps/plugin-sql";
-import type { RecurrenceFrequency, Task } from "../types";
+import type { RecurrenceFrequency, Tag, Task } from "../types";
 
 let dbInstance: Database | null = null;
 
@@ -10,7 +10,7 @@ export async function getDb(): Promise<Database> {
   return dbInstance;
 }
 
-function rowToTask(row: any): Task {
+function rowToTask(row: any, tags: Tag[]): Task {
   return {
     id: row.id,
     title: row.title,
@@ -28,6 +28,7 @@ function rowToTask(row: any): Task {
             endDate: row.recurrence_end_date,
           }
         : null,
+    tags,
   };
 }
 
@@ -43,7 +44,45 @@ const TASKS_WITH_RECURRENCE_SELECT = `
 export async function getAllTasks(): Promise<Task[]> {
   const db = await getDb();
   const rows = await db.select<any[]>(`${TASKS_WITH_RECURRENCE_SELECT} ORDER BY tasks.id DESC`);
-  return rows.map(rowToTask);
+  const tagRows = await db.select<any[]>(`
+    SELECT task_tags.task_id AS task_id, tags.id AS tag_id, tags.name AS name, tags.color AS color
+    FROM task_tags
+    JOIN tags ON tags.id = task_tags.tag_id
+  `);
+  const tagsByTask = new Map<number, Tag[]>();
+  for (const row of tagRows) {
+    const list = tagsByTask.get(row.task_id) ?? [];
+    list.push({ id: row.tag_id, name: row.name, color: row.color });
+    tagsByTask.set(row.task_id, list);
+  }
+  return rows.map((row) => rowToTask(row, tagsByTask.get(row.id) ?? []));
+}
+
+export async function getAllTags(): Promise<Tag[]> {
+  const db = await getDb();
+  return db.select<Tag[]>("SELECT * FROM tags ORDER BY name");
+}
+
+export async function createTag(name: string, color: string): Promise<number> {
+  const db = await getDb();
+  const result = await db.execute("INSERT INTO tags (name, color) VALUES (?, ?)", [name, color]);
+  return result.lastInsertId as number;
+}
+
+export async function deleteTag(id: number): Promise<void> {
+  const db = await getDb();
+  await db.execute("DELETE FROM task_tags WHERE tag_id = ?", [id]);
+  await db.execute("DELETE FROM tags WHERE id = ?", [id]);
+}
+
+export async function addTagToTask(taskId: number, tagId: number): Promise<void> {
+  const db = await getDb();
+  await db.execute("INSERT OR IGNORE INTO task_tags (task_id, tag_id) VALUES (?, ?)", [taskId, tagId]);
+}
+
+export async function removeTagFromTask(taskId: number, tagId: number): Promise<void> {
+  const db = await getDb();
+  await db.execute("DELETE FROM task_tags WHERE task_id = ? AND tag_id = ?", [taskId, tagId]);
 }
 
 export async function createRecurrenceRule(

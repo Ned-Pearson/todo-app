@@ -32,6 +32,12 @@ fn main() {
             sql: include_str!("../migrations/005_recurrence.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 6,
+            description: "add tags",
+            sql: include_str!("../migrations/006_tags.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

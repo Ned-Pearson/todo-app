@@ -3,7 +3,6 @@
 Tauri + React + TypeScript + SQLite
 
 TODO:
-- Tags/labels (e.g. "Work", "Home", "Urgent") with a filter view — often more flexible than folders/projects since a task can have multiple.
 - Priority levels (low/medium/high) with a visual indicator, and the option to sort by priority within a view.
 - Search — a simple text filter across titles/descriptions, useful once the list grows.
 - A "This Week" view — between Today and the full calendar, useful for weekly planning.
@@ -45,3 +44,4 @@ todo-app/
 - **Recurring tasks** — daily/weekly/monthly/yearly repeat rules with an optional end date; completing a recurring task generates its next instance automatically.
 - **Light/dark mode** — a toggle in the header that persists the choice and falls back to the OS theme preference.
 - **Today view defaults** — the add-task form's due date defaults to today whenever the Today view is selected.
+- **Tags** — user-created, color-coded labels (name + color picker) assigned to tasks from the detail modal; a task can have multiple. Tag chips show on task rows, and a tag filter row lets you narrow any view (including Calendar) down to tasks carrying a chosen tag.
