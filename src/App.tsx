@@ -267,7 +267,7 @@ export default function App() {
   const { topLevel: overdueTopLevel, childrenByParent: overdueChildrenByParent } = buildTaskTree(overdueTasks);
 
   return (
-    <div style={{ maxWidth: 560, margin: "0 auto", padding: "40px 24px" }}>
+    <div style={{ maxWidth: view === "calendar" ? 880 : 560, margin: "0 auto", padding: "40px 24px" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
         <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>Tasks</h1>
         <button

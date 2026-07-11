@@ -14,8 +14,8 @@
       {
         "label": "main",
         "title": "Tasks",
-        "width": 900,
-        "height": 650,
+        "width": 1000,
+        "height": 750,
         "minWidth": 600,
         "minHeight": 400
       }

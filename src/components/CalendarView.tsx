@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { Priority, Task } from "../types";
 import { formatDate, todayStr } from "../lib/date";
+import { PRIORITY_COLORS } from "../lib/priority";
 import TaskRow from "./TaskRow";
 
 interface Props {
@@ -28,6 +29,15 @@ const MONTH_NAMES = [
   "November",
   "December",
 ];
+
+const MAX_VISIBLE_STRIPS = 4;
+
+function stripColor(task: Task): string {
+  const tag = task.tags[0] ?? task.inheritedTags[0];
+  if (tag) return tag.color;
+  if (task.priority) return PRIORITY_COLORS[task.priority];
+  return "var(--color-text-faint)";
+}
 
 export default function CalendarView({
   tasks,
@@ -61,53 +71,75 @@ export default function CalendarView({
     return map;
   }, [tasks]);
 
+  const taskById = useMemo(() => new Map(tasks.map((t) => [t.id, t])), [tasks]);
+
+  // A subtask due the same day as its parent is already represented by the
+  // parent's strip, so it's left out of the grid cell (it still shows up in
+  // the day-detail section below in full).
+  function stripTasksFor(dateStr: string): Task[] {
+    const dayTasks = tasksByDate.get(dateStr) ?? [];
+    return dayTasks.filter((t) => {
+      if (t.parentId == null) return true;
+      const parent = taskById.get(t.parentId);
+      return !(parent && parent.dueDate === dateStr);
+    });
+  }
+
   const year = cursor.getFullYear();
   const month = cursor.getMonth();
-  const startWeekday = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstOfMonth = new Date(year, month, 1);
+  const lastOfMonth = new Date(year, month + 1, 0);
 
-  const cells: (Date | null)[] = [];
-  for (let i = 0; i < startWeekday; i++) cells.push(null);
-  for (let day = 1; day <= daysInMonth; day++) cells.push(new Date(year, month, day));
-  while (cells.length % 7 !== 0) cells.push(null);
+  // Fill out to full weeks (Sun-Sat) so leading/trailing days from adjacent
+  // months are visible with their real day numbers, not blank cells.
+  const gridStart = new Date(year, month, 1 - firstOfMonth.getDay());
+  const gridEnd = new Date(year, month, lastOfMonth.getDate() + (6 - lastOfMonth.getDay()));
+
+  const cells: Date[] = [];
+  for (let d = new Date(gridStart); d <= gridEnd; d.setDate(d.getDate() + 1)) {
+    cells.push(new Date(d));
+  }
 
   const selectedTasks = tasksByDate.get(selectedDate) ?? [];
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
         <button
           onClick={() => setCursor(new Date(year, month - 1, 1))}
-          style={{ border: "none", background: "none", color: "var(--color-text-muted)", fontSize: 16, padding: 4 }}
+          style={{ border: "none", background: "none", color: "var(--color-text-muted)", fontSize: 20, padding: 4 }}
         >
           ‹
         </button>
-        <div style={{ fontSize: 14, fontWeight: 600 }}>
+        <div style={{ fontSize: 18, fontWeight: 600 }}>
           {MONTH_NAMES[month]} {year}
         </div>
         <button
           onClick={() => setCursor(new Date(year, month + 1, 1))}
-          style={{ border: "none", background: "none", color: "var(--color-text-muted)", fontSize: 16, padding: 4 }}
+          style={{ border: "none", background: "none", color: "var(--color-text-muted)", fontSize: 20, padding: 4 }}
         >
           ›
         </button>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6, marginBottom: 20 }}>
         {WEEKDAYS.map((w) => (
           <div
             key={w}
-            style={{ fontSize: 11, color: "var(--color-text-faint)", textAlign: "center", padding: "4px 0" }}
+            style={{ fontSize: 12, fontWeight: 500, color: "var(--color-text-faint)", textAlign: "center", padding: "4px 0" }}
           >
             {w}
           </div>
         ))}
-        {cells.map((date, i) => {
-          if (!date) return <div key={`empty-${i}`} />;
+        {cells.map((date) => {
           const dateStr = formatDate(date);
-          const dayTasks = tasksByDate.get(dateStr) ?? [];
+          const isCurrentMonth = date.getMonth() === month;
+          const stripTasks = stripTasksFor(dateStr);
           const isToday = dateStr === today;
           const isSelected = dateStr === selectedDate;
+          const visibleStrips = stripTasks.slice(0, MAX_VISIBLE_STRIPS);
+          const overflowCount = stripTasks.length - visibleStrips.length;
+
           return (
             <button
               key={dateStr}
@@ -115,26 +147,53 @@ export default function CalendarView({
               style={{
                 display: "flex",
                 flexDirection: "column",
-                alignItems: "center",
+                alignItems: "stretch",
                 gap: 3,
-                padding: "8px 4px",
-                border: isSelected ? "1px solid var(--color-accent)" : "1px solid var(--color-border)",
+                minHeight: 110,
+                padding: "6px 5px",
+                border: isSelected ? "2px solid var(--color-accent)" : "1px solid var(--color-border)",
                 borderRadius: "var(--radius-sm)",
                 background: isSelected ? "var(--color-accent-soft)" : "var(--color-surface)",
-                color: isToday ? "var(--color-accent)" : "var(--color-text)",
-                fontWeight: isToday ? 700 : 400,
-                fontSize: 13,
+                opacity: isCurrentMonth ? 1 : 0.45,
+                overflow: "hidden",
+                textAlign: "left",
               }}
             >
-              {date.getDate()}
               <span
                 style={{
-                  width: 4,
-                  height: 4,
-                  borderRadius: "50%",
-                  background: dayTasks.length > 0 ? "var(--color-accent)" : "transparent",
+                  fontSize: 14,
+                  fontWeight: isToday ? 700 : 400,
+                  color: isToday ? "var(--color-accent)" : "var(--color-text)",
+                  marginBottom: 2,
                 }}
-              />
+              >
+                {date.getDate()}
+              </span>
+              {visibleStrips.map((task) => (
+                <div
+                  key={task.id}
+                  title={task.title}
+                  style={{
+                    fontSize: 11,
+                    padding: "2px 5px",
+                    borderRadius: 3,
+                    background: stripColor(task),
+                    color: "#fff",
+                    textDecoration: task.completed ? "line-through" : "none",
+                    opacity: task.completed ? 0.55 : 1,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {task.title}
+                </div>
+              ))}
+              {overflowCount > 0 && (
+                <div style={{ fontSize: 11, color: "var(--color-text-faint)", padding: "0 5px" }}>
+                  +{overflowCount} more
+                </div>
+              )}
             </button>
           );
         })}
