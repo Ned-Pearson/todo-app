@@ -72,6 +72,12 @@ export default function TaskRow({
     <>
       <div
         onClick={() => onSelect(task)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") onSelect(task);
+        }}
+        tabIndex={0}
+        data-task-row
+        data-task-id={task.id}
         onDragOver={
           onReorder
             ? (e) => {

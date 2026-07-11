@@ -1,4 +1,4 @@
-import { useEffect, useState, FormEvent } from "react";
+import { useEffect, useRef, useState, FormEvent } from "react";
 import type { Priority, RecurrenceFrequency, Tag, Task } from "./types";
 import {
   getAllTasks,
@@ -75,11 +75,50 @@ export default function App() {
   const [showManageTags, setShowManageTags] = useState(false);
   const [view, setView] = useState<View>("all");
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const titleInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("theme", theme);
   }, [theme]);
+
+  // Keyboard shortcuts: "n" focuses the add-task field, arrow keys move focus
+  // between task rows, Enter opens whatever row currently has focus (handled
+  // by TaskRow itself). Skipped entirely while a modal is open or while
+  // typing in any text field, so shortcuts never hijack normal typing.
+  useEffect(() => {
+    function isTextEntry(el: EventTarget | null): boolean {
+      if (!(el instanceof HTMLElement)) return false;
+      return el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable;
+    }
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (selectedTask || showManageTags) return;
+
+      if (e.key === "n" && !isTextEntry(e.target)) {
+        e.preventDefault();
+        titleInputRef.current?.focus();
+        return;
+      }
+
+      if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+      if (isTextEntry(e.target)) return;
+
+      const rows = Array.from(document.querySelectorAll<HTMLElement>("[data-task-row]"));
+      if (rows.length === 0) return;
+      const currentIndex = rows.indexOf(document.activeElement as HTMLElement);
+      e.preventDefault();
+      if (e.key === "ArrowDown") {
+        rows[Math.min(currentIndex + 1, rows.length - 1)]?.focus();
+      } else {
+        rows[currentIndex === -1 ? 0 : Math.max(currentIndex - 1, 0)]?.focus();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedTask, showManageTags]);
 
   useEffect(() => {
     if (view === "today") setDueDate(todayStr());
@@ -297,20 +336,80 @@ export default function App() {
     <div style={{ maxWidth: view === "calendar" ? 880 : 560, margin: "0 auto", padding: "40px 24px" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
         <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>Tasks</h1>
-        <button
-          onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
-          title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
-          style={{
-            padding: "6px 10px",
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--radius-sm)",
-            background: "var(--color-surface)",
-            color: "var(--color-text-muted)",
-            fontSize: 14,
-          }}
-        >
-          {theme === "light" ? "🌙" : "☀️"}
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div
+            style={{ position: "relative", display: "flex" }}
+            onMouseEnter={() => setShowShortcuts(true)}
+            onMouseLeave={() => setShowShortcuts(false)}
+          >
+            <button
+              type="button"
+              style={{
+                width: 28,
+                height: 28,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: 0,
+                border: "1px solid var(--color-border)",
+                borderRadius: "50%",
+                background: "var(--color-surface)",
+                color: "var(--color-text-muted)",
+                fontSize: 13,
+              }}
+            >
+              i
+            </button>
+            {showShortcuts && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "calc(100% + 6px)",
+                  right: 0,
+                  zIndex: 30,
+                  width: 220,
+                  padding: "10px 12px",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-sm)",
+                  background: "var(--color-surface)",
+                  boxShadow: "var(--shadow-card)",
+                  fontSize: 12,
+                  color: "var(--color-text-muted)",
+                }}
+              >
+                <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 6 }}>
+                  Keyboard shortcuts
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                  <span>n</span>
+                  <span>New task</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                  <span>↑ / ↓</span>
+                  <span>Move between tasks</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span>Enter</span>
+                  <span>Submit / open task</span>
+                </div>
+              </div>
+            )}
+          </div>
+          <button
+            onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
+            title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+            style={{
+              padding: "6px 10px",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              background: "var(--color-surface)",
+              color: "var(--color-text-muted)",
+              fontSize: 14,
+            }}
+          >
+            {theme === "light" ? "🌙" : "☀️"}
+          </button>
+        </div>
       </div>
 
       <div style={{ display: "flex", gap: 4, marginBottom: 20 }}>
@@ -415,6 +514,7 @@ export default function App() {
       <form onSubmit={handleAdd} style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
           <input
+            ref={titleInputRef}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Add a task…"
