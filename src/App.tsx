@@ -23,7 +23,7 @@ import TaskDetailModal from "./components/TaskDetailModal";
 import TaskRow from "./components/TaskRow";
 import CalendarView from "./components/CalendarView";
 import ManageTagsModal from "./components/ManageTagsModal";
-import { addInterval, getWeekRange, todayStr } from "./lib/date";
+import { addInterval, getWeekRange, isOverdue, todayStr } from "./lib/date";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "./lib/priority";
 
 type RepeatOption = "none" | RecurrenceFrequency;
@@ -241,20 +241,32 @@ export default function App() {
           : priorityFilteredTasks;
   const completedCount = visibleTasks.filter((t) => t.completed).length;
 
-  // Build the parent/child tree over whichever set of tasks is visible in the
-  // current view, so filtered views (Today, No due date, priority) nest
-  // subtasks the same way the All view does. A task whose parent isn't in the
-  // visible set (e.g. filtered out) is promoted to a root within this view.
-  const visibleIds = new Set(visibleTasks.map((t) => t.id));
-  const childrenByParent = new Map<number, Task[]>();
-  for (const t of visibleTasks) {
-    if (t.parentId != null && visibleIds.has(t.parentId)) {
-      const siblings = childrenByParent.get(t.parentId) ?? [];
-      siblings.push(t);
-      childrenByParent.set(t.parentId, siblings);
+  // Build the parent/child tree over whichever set of tasks is visible, so
+  // filtered views (Today, No due date, priority, Overdue) nest subtasks the
+  // same way the All view does. A task whose parent isn't in the visible set
+  // (e.g. filtered out) is promoted to a root within this view.
+  function buildTree(list: Task[]) {
+    const ids = new Set(list.map((t) => t.id));
+    const childrenByParent = new Map<number, Task[]>();
+    for (const t of list) {
+      if (t.parentId != null && ids.has(t.parentId)) {
+        const siblings = childrenByParent.get(t.parentId) ?? [];
+        siblings.push(t);
+        childrenByParent.set(t.parentId, siblings);
+      }
     }
+    const topLevel = list.filter((t) => t.parentId == null || !ids.has(t.parentId));
+    return { topLevel, childrenByParent };
   }
-  const topLevelTasks = visibleTasks.filter((t) => t.parentId == null || !visibleIds.has(t.parentId));
+
+  const { topLevel: topLevelTasks, childrenByParent } = buildTree(visibleTasks);
+
+  // Overdue tasks (due date in the past, not completed) would otherwise
+  // disappear once their due date passes, since Today only shows dueDate ===
+  // today. Surface them in their own section above the Today list instead.
+  const overdueTasks =
+    view === "today" ? priorityFilteredTasks.filter((t) => isOverdue(t.dueDate, t.completed)) : [];
+  const { topLevel: overdueTopLevel, childrenByParent: overdueChildrenByParent } = buildTree(overdueTasks);
 
   return (
     <div style={{ maxWidth: 560, margin: "0 auto", padding: "40px 24px" }}>
@@ -518,41 +530,71 @@ export default function App() {
           onSelectDate={setDueDate}
         />
       ) : (
-        <div
-          style={{
-            background: "var(--color-surface)",
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--radius-md)",
-            boxShadow: "var(--shadow-card)",
-          }}
-        >
-          {topLevelTasks.length === 0 && (
-            <div style={{ padding: 20, color: "var(--color-text-faint)", fontSize: 13 }}>
-              {priorityFilter
-                ? `No ${priorityFilter} priority tasks.`
-                : view === "today"
-                  ? "No tasks due today."
-                  : view === "this-week"
-                    ? "No tasks due this week."
-                    : view === "no-date"
-                      ? "No tasks without a due date."
-                      : "No tasks yet."}
+        <>
+          {overdueTopLevel.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#c9184a", marginBottom: 6 }}>Overdue</div>
+              <div
+                style={{
+                  background: "var(--color-surface)",
+                  border: "1px solid #c9184a",
+                  borderRadius: "var(--radius-md)",
+                  boxShadow: "var(--shadow-card)",
+                }}
+              >
+                {overdueTopLevel.map((task) => (
+                  <TaskRow
+                    key={task.id}
+                    task={task}
+                    depth={0}
+                    childrenByParent={overdueChildrenByParent}
+                    priorityFilter={priorityFilter}
+                    onToggle={handleToggle}
+                    onDelete={handleDelete}
+                    onSelect={setSelectedTask}
+                    onAddSubtask={handleAddSubtask}
+                  />
+                ))}
+              </div>
             </div>
           )}
-          {topLevelTasks.map((task) => (
-            <TaskRow
-              key={task.id}
-              task={task}
-              depth={0}
-              childrenByParent={childrenByParent}
-              priorityFilter={priorityFilter}
-              onToggle={handleToggle}
-              onDelete={handleDelete}
-              onSelect={setSelectedTask}
-              onAddSubtask={handleAddSubtask}
-            />
-          ))}
-        </div>
+
+          <div
+            style={{
+              background: "var(--color-surface)",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-md)",
+              boxShadow: "var(--shadow-card)",
+            }}
+          >
+            {topLevelTasks.length === 0 && (
+              <div style={{ padding: 20, color: "var(--color-text-faint)", fontSize: 13 }}>
+                {priorityFilter
+                  ? `No ${priorityFilter} priority tasks.`
+                  : view === "today"
+                    ? "No tasks due today."
+                    : view === "this-week"
+                      ? "No tasks due this week."
+                      : view === "no-date"
+                        ? "No tasks without a due date."
+                        : "No tasks yet."}
+              </div>
+            )}
+            {topLevelTasks.map((task) => (
+              <TaskRow
+                key={task.id}
+                task={task}
+                depth={0}
+                childrenByParent={childrenByParent}
+                priorityFilter={priorityFilter}
+                onToggle={handleToggle}
+                onDelete={handleDelete}
+                onSelect={setSelectedTask}
+                onAddSubtask={handleAddSubtask}
+              />
+            ))}
+          </div>
+        </>
       )}
 
       {selectedTask && (

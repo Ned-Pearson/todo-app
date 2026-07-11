@@ -11,6 +11,10 @@ export function todayStr(): string {
   return formatDate(new Date());
 }
 
+export function isOverdue(dueDate: string | null, completed: boolean): boolean {
+  return dueDate != null && dueDate < todayStr() && !completed;
+}
+
 // The Sunday-through-Saturday range containing today, matching the
 // calendar view's week layout (which also starts on Sunday).
 export function getWeekRange(): [string, string] {

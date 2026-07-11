@@ -1,6 +1,9 @@
 import { useState, KeyboardEvent } from "react";
 import type { Priority, Task } from "../types";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "../lib/priority";
+import { isOverdue } from "../lib/date";
+
+const OVERDUE_COLOR = "#c9184a";
 
 interface Props {
   task: Task;
@@ -54,6 +57,8 @@ export default function TaskRow({
   const hasDescription = !!task.description;
   const mainRowIsLast = !hasTags && !hasDescription;
   const tagsRowIsLast = hasTags && !hasDescription;
+  const overdue = isOverdue(task.dueDate, task.completed);
+  const overdueBorder = `3px solid ${overdue ? OVERDUE_COLOR : "transparent"}`;
 
   return (
     <>
@@ -66,6 +71,7 @@ export default function TaskRow({
           padding: mainRowIsLast ? "10px 14px" : "10px 14px 4px",
           paddingLeft: 14 + depth * 24,
           borderBottom: mainRowIsLast ? "1px solid var(--color-border)" : "none",
+          borderLeft: overdueBorder,
           cursor: "pointer",
         }}
       >
@@ -121,16 +127,19 @@ export default function TaskRow({
         </span>
         {task.dueDate && (
           <span
+            title={overdue ? "Overdue" : undefined}
             style={{
               fontSize: 12,
-              color: "var(--color-text-muted)",
-              background: "var(--color-surface-sunken)",
-              border: "1px solid var(--color-border)",
+              fontWeight: overdue ? 700 : 400,
+              color: overdue ? OVERDUE_COLOR : "var(--color-text-muted)",
+              background: overdue ? "rgba(201, 24, 74, 0.12)" : "var(--color-surface-sunken)",
+              border: `1px solid ${overdue ? OVERDUE_COLOR : "var(--color-border)"}`,
               borderRadius: "var(--radius-sm)",
               padding: "2px 6px",
               whiteSpace: "nowrap",
             }}
           >
+            {overdue ? "⚠ " : ""}
             {task.dueDate}
           </span>
         )}
@@ -173,6 +182,7 @@ export default function TaskRow({
             padding: tagsRowIsLast ? "0 14px 10px" : "0 14px 6px",
             paddingLeft: 14 + depth * 24 + 52,
             borderBottom: tagsRowIsLast ? "1px solid var(--color-border)" : "none",
+            borderLeft: overdueBorder,
             cursor: "pointer",
           }}
         >
@@ -226,6 +236,7 @@ export default function TaskRow({
             overflow: "hidden",
             textOverflow: "ellipsis",
             borderBottom: "1px solid var(--color-border)",
+            borderLeft: overdueBorder,
             cursor: "pointer",
           }}
         >
