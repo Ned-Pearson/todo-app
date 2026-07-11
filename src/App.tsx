@@ -139,7 +139,6 @@ export default function App() {
     await reload();
   }
 
-  const isFlatView = view === "today" || view === "no-date";
   const visibleTasks =
     view === "today"
       ? tasks.filter((t) => t.dueDate === todayStr())
@@ -148,15 +147,20 @@ export default function App() {
         : tasks;
   const completedCount = visibleTasks.filter((t) => t.completed).length;
 
+  // Build the parent/child tree over whichever set of tasks is visible in the
+  // current view, so filtered views (Today, No due date) nest subtasks the
+  // same way the All view does. A task whose parent isn't in the visible set
+  // (e.g. filtered out) is promoted to a root within this view.
+  const visibleIds = new Set(visibleTasks.map((t) => t.id));
   const childrenByParent = new Map<number, Task[]>();
-  for (const t of tasks) {
-    if (t.parentId != null) {
+  for (const t of visibleTasks) {
+    if (t.parentId != null && visibleIds.has(t.parentId)) {
       const siblings = childrenByParent.get(t.parentId) ?? [];
       siblings.push(t);
       childrenByParent.set(t.parentId, siblings);
     }
   }
-  const topLevelTasks = isFlatView ? visibleTasks : visibleTasks.filter((t) => t.parentId == null);
+  const topLevelTasks = visibleTasks.filter((t) => t.parentId == null || !visibleIds.has(t.parentId));
 
   return (
     <div style={{ maxWidth: 560, margin: "0 auto", padding: "40px 24px" }}>
@@ -359,7 +363,7 @@ export default function App() {
               key={task.id}
               task={task}
               depth={0}
-              childrenByParent={isFlatView ? new Map() : childrenByParent}
+              childrenByParent={childrenByParent}
               onToggle={handleToggle}
               onDelete={handleDelete}
               onSelect={setSelectedTask}
