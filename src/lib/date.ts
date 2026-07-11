@@ -11,6 +11,20 @@ export function todayStr(): string {
   return formatDate(new Date());
 }
 
+// Local date + 24-hour time, e.g. "2026-07-11 21:34" — used for completion
+// timestamps. Kept as "<date> <time>" (space-separated) so the date portion
+// can still be pulled out for day-grouping via `datePartOf`.
+export function nowTimestamp(): string {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2, "0");
+  const min = String(now.getMinutes()).padStart(2, "0");
+  return `${formatDate(now)} ${h}:${min}`;
+}
+
+export function datePartOf(timestamp: string): string {
+  return timestamp.split(" ")[0];
+}
+
 export function isOverdue(dueDate: string | null, completed: boolean): boolean {
   return dueDate != null && dueDate < todayStr() && !completed;
 }

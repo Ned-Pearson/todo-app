@@ -24,9 +24,11 @@ import {
 import TaskDetailModal from "./components/TaskDetailModal";
 import TaskRow from "./components/TaskRow";
 import CalendarView from "./components/CalendarView";
+import HistoryView from "./components/HistoryView";
 import ManageTagsModal from "./components/ManageTagsModal";
-import { addInterval, getWeekRange, isOverdue, todayStr } from "./lib/date";
+import { addInterval, getWeekRange, isOverdue, nowTimestamp, todayStr } from "./lib/date";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "./lib/priority";
+import { buildTaskTree } from "./lib/tree";
 
 type RepeatOption = "none" | RecurrenceFrequency;
 
@@ -38,7 +40,7 @@ const REPEAT_LABELS: Record<RepeatOption, string> = {
   yearly: "Yearly",
 };
 
-type View = "all" | "today" | "this-week" | "no-date" | "calendar";
+type View = "all" | "today" | "this-week" | "no-date" | "calendar" | "history";
 
 const VIEW_LABELS: Record<View, string> = {
   all: "All",
@@ -46,6 +48,7 @@ const VIEW_LABELS: Record<View, string> = {
   "this-week": "This Week",
   "no-date": "No due date",
   calendar: "Calendar",
+  history: "History",
 };
 
 type Theme = "light" | "dark";
@@ -120,8 +123,9 @@ export default function App() {
 
   async function handleToggle(id: number, completed: boolean) {
     const idsToUpdate = completed ? [id, ...getDescendantIds(id)] : [id];
+    const completedAt = completed ? nowTimestamp() : null;
     for (const taskId of idsToUpdate) {
-      await setTaskCompleted(taskId, completed);
+      await setTaskCompleted(taskId, completed, completedAt);
     }
 
     if (completed) {
@@ -253,32 +257,14 @@ export default function App() {
           : priorityFilteredTasks;
   const completedCount = visibleTasks.filter((t) => t.completed).length;
 
-  // Build the parent/child tree over whichever set of tasks is visible, so
-  // filtered views (Today, No due date, priority, Overdue) nest subtasks the
-  // same way the All view does. A task whose parent isn't in the visible set
-  // (e.g. filtered out) is promoted to a root within this view.
-  function buildTree(list: Task[]) {
-    const ids = new Set(list.map((t) => t.id));
-    const childrenByParent = new Map<number, Task[]>();
-    for (const t of list) {
-      if (t.parentId != null && ids.has(t.parentId)) {
-        const siblings = childrenByParent.get(t.parentId) ?? [];
-        siblings.push(t);
-        childrenByParent.set(t.parentId, siblings);
-      }
-    }
-    const topLevel = list.filter((t) => t.parentId == null || !ids.has(t.parentId));
-    return { topLevel, childrenByParent };
-  }
-
-  const { topLevel: topLevelTasks, childrenByParent } = buildTree(visibleTasks);
+  const { topLevel: topLevelTasks, childrenByParent } = buildTaskTree(visibleTasks);
 
   // Overdue tasks (due date in the past, not completed) would otherwise
   // disappear once their due date passes, since Today only shows dueDate ===
   // today. Surface them in their own section above the Today list instead.
   const overdueTasks =
     view === "today" ? priorityFilteredTasks.filter((t) => isOverdue(t.dueDate, t.completed)) : [];
-  const { topLevel: overdueTopLevel, childrenByParent: overdueChildrenByParent } = buildTree(overdueTasks);
+  const { topLevel: overdueTopLevel, childrenByParent: overdueChildrenByParent } = buildTaskTree(overdueTasks);
 
   return (
     <div style={{ maxWidth: 560, margin: "0 auto", padding: "40px 24px" }}>
@@ -301,7 +287,7 @@ export default function App() {
       </div>
 
       <div style={{ display: "flex", gap: 4, marginBottom: 20 }}>
-        {(["all", "today", "this-week", "no-date", "calendar"] as View[]).map((v) => (
+        {(["all", "today", "this-week", "no-date", "calendar", "history"] as View[]).map((v) => (
           <button
             key={v}
             onClick={() => setView(v)}
@@ -540,6 +526,15 @@ export default function App() {
           onSelectTask={setSelectedTask}
           onAddSubtask={handleAddSubtask}
           onSelectDate={setDueDate}
+        />
+      ) : view === "history" ? (
+        <HistoryView
+          tasks={priorityFilteredTasks}
+          priorityFilter={priorityFilter}
+          onToggle={handleToggle}
+          onDelete={handleDelete}
+          onSelectTask={setSelectedTask}
+          onAddSubtask={handleAddSubtask}
         />
       ) : (
         <>

@@ -27,6 +27,7 @@ export interface Task {
   dueDate: string | null;
   parentId: number | null;
   completed: boolean;
+  completedAt: string | null;
   createdAt: string;
   recurrence: Recurrence | null;
   tags: Tag[];

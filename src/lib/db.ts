@@ -18,6 +18,7 @@ function rowToTask(row: any, tags: Tag[], inheritedTags: Tag[], attachments: Att
     dueDate: row.due_date,
     parentId: row.parent_id,
     completed: !!row.completed,
+    completedAt: row.completed_at,
     createdAt: row.created_at,
     recurrence:
       row.recurrence_id != null
@@ -191,9 +192,13 @@ export async function clearTaskRecurrence(id: number): Promise<void> {
   await db.execute("UPDATE tasks SET recurrence_id = NULL WHERE id = ?", [id]);
 }
 
-export async function setTaskCompleted(id: number, completed: boolean): Promise<void> {
+export async function setTaskCompleted(id: number, completed: boolean, completedAt: string | null): Promise<void> {
   const db = await getDb();
-  await db.execute("UPDATE tasks SET completed = ? WHERE id = ?", [completed ? 1 : 0, id]);
+  await db.execute("UPDATE tasks SET completed = ?, completed_at = ? WHERE id = ?", [
+    completed ? 1 : 0,
+    completed ? completedAt : null,
+    id,
+  ]);
 }
 
 export async function updateTaskTitle(id: number, title: string): Promise<void> {

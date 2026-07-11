@@ -56,6 +56,12 @@ fn main() {
             sql: include_str!("../migrations/009_attachments.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 10,
+            description: "add task completed_at",
+            sql: include_str!("../migrations/010_completed_at.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

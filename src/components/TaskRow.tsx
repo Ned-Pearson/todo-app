@@ -15,6 +15,8 @@ interface Props {
   onDelete: (id: number) => void;
   onSelect: (task: Task) => void;
   onAddSubtask: (parentId: number, title: string) => void;
+  readOnly?: boolean;
+  showCompletedDate?: boolean;
 }
 
 export default function TaskRow({
@@ -26,6 +28,8 @@ export default function TaskRow({
   onDelete,
   onSelect,
   onAddSubtask,
+  readOnly = false,
+  showCompletedDate = false,
 }: Props) {
   const [addingSubtask, setAddingSubtask] = useState(false);
   const [subtaskTitle, setSubtaskTitle] = useState("");
@@ -105,9 +109,16 @@ export default function TaskRow({
         <input
           type="checkbox"
           checked={task.completed}
+          disabled={readOnly}
           onClick={(e) => e.stopPropagation()}
           onChange={(e) => onToggle(task.id, e.target.checked)}
-          style={{ width: 16, height: 16, accentColor: "var(--color-accent)", flexShrink: 0 }}
+          style={{
+            width: 16,
+            height: 16,
+            accentColor: "var(--color-accent)",
+            flexShrink: 0,
+            cursor: readOnly ? "default" : "pointer",
+          }}
         />
         {task.priority && (
           <span
@@ -142,6 +153,21 @@ export default function TaskRow({
           >
             {overdue ? "⚠ " : ""}
             {task.dueDate}
+          </span>
+        )}
+        {showCompletedDate && task.completedAt && (
+          <span
+            style={{
+              fontSize: 12,
+              color: "var(--color-text-muted)",
+              background: "var(--color-surface-sunken)",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              padding: "2px 6px",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Completed {task.completedAt}
           </span>
         )}
         {task.recurrence && (
@@ -316,6 +342,8 @@ export default function TaskRow({
             onDelete={onDelete}
             onSelect={onSelect}
             onAddSubtask={onAddSubtask}
+            readOnly={readOnly}
+            showCompletedDate={showCompletedDate}
           />
         ))}
     </>
