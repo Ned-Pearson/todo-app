@@ -1,3 +1,12 @@
+export type RecurrenceFrequency = "daily" | "weekly" | "monthly" | "yearly";
+
+export interface Recurrence {
+  id: number;
+  frequency: RecurrenceFrequency;
+  interval: number;
+  endDate: string | null;
+}
+
 export interface Task {
   id: number;
   title: string;
@@ -6,4 +15,5 @@ export interface Task {
   parentId: number | null;
   completed: boolean;
   createdAt: string;
+  recurrence: Recurrence | null;
 }

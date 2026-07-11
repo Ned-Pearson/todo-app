@@ -4,10 +4,7 @@ Tauri + React + TypeScript + SQLite
 
 TODO:
 
-1. **Recurring tasks**:  a `recurrence_rules` table (frequency, interval,
-   end date) + a `recurrence_id` column on tasks. When a recurring task is
-   completed, generate the next instance.
-
+1. 
 
 
 ## Project structure

@@ -26,6 +26,12 @@ fn main() {
             sql: include_str!("../migrations/004_subtasks.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 5,
+            description: "add recurring tasks",
+            sql: include_str!("../migrations/005_recurrence.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

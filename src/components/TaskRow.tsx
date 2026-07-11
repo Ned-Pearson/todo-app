@@ -77,6 +77,14 @@ export default function TaskRow({ task, depth, childrenByParent, onToggle, onDel
             {task.dueDate}
           </span>
         )}
+        {task.recurrence && (
+          <span
+            title={`Repeats every ${task.recurrence.interval > 1 ? task.recurrence.interval + " " : ""}${task.recurrence.frequency}${task.recurrence.interval > 1 ? "s" : ""}${task.recurrence.endDate ? ` until ${task.recurrence.endDate}` : ""}`}
+            style={{ fontSize: 13, color: "var(--color-text-faint)" }}
+          >
+            ⟳
+          </span>
+        )}
         {task.description && (
           <span
             title="Has a description"

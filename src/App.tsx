@@ -1,8 +1,10 @@
 import { useEffect, useState, FormEvent } from "react";
-import type { Task } from "./types";
+import type { RecurrenceFrequency, Task } from "./types";
 import {
   getAllTasks,
   createTask,
+  createRecurrenceRule,
+  clearTaskRecurrence,
   setTaskCompleted,
   deleteTask,
   updateTaskDescription,
@@ -11,7 +13,17 @@ import {
 import TaskDetailModal from "./components/TaskDetailModal";
 import TaskRow from "./components/TaskRow";
 import CalendarView from "./components/CalendarView";
-import { todayStr } from "./lib/date";
+import { addInterval, todayStr } from "./lib/date";
+
+type RepeatOption = "none" | RecurrenceFrequency;
+
+const REPEAT_LABELS: Record<RepeatOption, string> = {
+  none: "Doesn't repeat",
+  daily: "Daily",
+  weekly: "Weekly",
+  monthly: "Monthly",
+  yearly: "Yearly",
+};
 
 type View = "all" | "today" | "no-date" | "calendar";
 
@@ -26,6 +38,9 @@ export default function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [title, setTitle] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const [repeat, setRepeat] = useState<RepeatOption>("none");
+  const [repeatInterval, setRepeatInterval] = useState(1);
+  const [repeatEndDate, setRepeatEndDate] = useState("");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [view, setView] = useState<View>("all");
 
@@ -42,9 +57,14 @@ export default function App() {
     const trimmed = title.trim();
     if (!trimmed) return;
     try {
-      await createTask(trimmed, dueDate);
+      const recurrenceId =
+        repeat === "none" ? undefined : await createRecurrenceRule(repeat, repeatInterval, repeatEndDate);
+      await createTask(trimmed, dueDate, undefined, recurrenceId);
       setTitle("");
       setDueDate("");
+      setRepeat("none");
+      setRepeatInterval(1);
+      setRepeatEndDate("");
       await reload();
     } catch (err) {
       console.error("Failed to add task:", err);
@@ -54,7 +74,17 @@ export default function App() {
 
   async function handleToggle(id: number, completed: boolean) {
     await setTaskCompleted(id, completed);
-    reload();
+    const task = tasks.find((t) => t.id === id);
+    if (completed && task?.recurrence) {
+      const baseDate = task.dueDate ?? todayStr();
+      const nextDue = addInterval(baseDate, task.recurrence.frequency, task.recurrence.interval);
+      const withinEnd = !task.recurrence.endDate || nextDue <= task.recurrence.endDate;
+      if (withinEnd) {
+        await createTask(task.title, nextDue, task.parentId ?? undefined, task.recurrence.id);
+        await clearTaskRecurrence(task.id);
+      }
+    }
+    await reload();
   }
 
   async function handleDelete(id: number) {
@@ -146,48 +176,112 @@ export default function App() {
         </div>
       )}
 
-      <form onSubmit={handleAdd} style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Add a task…"
-          style={{
-            flex: 1,
-            padding: "8px 10px",
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--radius-sm)",
-            background: "var(--color-surface)",
-            color: "var(--color-text)",
-            fontSize: 14,
-          }}
-        />
-        <input
-          type="date"
-          value={dueDate}
-          onChange={(e) => setDueDate(e.target.value)}
-          style={{
-            padding: "8px 10px",
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--radius-sm)",
-            background: "var(--color-surface)",
-            color: "var(--color-text)",
-            fontSize: 14,
-          }}
-        />
-        <button
-          type="submit"
-          style={{
-            padding: "8px 14px",
-            border: "none",
-            borderRadius: "var(--radius-sm)",
-            background: "var(--color-accent)",
-            color: "#fff",
-            fontSize: 14,
-            fontWeight: 500,
-          }}
-        >
-          Add
-        </button>
+      <form onSubmit={handleAdd} style={{ marginBottom: 20 }}>
+        <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Add a task…"
+            style={{
+              flex: 1,
+              padding: "8px 10px",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              background: "var(--color-surface)",
+              color: "var(--color-text)",
+              fontSize: 14,
+            }}
+          />
+          <input
+            type="date"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+            style={{
+              padding: "8px 10px",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              background: "var(--color-surface)",
+              color: "var(--color-text)",
+              fontSize: 14,
+            }}
+          />
+          <button
+            type="submit"
+            style={{
+              padding: "8px 14px",
+              border: "none",
+              borderRadius: "var(--radius-sm)",
+              background: "var(--color-accent)",
+              color: "#fff",
+              fontSize: 14,
+              fontWeight: 500,
+            }}
+          >
+            Add
+          </button>
+        </div>
+
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <select
+            value={repeat}
+            onChange={(e) => setRepeat(e.target.value as RepeatOption)}
+            style={{
+              padding: "6px 8px",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              background: "var(--color-surface)",
+              color: "var(--color-text)",
+              fontSize: 13,
+            }}
+          >
+            {(Object.keys(REPEAT_LABELS) as RepeatOption[]).map((option) => (
+              <option key={option} value={option}>
+                {REPEAT_LABELS[option]}
+              </option>
+            ))}
+          </select>
+
+          {repeat !== "none" && (
+            <>
+              <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>every</span>
+              <input
+                type="number"
+                min={1}
+                value={repeatInterval}
+                onChange={(e) => setRepeatInterval(Math.max(1, Number(e.target.value)))}
+                style={{
+                  width: 50,
+                  padding: "6px 8px",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-sm)",
+                  background: "var(--color-surface)",
+                  color: "var(--color-text)",
+                  fontSize: 13,
+                }}
+              />
+              <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
+                {repeat === "daily" && "day(s)"}
+                {repeat === "weekly" && "week(s)"}
+                {repeat === "monthly" && "month(s)"}
+                {repeat === "yearly" && "year(s)"}
+              </span>
+              <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>until</span>
+              <input
+                type="date"
+                value={repeatEndDate}
+                onChange={(e) => setRepeatEndDate(e.target.value)}
+                style={{
+                  padding: "6px 8px",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-sm)",
+                  background: "var(--color-surface)",
+                  color: "var(--color-text)",
+                  fontSize: 13,
+                }}
+              />
+            </>
+          )}
+        </div>
       </form>
 
       {view === "calendar" ? (
