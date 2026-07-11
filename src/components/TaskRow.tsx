@@ -14,7 +14,9 @@ interface Props {
 export default function TaskRow({ task, depth, childrenByParent, onToggle, onDelete, onSelect, onAddSubtask }: Props) {
   const [addingSubtask, setAddingSubtask] = useState(false);
   const [subtaskTitle, setSubtaskTitle] = useState("");
+  const [collapsed, setCollapsed] = useState(false);
   const children = childrenByParent.get(task.id) ?? [];
+  const hasChildren = children.length > 0;
 
   function submitSubtask() {
     const trimmed = subtaskTitle.trim();
@@ -46,12 +48,38 @@ export default function TaskRow({ task, depth, childrenByParent, onToggle, onDel
           cursor: "pointer",
         }}
       >
+        {hasChildren ? (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setCollapsed((v) => !v);
+            }}
+            title={collapsed ? "Expand subtasks" : "Collapse subtasks"}
+            style={{
+              width: 16,
+              height: 16,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              border: "none",
+              background: "none",
+              color: "var(--color-text-faint)",
+              fontSize: 10,
+              padding: 0,
+              flexShrink: 0,
+            }}
+          >
+            {collapsed ? "▸" : "▾"}
+          </button>
+        ) : (
+          <span style={{ width: 16, flexShrink: 0 }} />
+        )}
         <input
           type="checkbox"
           checked={task.completed}
           onClick={(e) => e.stopPropagation()}
           onChange={(e) => onToggle(task.id, e.target.checked)}
-          style={{ width: 16, height: 16, accentColor: "var(--color-accent)" }}
+          style={{ width: 16, height: 16, accentColor: "var(--color-accent)", flexShrink: 0 }}
         />
         <span
           style={{
@@ -156,18 +184,19 @@ export default function TaskRow({ task, depth, childrenByParent, onToggle, onDel
         </div>
       )}
 
-      {children.map((child) => (
-        <TaskRow
-          key={child.id}
-          task={child}
-          depth={depth + 1}
-          childrenByParent={childrenByParent}
-          onToggle={onToggle}
-          onDelete={onDelete}
-          onSelect={onSelect}
-          onAddSubtask={onAddSubtask}
-        />
-      ))}
+      {!collapsed &&
+        children.map((child) => (
+          <TaskRow
+            key={child.id}
+            task={child}
+            depth={depth + 1}
+            childrenByParent={childrenByParent}
+            onToggle={onToggle}
+            onDelete={onDelete}
+            onSelect={onSelect}
+            onAddSubtask={onAddSubtask}
+          />
+        ))}
     </>
   );
 }

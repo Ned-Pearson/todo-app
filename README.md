@@ -3,7 +3,6 @@
 Tauri + React + TypeScript + SQLite
 
 TODO:
-- Subtasks should be expandable/collapsable
 - Descriptions should display as a singular line cutting off with ... if longer than that beneath the task
 - No due date and today view should also show subtasks the same way as the all view
 - Edit task function (for task name)
@@ -36,7 +35,7 @@ todo-app/
 - **Due dates** — a date picker on the add form; due dates show as a badge on each task row.
 - **Today view** — filters tasks due today and shows a completed/total progress bar.
 - **No-due-date view** — filters tasks with no due date set.
-- **Subtasks** — unlimited nesting via a self-referencing `parent_id`, rendered recursively with inline "+ Subtask" add and cascading delete; a new subtask inherits its parent's due date; ticking a task also ticks all of its subtasks.
+- **Subtasks** — unlimited nesting via a self-referencing `parent_id`, rendered recursively with inline "+ Subtask" add and cascading delete; a new subtask inherits its parent's due date; ticking a task also ticks all of its subtasks; tasks with subtasks can be collapsed/expanded via a caret toggle.
 - **Calendar view** — a month grid grouping tasks by due date, with day navigation and a detail section listing the selected day's tasks; clicking a day also sets that date on the add-task form.
 - **Recurring tasks** — daily/weekly/monthly/yearly repeat rules with an optional end date; completing a recurring task generates its next instance automatically.
 - **Light/dark mode** — a toggle in the header that persists the choice and falls back to the OS theme preference.
