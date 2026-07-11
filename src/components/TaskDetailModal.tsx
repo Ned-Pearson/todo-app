@@ -6,7 +6,13 @@ interface Props {
   task: Task;
   allTags: Tag[];
   onClose: () => void;
-  onSave: (title: string, description: string, dueDate: string, priority: Priority | null) => Promise<unknown>;
+  onSave: (
+    title: string,
+    description: string,
+    dueDate: string,
+    priority: Priority | null,
+    attachment: string
+  ) => Promise<unknown>;
   onToggleTag: (tagId: number, assign: boolean) => void;
   onCreateTag: (name: string, color: string) => void;
 }
@@ -42,6 +48,7 @@ export default function TaskDetailModal({ task, allTags, onClose, onSave, onTogg
   const [description, setDescription] = useState(task.description ?? "");
   const [dueDate, setDueDate] = useState(task.dueDate ?? "");
   const [priority, setPriority] = useState<Priority | null>(task.priority);
+  const [attachment, setAttachment] = useState(task.attachment ?? "");
   const [saving, setSaving] = useState(false);
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState(() => pickUnusedColor(allTags.map((t) => t.color)));
@@ -51,7 +58,7 @@ export default function TaskDetailModal({ task, allTags, onClose, onSave, onTogg
     if (!trimmedTitle) return;
     setSaving(true);
     try {
-      await onSave(trimmedTitle, description, dueDate, priority);
+      await onSave(trimmedTitle, description, dueDate, priority, attachment);
       onClose();
     } finally {
       setSaving(false);
@@ -258,6 +265,7 @@ export default function TaskDetailModal({ task, allTags, onClose, onSave, onTogg
           placeholder="Add a description…"
           style={{
             width: "100%",
+            marginBottom: 16,
             padding: "8px 10px",
             border: "1px solid var(--color-border)",
             borderRadius: "var(--radius-sm)",
@@ -265,6 +273,24 @@ export default function TaskDetailModal({ task, allTags, onClose, onSave, onTogg
             color: "var(--color-text)",
             fontSize: 14,
             resize: "vertical",
+          }}
+        />
+
+        <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
+          Attachment / Link
+        </label>
+        <input
+          value={attachment}
+          onChange={(e) => setAttachment(e.target.value)}
+          placeholder="URL or file path…"
+          style={{
+            width: "100%",
+            padding: "8px 10px",
+            border: "1px solid var(--color-border)",
+            borderRadius: "var(--radius-sm)",
+            background: "var(--color-surface)",
+            color: "var(--color-text)",
+            fontSize: 14,
           }}
         />
 

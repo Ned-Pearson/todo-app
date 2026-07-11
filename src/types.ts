@@ -27,4 +27,5 @@ export interface Task {
   tags: Tag[];
   inheritedTags: Tag[];
   priority: Priority | null;
+  attachment: string | null;
 }

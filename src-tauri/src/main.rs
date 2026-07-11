@@ -44,6 +44,12 @@ fn main() {
             sql: include_str!("../migrations/007_priority.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 8,
+            description: "add task attachment",
+            sql: include_str!("../migrations/008_attachment.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

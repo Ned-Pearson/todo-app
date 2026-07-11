@@ -18,6 +18,7 @@ import {
   updateTaskDescription,
   updateTaskDueDate,
   updateTaskPriority,
+  updateTaskAttachment,
 } from "./lib/db";
 import TaskDetailModal from "./components/TaskDetailModal";
 import TaskRow from "./components/TaskRow";
@@ -167,6 +168,11 @@ export default function App() {
 
   async function handleSavePriority(id: number, priority: Priority | null) {
     await updateTaskPriority(id, priority);
+    await reload();
+  }
+
+  async function handleSaveAttachment(id: number, attachment: string) {
+    await updateTaskAttachment(id, attachment);
     await reload();
   }
 
@@ -602,12 +608,13 @@ export default function App() {
           task={selectedTask}
           allTags={tags}
           onClose={() => setSelectedTask(null)}
-          onSave={(title, description, dueDate, priority) =>
+          onSave={(title, description, dueDate, priority, attachment) =>
             Promise.all([
               handleSaveTitle(selectedTask.id, title),
               handleSaveDescription(selectedTask.id, description),
               handleSaveDueDate(selectedTask.id, dueDate),
               handleSavePriority(selectedTask.id, priority),
+              handleSaveAttachment(selectedTask.id, attachment),
             ])
           }
           onToggleTag={(tagId, assign) => handleToggleTag(selectedTask.id, tagId, assign)}

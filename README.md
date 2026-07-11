@@ -9,7 +9,6 @@ TODO:
 - Keyboard shortcuts — e.g. n for new task, Enter to submit, arrow keys to navigate the list — cheap to add, disproportionately nice for a daily-use tool.
 - Export/import (JSON or CSV) — since this is local-only with no sync, a manual backup/restore path matters more than usual. Worth prioritizing before you rely on this as your daily driver.
 - Undo for delete — a brief "Task deleted, Undo" toast, since cascading delete on a parent with subtasks is currently unforgiving.
-- Attachments/links — a field for a URL or file path relevant to the task.
 - Differentiate between priority addition and filtering buttons
 
 ## Project structure
@@ -33,6 +32,7 @@ todo-app/
 ## Features implemented
 
 - **Descriptions** — each task can have a description, edited from a detail modal opened by clicking the task row; when set, it shows as a single truncated line (with an ellipsis if it overflows) beneath the task.
+- **Attachments/links** — a single URL-or-file-path field per task, edited in the detail modal right below the description. A 📎 icon shows on the task row whenever it's set (tooltip reveals the value); if it looks like an `http(s)://` URL, the icon becomes a real link that opens in the system browser without also opening the task's detail modal.
 - **Edit task title** — the same detail modal has the title as an editable field directly (no separate edit button/mode) alongside due date and description.
 - **Due dates** — a date picker on the add form; due dates show as a badge on each task row.
 - **Today view** — filters tasks due today, shows a completed/total progress bar, and nests matching subtasks under their parent the same way the All view does.

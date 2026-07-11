@@ -31,6 +31,7 @@ function rowToTask(row: any, tags: Tag[], inheritedTags: Tag[]): Task {
     tags,
     inheritedTags,
     priority: row.priority,
+    attachment: row.attachment,
   };
 }
 
@@ -193,6 +194,11 @@ export async function updateTaskDescription(id: number, description: string): Pr
 export async function updateTaskDueDate(id: number, dueDate: string): Promise<void> {
   const db = await getDb();
   await db.execute("UPDATE tasks SET due_date = ? WHERE id = ?", [dueDate || null, id]);
+}
+
+export async function updateTaskAttachment(id: number, attachment: string): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE tasks SET attachment = ? WHERE id = ?", [attachment || null, id]);
 }
 
 export async function deleteTask(id: number): Promise<void> {

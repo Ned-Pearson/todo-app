@@ -151,6 +151,23 @@ export default function TaskRow({
             ⟳
           </span>
         )}
+        {task.attachment &&
+          (/^https?:\/\//i.test(task.attachment) ? (
+            <a
+              href={task.attachment}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              title={task.attachment}
+              style={{ fontSize: 13, color: "var(--color-text-faint)", flexShrink: 0 }}
+            >
+              📎
+            </a>
+          ) : (
+            <span title={task.attachment} style={{ fontSize: 13, color: "var(--color-text-faint)", flexShrink: 0 }}>
+              📎
+            </span>
+          ))}
         <button
           onClick={(e) => {
             e.stopPropagation();
