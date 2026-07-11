@@ -1,21 +1,20 @@
 import { useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
+import { openPath } from "@tauri-apps/plugin-opener";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import type { Priority, Tag, Task } from "../types";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "../lib/priority";
+import { fileNameFromPath, isImagePath } from "../lib/attachments";
 
 interface Props {
   task: Task;
   allTags: Tag[];
   onClose: () => void;
-  onSave: (
-    title: string,
-    description: string,
-    dueDate: string,
-    priority: Priority | null,
-    attachment: string
-  ) => Promise<unknown>;
+  onSave: (title: string, description: string, dueDate: string, priority: Priority | null) => Promise<unknown>;
   onToggleTag: (tagId: number, assign: boolean) => void;
   onCreateTag: (name: string, color: string) => void;
+  onAddAttachment: (path: string) => void;
+  onRemoveAttachment: (attachmentId: number) => void;
 }
 
 const TAG_COLOR_PALETTE = [
@@ -44,12 +43,20 @@ function pickUnusedColor(usedColors: string[]): string {
     .padStart(6, "0")}`;
 }
 
-export default function TaskDetailModal({ task, allTags, onClose, onSave, onToggleTag, onCreateTag }: Props) {
+export default function TaskDetailModal({
+  task,
+  allTags,
+  onClose,
+  onSave,
+  onToggleTag,
+  onCreateTag,
+  onAddAttachment,
+  onRemoveAttachment,
+}: Props) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? "");
   const [dueDate, setDueDate] = useState(task.dueDate ?? "");
   const [priority, setPriority] = useState<Priority | null>(task.priority);
-  const [attachment, setAttachment] = useState(task.attachment ?? "");
   const [saving, setSaving] = useState(false);
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState(() => pickUnusedColor(allTags.map((t) => t.color)));
@@ -59,17 +66,18 @@ export default function TaskDetailModal({ task, allTags, onClose, onSave, onTogg
     if (!trimmedTitle) return;
     setSaving(true);
     try {
-      await onSave(trimmedTitle, description, dueDate, priority, attachment);
+      await onSave(trimmedTitle, description, dueDate, priority);
       onClose();
     } finally {
       setSaving(false);
     }
   }
 
-  async function handleBrowse() {
-    const selected = await open({ multiple: false });
-    if (typeof selected === "string") {
-      setAttachment(selected);
+  async function handleBrowseAttachments() {
+    const selected = await open({ multiple: true });
+    if (!selected) return;
+    for (const path of Array.isArray(selected) ? selected : [selected]) {
+      onAddAttachment(path);
     }
   }
 
@@ -285,39 +293,106 @@ export default function TaskDetailModal({ task, allTags, onClose, onSave, onTogg
         />
 
         <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
-          Attachment / Link
+          Attachments
         </label>
-        <div style={{ display: "flex", gap: 6 }}>
-          <input
-            value={attachment}
-            onChange={(e) => setAttachment(e.target.value)}
-            placeholder="URL or file path…"
-            style={{
-              flex: 1,
-              padding: "8px 10px",
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-sm)",
-              background: "var(--color-surface)",
-              color: "var(--color-text)",
-              fontSize: 14,
-            }}
-          />
-          <button
-            type="button"
-            onClick={handleBrowse}
-            style={{
-              padding: "8px 14px",
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-sm)",
-              background: "none",
-              color: "var(--color-text)",
-              fontSize: 13,
-              whiteSpace: "nowrap",
-            }}
-          >
-            Browse…
-          </button>
-        </div>
+        {task.attachments.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
+            {task.attachments.map((a) =>
+              isImagePath(a.path) ? (
+                <div key={a.id} style={{ position: "relative" }}>
+                  <img
+                    src={convertFileSrc(a.path)}
+                    alt={fileNameFromPath(a.path)}
+                    title={a.path}
+                    style={{
+                      width: 72,
+                      height: 72,
+                      objectFit: "cover",
+                      borderRadius: "var(--radius-sm)",
+                      border: "1px solid var(--color-border)",
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => onRemoveAttachment(a.id)}
+                    title="Remove"
+                    style={{
+                      position: "absolute",
+                      top: -6,
+                      right: -6,
+                      width: 18,
+                      height: 18,
+                      lineHeight: "16px",
+                      padding: 0,
+                      border: "1px solid var(--color-border)",
+                      borderRadius: "50%",
+                      background: "var(--color-surface)",
+                      color: "var(--color-text-muted)",
+                      fontSize: 11,
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <div
+                  key={a.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "4px 8px",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "var(--radius-sm)",
+                    background: "var(--color-surface-sunken)",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => openPath(a.path)}
+                    title={a.path}
+                    style={{
+                      border: "none",
+                      background: "none",
+                      color: "var(--color-accent)",
+                      fontSize: 13,
+                      textDecoration: "underline",
+                      maxWidth: 160,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    📎 {fileNameFromPath(a.path)}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onRemoveAttachment(a.id)}
+                    title="Remove"
+                    style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 12 }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              )
+            )}
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={handleBrowseAttachments}
+          style={{
+            padding: "6px 12px",
+            marginBottom: 16,
+            border: "1px solid var(--color-border)",
+            borderRadius: "var(--radius-sm)",
+            background: "none",
+            color: "var(--color-text)",
+            fontSize: 13,
+          }}
+        >
+          Add attachment…
+        </button>
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
           <button

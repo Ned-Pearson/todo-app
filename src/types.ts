@@ -15,6 +15,11 @@ export interface Tag {
   color: string;
 }
 
+export interface Attachment {
+  id: number;
+  path: string;
+}
+
 export interface Task {
   id: number;
   title: string;
@@ -27,5 +32,5 @@ export interface Task {
   tags: Tag[];
   inheritedTags: Tag[];
   priority: Priority | null;
-  attachment: string | null;
+  attachments: Attachment[];
 }

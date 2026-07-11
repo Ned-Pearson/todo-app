@@ -2,6 +2,7 @@ import { useState, KeyboardEvent } from "react";
 import type { Priority, Task } from "../types";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "../lib/priority";
 import { isOverdue } from "../lib/date";
+import { fileNameFromPath } from "../lib/attachments";
 
 const OVERDUE_COLOR = "#c9184a";
 
@@ -151,23 +152,21 @@ export default function TaskRow({
             ⟳
           </span>
         )}
-        {task.attachment &&
-          (/^https?:\/\//i.test(task.attachment) ? (
-            <a
-              href={task.attachment}
-              target="_blank"
-              rel="noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              title={task.attachment}
-              style={{ fontSize: 13, color: "var(--color-text-faint)", flexShrink: 0 }}
-            >
-              📎
-            </a>
-          ) : (
-            <span title={task.attachment} style={{ fontSize: 13, color: "var(--color-text-faint)", flexShrink: 0 }}>
-              📎
-            </span>
-          ))}
+        {task.attachments.length > 0 && (
+          <span
+            title={task.attachments.map((a) => fileNameFromPath(a.path)).join(", ")}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 2,
+              fontSize: 13,
+              color: "var(--color-text-faint)",
+              flexShrink: 0,
+            }}
+          >
+            📎{task.attachments.length > 1 ? task.attachments.length : ""}
+          </span>
+        )}
         <button
           onClick={(e) => {
             e.stopPropagation();

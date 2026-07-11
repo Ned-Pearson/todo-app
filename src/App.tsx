@@ -18,7 +18,8 @@ import {
   updateTaskDescription,
   updateTaskDueDate,
   updateTaskPriority,
-  updateTaskAttachment,
+  addAttachmentToTask,
+  removeAttachment,
 } from "./lib/db";
 import TaskDetailModal from "./components/TaskDetailModal";
 import TaskRow from "./components/TaskRow";
@@ -171,8 +172,13 @@ export default function App() {
     await reload();
   }
 
-  async function handleSaveAttachment(id: number, attachment: string) {
-    await updateTaskAttachment(id, attachment);
+  async function handleAddAttachment(taskId: number, path: string) {
+    await addAttachmentToTask(taskId, path);
+    await reload();
+  }
+
+  async function handleRemoveAttachment(attachmentId: number) {
+    await removeAttachment(attachmentId);
     await reload();
   }
 
@@ -608,17 +614,18 @@ export default function App() {
           task={selectedTask}
           allTags={tags}
           onClose={() => setSelectedTask(null)}
-          onSave={(title, description, dueDate, priority, attachment) =>
+          onSave={(title, description, dueDate, priority) =>
             Promise.all([
               handleSaveTitle(selectedTask.id, title),
               handleSaveDescription(selectedTask.id, description),
               handleSaveDueDate(selectedTask.id, dueDate),
               handleSavePriority(selectedTask.id, priority),
-              handleSaveAttachment(selectedTask.id, attachment),
             ])
           }
           onToggleTag={(tagId, assign) => handleToggleTag(selectedTask.id, tagId, assign)}
           onCreateTag={handleCreateTag}
+          onAddAttachment={(path) => handleAddAttachment(selectedTask.id, path)}
+          onRemoveAttachment={handleRemoveAttachment}
         />
       )}
 

@@ -32,7 +32,7 @@ todo-app/
 ## Features implemented
 
 - **Descriptions** — each task can have a description, edited from a detail modal opened by clicking the task row; when set, it shows as a single truncated line (with an ellipsis if it overflows) beneath the task.
-- **Attachments/links** — a single URL-or-file-path field per task, edited in the detail modal right below the description. A 📎 icon shows on the task row whenever it's set (tooltip reveals the value); if it looks like an `http(s)://` URL, the icon becomes a real link that opens in the system browser without also opening the task's detail modal.
+- **Attachments/links** — a task can have multiple attachments (own `attachments` table, one-to-many), added via an "Add attachment…" button in the detail modal that opens a native multi-select file picker (`@tauri-apps/plugin-dialog`). Image attachments (png/jpg/jpeg/gif/webp/svg/bmp) render as inline thumbnail previews right there in the modal (via `convertFileSrc` + the Tauri asset protocol); anything else shows as a filename link that opens the file in its default application (`@tauri-apps/plugin-opener`) without leaving the app. Each attachment has its own remove button. The task row shows a 📎 badge (with a count once there's more than one) listing the filenames in its tooltip.
 - **Edit task title** — the same detail modal has the title as an editable field directly (no separate edit button/mode) alongside due date and description.
 - **Due dates** — a date picker on the add form; due dates show as a badge on each task row.
 - **Today view** — filters tasks due today, shows a completed/total progress bar, and nests matching subtasks under their parent the same way the All view does.

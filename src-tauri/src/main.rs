@@ -50,6 +50,12 @@ fn main() {
             sql: include_str!("../migrations/008_attachment.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 9,
+            description: "add multiple attachments per task",
+            sql: include_str!("../migrations/009_attachments.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()
@@ -59,6 +65,7 @@ fn main() {
                 .build(),
         )
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

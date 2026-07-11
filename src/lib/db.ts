@@ -1,5 +1,5 @@
 import Database from "@tauri-apps/plugin-sql";
-import type { Priority, RecurrenceFrequency, Tag, Task } from "../types";
+import type { Attachment, Priority, RecurrenceFrequency, Tag, Task } from "../types";
 
 let dbInstance: Database | null = null;
 
@@ -10,7 +10,7 @@ export async function getDb(): Promise<Database> {
   return dbInstance;
 }
 
-function rowToTask(row: any, tags: Tag[], inheritedTags: Tag[]): Task {
+function rowToTask(row: any, tags: Tag[], inheritedTags: Tag[], attachments: Attachment[]): Task {
   return {
     id: row.id,
     title: row.title,
@@ -31,7 +31,7 @@ function rowToTask(row: any, tags: Tag[], inheritedTags: Tag[]): Task {
     tags,
     inheritedTags,
     priority: row.priority,
-    attachment: row.attachment,
+    attachments,
   };
 }
 
@@ -95,7 +95,22 @@ export async function getAllTasks(): Promise<Task[]> {
     }
   }
 
-  return rows.map((row) => rowToTask(row, tagsByTask.get(row.id) ?? [], inheritedTagsByTask.get(row.id) ?? []));
+  const attachmentRows = await db.select<any[]>("SELECT id, task_id, path FROM attachments ORDER BY id");
+  const attachmentsByTask = new Map<number, Attachment[]>();
+  for (const row of attachmentRows) {
+    const list = attachmentsByTask.get(row.task_id) ?? [];
+    list.push({ id: row.id, path: row.path });
+    attachmentsByTask.set(row.task_id, list);
+  }
+
+  return rows.map((row) =>
+    rowToTask(
+      row,
+      tagsByTask.get(row.id) ?? [],
+      inheritedTagsByTask.get(row.id) ?? [],
+      attachmentsByTask.get(row.id) ?? []
+    )
+  );
 }
 
 export async function getAllTags(): Promise<Tag[]> {
@@ -196,9 +211,14 @@ export async function updateTaskDueDate(id: number, dueDate: string): Promise<vo
   await db.execute("UPDATE tasks SET due_date = ? WHERE id = ?", [dueDate || null, id]);
 }
 
-export async function updateTaskAttachment(id: number, attachment: string): Promise<void> {
+export async function addAttachmentToTask(taskId: number, path: string): Promise<void> {
   const db = await getDb();
-  await db.execute("UPDATE tasks SET attachment = ? WHERE id = ?", [attachment || null, id]);
+  await db.execute("INSERT INTO attachments (task_id, path) VALUES (?, ?)", [taskId, path]);
+}
+
+export async function removeAttachment(id: number): Promise<void> {
+  const db = await getDb();
+  await db.execute("DELETE FROM attachments WHERE id = ?", [id]);
 }
 
 export async function deleteTask(id: number): Promise<void> {
