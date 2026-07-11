@@ -24,7 +24,7 @@ import TaskRow from "./components/TaskRow";
 import CalendarView from "./components/CalendarView";
 import ManageTagsModal from "./components/ManageTagsModal";
 import { addInterval, todayStr } from "./lib/date";
-import { PRIORITY_COLORS, PRIORITY_LABELS, priorityRank } from "./lib/priority";
+import { PRIORITY_COLORS, PRIORITY_LABELS } from "./lib/priority";
 
 type RepeatOption = "none" | RecurrenceFrequency;
 
@@ -63,7 +63,7 @@ export default function App() {
   const [repeatInterval, setRepeatInterval] = useState(1);
   const [repeatEndDate, setRepeatEndDate] = useState("");
   const [priority, setPriority] = useState<Priority | null>(null);
-  const [sortByPriority, setSortByPriority] = useState(false);
+  const [priorityFilter, setPriorityFilter] = useState<Priority | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showManageTags, setShowManageTags] = useState(false);
   const [view, setView] = useState<View>("all");
@@ -210,35 +210,47 @@ export default function App() {
             t.inheritedTags.some((tag) => tag.id === activeTagFilter)
         );
 
+  // Selecting a priority keeps only tasks flagged with it, plus every one of
+  // their descendants (regardless of the descendant's own priority) so a
+  // matching task's subtree stays intact. Tasks with no priority set (and no
+  // matching ancestor) are dropped entirely rather than just reordered.
+  const priorityFilteredTasks = (() => {
+    if (!priorityFilter) return tagFilteredTasks;
+    const visibleIdSet = new Set(tagFilteredTasks.filter((t) => t.priority === priorityFilter).map((t) => t.id));
+    function addDescendants(id: number) {
+      for (const t of tagFilteredTasks) {
+        if (t.parentId === id && !visibleIdSet.has(t.id)) {
+          visibleIdSet.add(t.id);
+          addDescendants(t.id);
+        }
+      }
+    }
+    for (const id of [...visibleIdSet]) addDescendants(id);
+    return tagFilteredTasks.filter((t) => visibleIdSet.has(t.id));
+  })();
+
   const visibleTasks =
     view === "today"
-      ? tagFilteredTasks.filter((t) => t.dueDate === todayStr())
+      ? priorityFilteredTasks.filter((t) => t.dueDate === todayStr())
       : view === "no-date"
-        ? tagFilteredTasks.filter((t) => t.dueDate == null)
-        : tagFilteredTasks;
+        ? priorityFilteredTasks.filter((t) => t.dueDate == null)
+        : priorityFilteredTasks;
   const completedCount = visibleTasks.filter((t) => t.completed).length;
 
-  // Sorting by priority re-orders the source array before the tree is built,
-  // so both the top-level list and each parent's children list come out in
-  // priority order without needing separate sort passes.
-  const orderedTasks = sortByPriority
-    ? [...visibleTasks].sort((a, b) => priorityRank(b.priority) - priorityRank(a.priority))
-    : visibleTasks;
-
   // Build the parent/child tree over whichever set of tasks is visible in the
-  // current view, so filtered views (Today, No due date) nest subtasks the
-  // same way the All view does. A task whose parent isn't in the visible set
-  // (e.g. filtered out) is promoted to a root within this view.
-  const visibleIds = new Set(orderedTasks.map((t) => t.id));
+  // current view, so filtered views (Today, No due date, priority) nest
+  // subtasks the same way the All view does. A task whose parent isn't in the
+  // visible set (e.g. filtered out) is promoted to a root within this view.
+  const visibleIds = new Set(visibleTasks.map((t) => t.id));
   const childrenByParent = new Map<number, Task[]>();
-  for (const t of orderedTasks) {
+  for (const t of visibleTasks) {
     if (t.parentId != null && visibleIds.has(t.parentId)) {
       const siblings = childrenByParent.get(t.parentId) ?? [];
       siblings.push(t);
       childrenByParent.set(t.parentId, siblings);
     }
   }
-  const topLevelTasks = orderedTasks.filter((t) => t.parentId == null || !visibleIds.has(t.parentId));
+  const topLevelTasks = visibleTasks.filter((t) => t.parentId == null || !visibleIds.has(t.parentId));
 
   return (
     <div style={{ maxWidth: 560, margin: "0 auto", padding: "40px 24px" }}>
@@ -278,21 +290,29 @@ export default function App() {
             {VIEW_LABELS[v]}
           </button>
         ))}
-        <button
-          onClick={() => setSortByPriority((v) => !v)}
-          style={{
-            marginLeft: "auto",
-            padding: "6px 12px",
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--radius-sm)",
-            background: sortByPriority ? "var(--color-accent-soft)" : "none",
-            color: sortByPriority ? "var(--color-accent)" : "var(--color-text-muted)",
-            fontSize: 13,
-            fontWeight: 500,
-          }}
-        >
-          Sort by priority
-        </button>
+      </div>
+
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginBottom: 20 }}>
+        {(["high", "medium", "low"] as Priority[]).map((level) => {
+          const active = priorityFilter === level;
+          return (
+            <button
+              key={level}
+              onClick={() => setPriorityFilter(active ? null : level)}
+              style={{
+                fontSize: 12,
+                fontWeight: 500,
+                padding: "4px 10px",
+                borderRadius: "var(--radius-sm)",
+                border: active ? "1px solid transparent" : `1px solid ${PRIORITY_COLORS[level]}`,
+                background: active ? PRIORITY_COLORS[level] : "none",
+                color: active ? "#fff" : PRIORITY_COLORS[level],
+              }}
+            >
+              {PRIORITY_LABELS[level]}
+            </button>
+          );
+        })}
       </div>
 
       {tags.length > 0 && (
@@ -485,7 +505,8 @@ export default function App() {
 
       {view === "calendar" ? (
         <CalendarView
-          tasks={tagFilteredTasks}
+          tasks={priorityFilteredTasks}
+          priorityFilter={priorityFilter}
           onToggle={handleToggle}
           onDelete={handleDelete}
           onSelectTask={setSelectedTask}
@@ -503,7 +524,13 @@ export default function App() {
         >
           {topLevelTasks.length === 0 && (
             <div style={{ padding: 20, color: "var(--color-text-faint)", fontSize: 13 }}>
-              {view === "today" ? "No tasks due today." : view === "no-date" ? "No tasks without a due date." : "No tasks yet."}
+              {priorityFilter
+                ? `No ${priorityFilter} priority tasks.`
+                : view === "today"
+                  ? "No tasks due today."
+                  : view === "no-date"
+                    ? "No tasks without a due date."
+                    : "No tasks yet."}
             </div>
           )}
           {topLevelTasks.map((task) => (
@@ -512,6 +539,7 @@ export default function App() {
               task={task}
               depth={0}
               childrenByParent={childrenByParent}
+              priorityFilter={priorityFilter}
               onToggle={handleToggle}
               onDelete={handleDelete}
               onSelect={setSelectedTask}

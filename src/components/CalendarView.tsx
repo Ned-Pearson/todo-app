@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
-import type { Task } from "../types";
+import type { Priority, Task } from "../types";
 import { formatDate, todayStr } from "../lib/date";
 import TaskRow from "./TaskRow";
 
 interface Props {
   tasks: Task[];
+  priorityFilter: Priority | null;
   onToggle: (id: number, completed: boolean) => void;
   onDelete: (id: number) => void;
   onSelectTask: (task: Task) => void;
@@ -28,7 +29,15 @@ const MONTH_NAMES = [
   "December",
 ];
 
-export default function CalendarView({ tasks, onToggle, onDelete, onSelectTask, onAddSubtask, onSelectDate }: Props) {
+export default function CalendarView({
+  tasks,
+  priorityFilter,
+  onToggle,
+  onDelete,
+  onSelectTask,
+  onAddSubtask,
+  onSelectDate,
+}: Props) {
   const today = todayStr();
   const [cursor, setCursor] = useState(() => {
     const now = new Date();
@@ -159,6 +168,7 @@ export default function CalendarView({ tasks, onToggle, onDelete, onSelectTask, 
             task={task}
             depth={0}
             childrenByParent={new Map()}
+            priorityFilter={priorityFilter}
             onToggle={onToggle}
             onDelete={onDelete}
             onSelect={onSelectTask}

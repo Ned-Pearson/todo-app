@@ -1,23 +1,38 @@
 import { useState, KeyboardEvent } from "react";
-import type { Task } from "../types";
+import type { Priority, Task } from "../types";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "../lib/priority";
 
 interface Props {
   task: Task;
   depth: number;
   childrenByParent: Map<number, Task[]>;
+  priorityFilter: Priority | null;
   onToggle: (id: number, completed: boolean) => void;
   onDelete: (id: number) => void;
   onSelect: (task: Task) => void;
   onAddSubtask: (parentId: number, title: string) => void;
 }
 
-export default function TaskRow({ task, depth, childrenByParent, onToggle, onDelete, onSelect, onAddSubtask }: Props) {
+export default function TaskRow({
+  task,
+  depth,
+  childrenByParent,
+  priorityFilter,
+  onToggle,
+  onDelete,
+  onSelect,
+  onAddSubtask,
+}: Props) {
   const [addingSubtask, setAddingSubtask] = useState(false);
   const [subtaskTitle, setSubtaskTitle] = useState("");
-  const [collapsed, setCollapsed] = useState(false);
   const children = childrenByParent.get(task.id) ?? [];
   const hasChildren = children.length > 0;
+  // While filtering by priority, a matching task's non-matching subtasks are
+  // still shown (so nothing's hidden), but start collapsed so the flagged
+  // task itself doesn't get buried under clutter you didn't ask to see.
+  const [collapsed, setCollapsed] = useState(
+    () => !!priorityFilter && hasChildren && !children.every((c) => c.priority === priorityFilter)
+  );
 
   function submitSubtask() {
     const trimmed = subtaskTitle.trim();
@@ -269,6 +284,7 @@ export default function TaskRow({ task, depth, childrenByParent, onToggle, onDel
             task={child}
             depth={depth + 1}
             childrenByParent={childrenByParent}
+            priorityFilter={priorityFilter}
             onToggle={onToggle}
             onDelete={onDelete}
             onSelect={onSelect}
