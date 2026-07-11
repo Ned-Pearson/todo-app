@@ -34,6 +34,14 @@ const VIEW_LABELS: Record<View, string> = {
   calendar: "Calendar",
 };
 
+type Theme = "light" | "dark";
+
+function getInitialTheme(): Theme {
+  const stored = localStorage.getItem("theme");
+  if (stored === "light" || stored === "dark") return stored;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
 export default function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [title, setTitle] = useState("");
@@ -43,6 +51,12 @@ export default function App() {
   const [repeatEndDate, setRepeatEndDate] = useState("");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [view, setView] = useState<View>("all");
+  const [theme, setTheme] = useState<Theme>(getInitialTheme);
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("theme", theme);
+  }, [theme]);
 
   async function reload() {
     setTasks(await getAllTasks());
@@ -129,7 +143,23 @@ export default function App() {
 
   return (
     <div style={{ maxWidth: 560, margin: "0 auto", padding: "40px 24px" }}>
-      <h1 style={{ fontSize: 20, fontWeight: 600, marginBottom: 20 }}>Tasks</h1>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+        <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>Tasks</h1>
+        <button
+          onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
+          title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+          style={{
+            padding: "6px 10px",
+            border: "1px solid var(--color-border)",
+            borderRadius: "var(--radius-sm)",
+            background: "var(--color-surface)",
+            color: "var(--color-text-muted)",
+            fontSize: 14,
+          }}
+        >
+          {theme === "light" ? "🌙" : "☀️"}
+        </button>
+      </div>
 
       <div style={{ display: "flex", gap: 4, marginBottom: 20 }}>
         {(["all", "today", "no-date", "calendar"] as View[]).map((v) => (
