@@ -90,18 +90,31 @@ export default function App() {
     }
   }
 
+  function getDescendantIds(id: number): number[] {
+    const children = tasks.filter((t) => t.parentId === id).map((t) => t.id);
+    return children.flatMap((childId) => [childId, ...getDescendantIds(childId)]);
+  }
+
   async function handleToggle(id: number, completed: boolean) {
-    await setTaskCompleted(id, completed);
-    const task = tasks.find((t) => t.id === id);
-    if (completed && task?.recurrence) {
-      const baseDate = task.dueDate ?? todayStr();
-      const nextDue = addInterval(baseDate, task.recurrence.frequency, task.recurrence.interval);
-      const withinEnd = !task.recurrence.endDate || nextDue <= task.recurrence.endDate;
-      if (withinEnd) {
-        await createTask(task.title, nextDue, task.parentId ?? undefined, task.recurrence.id);
-        await clearTaskRecurrence(task.id);
+    const idsToUpdate = completed ? [id, ...getDescendantIds(id)] : [id];
+    for (const taskId of idsToUpdate) {
+      await setTaskCompleted(taskId, completed);
+    }
+
+    if (completed) {
+      for (const taskId of idsToUpdate) {
+        const task = tasks.find((t) => t.id === taskId);
+        if (!task?.recurrence) continue;
+        const baseDate = task.dueDate ?? todayStr();
+        const nextDue = addInterval(baseDate, task.recurrence.frequency, task.recurrence.interval);
+        const withinEnd = !task.recurrence.endDate || nextDue <= task.recurrence.endDate;
+        if (withinEnd) {
+          await createTask(task.title, nextDue, task.parentId ?? undefined, task.recurrence.id);
+          await clearTaskRecurrence(task.id);
+        }
       }
     }
+
     await reload();
   }
 
