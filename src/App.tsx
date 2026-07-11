@@ -20,6 +20,7 @@ import {
   updateTaskPriority,
   addAttachmentToTask,
   removeAttachment,
+  updateTaskSortOrder,
 } from "./lib/db";
 import TaskDetailModal from "./components/TaskDetailModal";
 import TaskRow from "./components/TaskRow";
@@ -160,6 +161,25 @@ export default function App() {
   async function handleAddSubtask(parentId: number, title: string) {
     const parent = tasks.find((t) => t.id === parentId);
     await createTask(title, parent?.dueDate ?? undefined, parentId);
+    await reload();
+  }
+
+  // Reordering only makes sense among true siblings (same parent), and
+  // operates on the full sibling group rather than whatever subset the
+  // current view/filter happens to show, so a hidden sibling's position
+  // doesn't get scrambled by a drag made within a filtered view.
+  async function handleReorder(draggedId: number, targetId: number) {
+    if (draggedId === targetId) return;
+    const dragged = tasks.find((t) => t.id === draggedId);
+    const target = tasks.find((t) => t.id === targetId);
+    if (!dragged || !target || dragged.parentId !== target.parentId) return;
+
+    const siblings = tasks.filter((t) => t.parentId === dragged.parentId);
+    const reordered = siblings.filter((t) => t.id !== draggedId);
+    const targetIndex = reordered.findIndex((t) => t.id === targetId);
+    reordered.splice(targetIndex, 0, dragged);
+
+    await Promise.all(reordered.map((t, i) => updateTaskSortOrder(t.id, i)));
     await reload();
   }
 
@@ -567,6 +587,7 @@ export default function App() {
                     onDelete={handleDelete}
                     onSelect={setSelectedTask}
                     onAddSubtask={handleAddSubtask}
+                    onReorder={handleReorder}
                   />
                 ))}
               </div>
@@ -605,6 +626,7 @@ export default function App() {
                 onDelete={handleDelete}
                 onSelect={setSelectedTask}
                 onAddSubtask={handleAddSubtask}
+                onReorder={handleReorder}
               />
             ))}
           </div>

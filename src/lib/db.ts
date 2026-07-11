@@ -70,7 +70,7 @@ const TASKS_WITH_RECURRENCE_SELECT = `
 
 export async function getAllTasks(): Promise<Task[]> {
   const db = await getDb();
-  const rows = await db.select<any[]>(`${TASKS_WITH_RECURRENCE_SELECT} ORDER BY tasks.id DESC`);
+  const rows = await db.select<any[]>(`${TASKS_WITH_RECURRENCE_SELECT} ORDER BY tasks.sort_order ASC, tasks.id DESC`);
 
   const tagRows = await db.select<any[]>(`
     SELECT task_tags.task_id AS task_id, tags.id AS tag_id, tags.name AS name, tags.color AS color
@@ -165,6 +165,19 @@ export async function createRecurrenceRule(
   return result.lastInsertId as number;
 }
 
+async function nextSortOrder(db: Database, parentId: number | null): Promise<number> {
+  const rows = await db.select<any[]>(
+    parentId == null
+      ? "SELECT MIN(sort_order) AS m FROM tasks WHERE parent_id IS NULL"
+      : "SELECT MIN(sort_order) AS m FROM tasks WHERE parent_id = ?",
+    parentId == null ? [] : [parentId]
+  );
+  const min = rows[0]?.m;
+  // New tasks land at the top of their sibling group, matching the
+  // newest-first ordering tasks have always had by default.
+  return (typeof min === "number" ? min : 0) - 1;
+}
+
 export async function createTask(
   title: string,
   dueDate?: string,
@@ -173,13 +186,16 @@ export async function createTask(
   priority?: Priority
 ): Promise<void> {
   const db = await getDb();
-  await db.execute("INSERT INTO tasks (title, due_date, parent_id, recurrence_id, priority) VALUES (?, ?, ?, ?, ?)", [
-    title,
-    dueDate || null,
-    parentId ?? null,
-    recurrenceId ?? null,
-    priority ?? null,
-  ]);
+  const sortOrder = await nextSortOrder(db, parentId ?? null);
+  await db.execute(
+    "INSERT INTO tasks (title, due_date, parent_id, recurrence_id, priority, sort_order) VALUES (?, ?, ?, ?, ?, ?)",
+    [title, dueDate || null, parentId ?? null, recurrenceId ?? null, priority ?? null, sortOrder]
+  );
+}
+
+export async function updateTaskSortOrder(id: number, sortOrder: number): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE tasks SET sort_order = ? WHERE id = ?", [sortOrder, id]);
 }
 
 export async function updateTaskPriority(id: number, priority: Priority | null): Promise<void> {

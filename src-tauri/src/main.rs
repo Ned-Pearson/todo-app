@@ -62,6 +62,12 @@ fn main() {
             sql: include_str!("../migrations/010_completed_at.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 11,
+            description: "add task sort_order",
+            sql: include_str!("../migrations/011_sort_order.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

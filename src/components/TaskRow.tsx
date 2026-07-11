@@ -17,6 +17,7 @@ interface Props {
   onAddSubtask: (parentId: number, title: string) => void;
   readOnly?: boolean;
   showCompletedDate?: boolean;
+  onReorder?: (draggedId: number, targetId: number) => void;
 }
 
 export default function TaskRow({
@@ -30,9 +31,11 @@ export default function TaskRow({
   onAddSubtask,
   readOnly = false,
   showCompletedDate = false,
+  onReorder,
 }: Props) {
   const [addingSubtask, setAddingSubtask] = useState(false);
   const [subtaskTitle, setSubtaskTitle] = useState("");
+  const [dragOver, setDragOver] = useState(false);
   const children = childrenByParent.get(task.id) ?? [];
   const hasChildren = children.length > 0;
   // While filtering by priority, a matching task's non-matching subtasks are
@@ -69,6 +72,26 @@ export default function TaskRow({
     <>
       <div
         onClick={() => onSelect(task)}
+        onDragOver={
+          onReorder
+            ? (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                setDragOver(true);
+              }
+            : undefined
+        }
+        onDragLeave={onReorder ? () => setDragOver(false) : undefined}
+        onDrop={
+          onReorder
+            ? (e) => {
+                e.preventDefault();
+                setDragOver(false);
+                const draggedId = Number(e.dataTransfer.getData("text/plain"));
+                if (!Number.isNaN(draggedId)) onReorder(draggedId, task.id);
+              }
+            : undefined
+        }
         style={{
           display: "flex",
           alignItems: "center",
@@ -77,9 +100,36 @@ export default function TaskRow({
           paddingLeft: 14 + depth * 24,
           borderBottom: mainRowIsLast ? "1px solid var(--color-border)" : "none",
           borderLeft: overdueBorder,
+          borderTop: dragOver ? "2px solid var(--color-accent)" : "2px solid transparent",
           cursor: "pointer",
         }}
       >
+        {onReorder && (
+          <span
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.setData("text/plain", String(task.id));
+              e.dataTransfer.effectAllowed = "move";
+            }}
+            onClick={(e) => e.stopPropagation()}
+            title="Drag to reorder"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 24,
+              height: 24,
+              margin: "-4px 0",
+              cursor: "grab",
+              color: "var(--color-text-faint)",
+              fontSize: 22,
+              flexShrink: 0,
+              userSelect: "none",
+            }}
+          >
+            ⠿
+          </span>
+        )}
         {hasChildren ? (
           <button
             onClick={(e) => {
@@ -344,6 +394,7 @@ export default function TaskRow({
             onAddSubtask={onAddSubtask}
             readOnly={readOnly}
             showCompletedDate={showCompletedDate}
+            onReorder={onReorder}
           />
         ))}
     </>
