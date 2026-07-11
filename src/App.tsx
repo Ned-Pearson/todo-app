@@ -350,7 +350,7 @@ export default function App() {
         </div>
       )}
 
-      {view === "today" && (
+      {(view === "today" || view === "this-week") && (
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontSize: 12, color: "var(--color-text-muted)", marginBottom: 6 }}>
             {completedCount} / {visibleTasks.length} completed
