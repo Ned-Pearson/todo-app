@@ -11,6 +11,15 @@ export function todayStr(): string {
   return formatDate(new Date());
 }
 
+// The Sunday-through-Saturday range containing today, matching the
+// calendar view's week layout (which also starts on Sunday).
+export function getWeekRange(): [string, string] {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
+  return [formatDate(start), formatDate(end)];
+}
+
 export function addInterval(dateStr: string, frequency: RecurrenceFrequency, interval: number): string {
   const [y, m, d] = dateStr.split("-").map(Number);
   const date = new Date(y, m - 1, d);

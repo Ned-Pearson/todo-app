@@ -23,7 +23,7 @@ import TaskDetailModal from "./components/TaskDetailModal";
 import TaskRow from "./components/TaskRow";
 import CalendarView from "./components/CalendarView";
 import ManageTagsModal from "./components/ManageTagsModal";
-import { addInterval, todayStr } from "./lib/date";
+import { addInterval, getWeekRange, todayStr } from "./lib/date";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "./lib/priority";
 
 type RepeatOption = "none" | RecurrenceFrequency;
@@ -36,11 +36,12 @@ const REPEAT_LABELS: Record<RepeatOption, string> = {
   yearly: "Yearly",
 };
 
-type View = "all" | "today" | "no-date" | "calendar";
+type View = "all" | "today" | "this-week" | "no-date" | "calendar";
 
 const VIEW_LABELS: Record<View, string> = {
   all: "All",
   today: "Today",
+  "this-week": "This Week",
   "no-date": "No due date",
   calendar: "Calendar",
 };
@@ -229,12 +230,15 @@ export default function App() {
     return tagFilteredTasks.filter((t) => visibleIdSet.has(t.id));
   })();
 
+  const [weekStart, weekEnd] = getWeekRange();
   const visibleTasks =
     view === "today"
       ? priorityFilteredTasks.filter((t) => t.dueDate === todayStr())
-      : view === "no-date"
-        ? priorityFilteredTasks.filter((t) => t.dueDate == null)
-        : priorityFilteredTasks;
+      : view === "this-week"
+        ? priorityFilteredTasks.filter((t) => t.dueDate != null && t.dueDate >= weekStart && t.dueDate <= weekEnd)
+        : view === "no-date"
+          ? priorityFilteredTasks.filter((t) => t.dueDate == null)
+          : priorityFilteredTasks;
   const completedCount = visibleTasks.filter((t) => t.completed).length;
 
   // Build the parent/child tree over whichever set of tasks is visible in the
@@ -273,7 +277,7 @@ export default function App() {
       </div>
 
       <div style={{ display: "flex", gap: 4, marginBottom: 20 }}>
-        {(["all", "today", "no-date", "calendar"] as View[]).map((v) => (
+        {(["all", "today", "this-week", "no-date", "calendar"] as View[]).map((v) => (
           <button
             key={v}
             onClick={() => setView(v)}
@@ -528,9 +532,11 @@ export default function App() {
                 ? `No ${priorityFilter} priority tasks.`
                 : view === "today"
                   ? "No tasks due today."
-                  : view === "no-date"
-                    ? "No tasks without a due date."
-                    : "No tasks yet."}
+                  : view === "this-week"
+                    ? "No tasks due this week."
+                    : view === "no-date"
+                      ? "No tasks without a due date."
+                      : "No tasks yet."}
             </div>
           )}
           {topLevelTasks.map((task) => (

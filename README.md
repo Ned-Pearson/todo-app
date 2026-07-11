@@ -4,7 +4,6 @@ Tauri + React + TypeScript + SQLite
 
 TODO:
 - Search — a simple text filter across titles/descriptions, useful once the list grows.
-- A "This Week" view — between Today and the full calendar, useful for weekly planning.
 - Sort/reorder — drag-and-drop manual ordering within a list 
 - Overdue handling — a distinct visual state (not just a badge) plus an "Overdue" section so missed tasks don't silently vanish from Today.
 - Completed task history/archive view — browse what you finished on past days, maybe with a simple streak or weekly completion count.
@@ -38,6 +37,7 @@ todo-app/
 - **Edit task title** — the same detail modal has the title as an editable field directly (no separate edit button/mode) alongside due date and description.
 - **Due dates** — a date picker on the add form; due dates show as a badge on each task row.
 - **Today view** — filters tasks due today, shows a completed/total progress bar, and nests matching subtasks under their parent the same way the All view does.
+- **This Week view** — filters tasks due within the current Sunday–Saturday week (matching the Calendar view's week layout), nesting matching subtasks the same way the other filtered views do.
 - **No-due-date view** — filters tasks with no due date set, nesting matching subtasks under their parent the same way the All view does.
 - **Subtasks** — unlimited nesting via a self-referencing `parent_id`, rendered recursively with inline "+ Subtask" add and cascading delete; a new subtask inherits its parent's due date; ticking a task also ticks all of its subtasks; tasks with subtasks can be collapsed/expanded via a caret toggle.
 - **Calendar view** — a month grid grouping tasks by due date, with day navigation and a detail section listing the selected day's tasks; clicking a day also sets that date on the add-task form.
