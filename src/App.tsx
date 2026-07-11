@@ -104,7 +104,14 @@ export default function App() {
         repeat === "none" ? undefined : await createRecurrenceRule(repeat, repeatInterval, repeatEndDate);
       await createTask(trimmed, dueDate, undefined, recurrenceId, priority ?? undefined);
       setTitle("");
-      setDueDate("");
+      // Today keeps defaulting to today's date, Calendar keeps whatever day
+      // is selected — only clear the field when neither has a sensible
+      // default to fall back to.
+      if (view === "today") {
+        setDueDate(todayStr());
+      } else if (view !== "calendar") {
+        setDueDate("");
+      }
       setRepeat("none");
       setRepeatInterval(1);
       setRepeatEndDate("");
