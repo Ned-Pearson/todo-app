@@ -7,6 +7,9 @@ TODO:
 - Export/import (JSON or CSV) — since this is local-only with no sync, a manual backup/restore path matters more than usual. Worth prioritizing before you rely on this as your daily driver.
 - Undo for delete — a brief "Task deleted, Undo" toast, since cascading delete on a parent with subtasks is currently unforgiving.
 - Differentiate between priority addition and filtering buttons
+- cancel button after pressing add task 
+- Add a due time
+- repeats should all display on calendar view not just as they are created
 
 ## Project structure
 
