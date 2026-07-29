@@ -16,6 +16,7 @@ function rowToTask(row: any, tags: Tag[], inheritedTags: Tag[], attachments: Att
     title: row.title,
     description: row.description,
     dueDate: row.due_date,
+    dueTime: row.due_time,
     parentId: row.parent_id,
     completed: !!row.completed,
     completedAt: row.completed_at,
@@ -183,13 +184,14 @@ export async function createTask(
   dueDate?: string,
   parentId?: number,
   recurrenceId?: number,
-  priority?: Priority
+  priority?: Priority,
+  dueTime?: string
 ): Promise<void> {
   const db = await getDb();
   const sortOrder = await nextSortOrder(db, parentId ?? null);
   await db.execute(
-    "INSERT INTO tasks (title, due_date, parent_id, recurrence_id, priority, sort_order) VALUES (?, ?, ?, ?, ?, ?)",
-    [title, dueDate || null, parentId ?? null, recurrenceId ?? null, priority ?? null, sortOrder]
+    "INSERT INTO tasks (title, due_date, due_time, parent_id, recurrence_id, priority, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    [title, dueDate || null, dueTime || null, parentId ?? null, recurrenceId ?? null, priority ?? null, sortOrder]
   );
 }
 
@@ -227,9 +229,13 @@ export async function updateTaskDescription(id: number, description: string): Pr
   await db.execute("UPDATE tasks SET description = ? WHERE id = ?", [description || null, id]);
 }
 
-export async function updateTaskDueDate(id: number, dueDate: string): Promise<void> {
+export async function updateTaskDueDate(id: number, dueDate: string, dueTime: string): Promise<void> {
   const db = await getDb();
-  await db.execute("UPDATE tasks SET due_date = ? WHERE id = ?", [dueDate || null, id]);
+  await db.execute("UPDATE tasks SET due_date = ?, due_time = ? WHERE id = ?", [
+    dueDate || null,
+    dueDate ? dueTime || null : null,
+    id,
+  ]);
 }
 
 export async function addAttachmentToTask(taskId: number, path: string): Promise<void> {

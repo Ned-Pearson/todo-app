@@ -67,6 +67,7 @@ export default function App() {
   const [activeTagFilter, setActiveTagFilter] = useState<number | null>(null);
   const [title, setTitle] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const [dueTime, setDueTime] = useState("");
   const [repeat, setRepeat] = useState<RepeatOption>("none");
   const [repeatInterval, setRepeatInterval] = useState(1);
   const [repeatEndDate, setRepeatEndDate] = useState("");
@@ -155,13 +156,14 @@ export default function App() {
     } else if (view !== "calendar") {
       setDueDate("");
     }
+    setDueTime("");
     setRepeat("none");
     setRepeatInterval(1);
     setRepeatEndDate("");
     setPriority(null);
   }
 
-  const isAddFormDirty = title.trim() !== "" || priority !== null || repeat !== "none";
+  const isAddFormDirty = title.trim() !== "" || priority !== null || repeat !== "none" || dueTime !== "";
 
   async function handleAdd(e: FormEvent) {
     e.preventDefault();
@@ -170,7 +172,7 @@ export default function App() {
     try {
       const recurrenceId =
         repeat === "none" ? undefined : await createRecurrenceRule(repeat, repeatInterval, repeatEndDate);
-      await createTask(trimmed, dueDate, undefined, recurrenceId, priority ?? undefined);
+      await createTask(trimmed, dueDate, undefined, recurrenceId, priority ?? undefined, dueDate ? dueTime : undefined);
       resetAddForm();
       await reload();
     } catch (err) {
@@ -244,7 +246,7 @@ export default function App() {
 
   async function handleAddSubtask(parentId: number, title: string) {
     const parent = tasks.find((t) => t.id === parentId);
-    await createTask(title, parent?.dueDate ?? undefined, parentId);
+    await createTask(title, parent?.dueDate ?? undefined, parentId, undefined, undefined, parent?.dueTime ?? undefined);
     await reload();
   }
 
@@ -277,8 +279,8 @@ export default function App() {
     await reload();
   }
 
-  async function handleSaveDueDate(id: number, dueDate: string) {
-    await updateTaskDueDate(id, dueDate);
+  async function handleSaveDueDate(id: number, dueDate: string, dueTime: string) {
+    await updateTaskDueDate(id, dueDate, dueTime);
     await reload();
   }
 
@@ -418,7 +420,7 @@ export default function App() {
   // disappear once their due date passes, since Today only shows dueDate ===
   // today. Surface them in their own section above the Today list instead.
   const overdueTasks =
-    view === "today" ? searchFilteredTasks.filter((t) => isOverdue(t.dueDate, t.completed)) : [];
+    view === "today" ? searchFilteredTasks.filter((t) => isOverdue(t.dueDate, t.dueTime, t.completed)) : [];
   const { topLevel: overdueTopLevel, childrenByParent: overdueChildrenByParent } = buildTaskTree(overdueTasks);
 
   return (
@@ -698,6 +700,22 @@ export default function App() {
               fontSize: 14,
             }}
           />
+          <input
+            type="time"
+            value={dueTime}
+            onChange={(e) => setDueTime(e.target.value)}
+            disabled={!dueDate}
+            title={!dueDate ? "Set a due date first" : undefined}
+            style={{
+              padding: "8px 10px",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              background: "var(--color-surface)",
+              color: "var(--color-text)",
+              fontSize: 14,
+              opacity: dueDate ? 1 : 0.5,
+            }}
+          />
           <button
             type="submit"
             style={{
@@ -917,11 +935,11 @@ export default function App() {
           task={selectedTask}
           allTags={tags}
           onClose={() => setSelectedTask(null)}
-          onSave={(title, description, dueDate, priority) =>
+          onSave={(title, description, dueDate, dueTime, priority) =>
             Promise.all([
               handleSaveTitle(selectedTask.id, title),
               handleSaveDescription(selectedTask.id, description),
-              handleSaveDueDate(selectedTask.id, dueDate),
+              handleSaveDueDate(selectedTask.id, dueDate, dueTime),
               handleSavePriority(selectedTask.id, priority),
             ])
           }

@@ -76,7 +76,7 @@ export default function TaskRow({
   const hasDescription = !!task.description;
   const mainRowIsLast = !hasTags && !hasDescription;
   const tagsRowIsLast = hasTags && !hasDescription;
-  const overdue = isOverdue(task.dueDate, task.completed);
+  const overdue = isOverdue(task.dueDate, task.dueTime, task.completed);
   const overdueBorder = `3px solid ${overdue ? OVERDUE_COLOR : "transparent"}`;
 
   return (
@@ -220,6 +220,7 @@ export default function TaskRow({
           >
             {overdue ? "⚠ " : ""}
             {task.dueDate}
+            {task.dueTime ? ` ${task.dueTime}` : ""}
           </span>
         )}
         {showCompletedDate && task.completedAt && (

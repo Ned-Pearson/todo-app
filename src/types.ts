@@ -25,6 +25,7 @@ export interface Task {
   title: string;
   description: string | null;
   dueDate: string | null;
+  dueTime: string | null;
   parentId: number | null;
   completed: boolean;
   completedAt: string | null;

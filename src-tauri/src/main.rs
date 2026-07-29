@@ -68,6 +68,12 @@ fn main() {
             sql: include_str!("../migrations/011_sort_order.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 12,
+            description: "add task due_time",
+            sql: include_str!("../migrations/012_due_time.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

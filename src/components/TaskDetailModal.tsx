@@ -10,7 +10,13 @@ interface Props {
   task: Task;
   allTags: Tag[];
   onClose: () => void;
-  onSave: (title: string, description: string, dueDate: string, priority: Priority | null) => Promise<unknown>;
+  onSave: (
+    title: string,
+    description: string,
+    dueDate: string,
+    dueTime: string,
+    priority: Priority | null
+  ) => Promise<unknown>;
   onToggleTag: (tagId: number, assign: boolean) => void;
   onCreateTag: (name: string, color: string) => void;
   onAddAttachment: (path: string) => void;
@@ -56,6 +62,7 @@ export default function TaskDetailModal({
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? "");
   const [dueDate, setDueDate] = useState(task.dueDate ?? "");
+  const [dueTime, setDueTime] = useState(task.dueTime ?? "");
   const [priority, setPriority] = useState<Priority | null>(task.priority);
   const [saving, setSaving] = useState(false);
   const [newTagName, setNewTagName] = useState("");
@@ -67,7 +74,7 @@ export default function TaskDetailModal({
     if (!trimmedTitle) return;
     setSaving(true);
     try {
-      await onSave(trimmedTitle, description, dueDate, priority);
+      await onSave(trimmedTitle, description, dueDate, dueTime, priority);
       onClose();
     } finally {
       setSaving(false);
@@ -146,20 +153,37 @@ export default function TaskDetailModal({
         <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
           Due date
         </label>
-        <input
-          type="date"
-          value={dueDate}
-          onChange={(e) => setDueDate(e.target.value)}
-          style={{
-            padding: "8px 10px",
-            marginBottom: 16,
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--radius-sm)",
-            background: "var(--color-surface)",
-            color: "var(--color-text)",
-            fontSize: 14,
-          }}
-        />
+        <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+          <input
+            type="date"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+            style={{
+              padding: "8px 10px",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              background: "var(--color-surface)",
+              color: "var(--color-text)",
+              fontSize: 14,
+            }}
+          />
+          <input
+            type="time"
+            value={dueTime}
+            onChange={(e) => setDueTime(e.target.value)}
+            disabled={!dueDate}
+            title={!dueDate ? "Set a due date first" : undefined}
+            style={{
+              padding: "8px 10px",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              background: "var(--color-surface)",
+              color: "var(--color-text)",
+              fontSize: 14,
+              opacity: dueDate ? 1 : 0.5,
+            }}
+          />
+        </div>
 
         <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
           Priority

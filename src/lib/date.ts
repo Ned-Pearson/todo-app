@@ -25,8 +25,15 @@ export function datePartOf(timestamp: string): string {
   return timestamp.split(" ")[0];
 }
 
-export function isOverdue(dueDate: string | null, completed: boolean): boolean {
-  return dueDate != null && dueDate < todayStr() && !completed;
+export function isOverdue(dueDate: string | null, dueTime: string | null, completed: boolean): boolean {
+  if (dueDate == null || completed) return false;
+  const today = todayStr();
+  if (dueDate < today) return true;
+  if (dueDate > today || !dueTime) return false;
+  // Due today with a specific time — only overdue once that time has passed.
+  const now = new Date();
+  const nowHM = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  return dueTime < nowHM;
 }
 
 // The Sunday-through-Saturday range containing today, matching the
