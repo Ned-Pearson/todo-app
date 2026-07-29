@@ -3,15 +3,14 @@
 Tauri + React + TypeScript + SQLite
 
 TODO:
-- Subtask progress indicator on parent tasks (e.g. "2/5 done")
 - Saved/custom filter views (name and reuse a tag + priority + search combo)
 - Bulk select for multi-complete/delete/tag
 - Duplicate task button
 - Skip a single recurring occurrence without breaking the rest of the series
 - Sort options for list views (due date, priority, title — on top of manual drag order)
-- Desktop notifications for due/overdue tasks
 - Natural language due dates when typing a task title (e.g. "tomorrow", "next friday")
 - Global keyboard shortcut to quick-add a task even when the app isn't focused
+- Desktop notifications for due/overdue tasks
 
 ## Project structure
 
@@ -41,7 +40,7 @@ todo-app/
 - **Overdue handling** — incomplete tasks whose due date has passed get a distinct visual state everywhere they appear (a red left-border accent down the whole task block, plus a bolded, red-tinted due-date badge with a warning icon), not just a plain badge. The Today view also gets a dedicated "Overdue" section above the day's list, so a missed task doesn't just silently disappear once its due date passes (it wouldn't otherwise show in Today, which only matches `dueDate === today`).
 - **This Week view** — filters tasks due within the current Sunday–Saturday week (matching the Calendar view's week layout), shows the same completed/total progress bar as the Today view, and nests matching subtasks the same way the other filtered views do.
 - **No-due-date view** — filters tasks with no due date set, nesting matching subtasks under their parent the same way the All view does.
-- **Subtasks** — unlimited nesting via a self-referencing `parent_id`, rendered recursively with inline "+ Subtask" add and cascading delete; a new subtask inherits its parent's due date; ticking a task also ticks all of its subtasks; tasks with subtasks can be collapsed/expanded via a caret toggle. The inline add-subtask form has its own ✕ button (and Escape) to back out, and closes itself automatically if you click away while it's still empty, so an unused form never lingers.
+- **Subtasks** — unlimited nesting via a self-referencing `parent_id`, rendered recursively with inline "+ Subtask" add and cascading delete; a new subtask inherits its parent's due date; ticking a task also ticks all of its subtasks; tasks with subtasks can be collapsed/expanded via a caret toggle. The inline add-subtask form has its own ✕ button (and Escape) to back out, and closes itself automatically if you click away while it's still empty, so an unused form never lingers. A task with subtasks also shows a small "`<completed>/<total>`" badge next to its title, counting its *entire* subtree (nested sub-subtasks included, not just direct children) so overall progress is visible at a glance even while collapsed.
 - **Calendar view** — a larger month grid (the app widens to fit it) with taller day cells that fill in real leading/trailing days from adjacent months instead of blank cells. Each task due that day renders as its own horizontal color-coded strip (by its first tag's color, falling back to its priority color, then a neutral gray) with a line-through/dimmed style once completed, instead of a single dot; a subtask due the same day as its parent is left out of the strip list since the parent's strip already covers it (it still appears in full below). Day navigation and the detail section listing the selected day's full task tree are unchanged; clicking a day still sets that date on the add-task form. A recurring task only ever has one real row in the database (its next upcoming instance — completing it clears that row's recurrence and spawns the next), so the grid also projects the rest of that series forward across the visible month as dashed "⟳" ghost strips, and the day-detail section lists them under an "Upcoming repeats" heading when you select one of those days. These projected occurrences are read-only previews, not real tasks yet, so they can't be completed or deleted from the calendar.
 - **Recurring tasks** — daily/weekly/monthly/yearly repeat rules with an optional end date; completing a recurring task generates its next instance automatically. The repeat rule is fully visible and editable from the task detail modal too (same controls as the add form) — turning it on for the first time creates a new recurrence rule and attaches it, changing the frequency/interval/end date on an existing one updates that rule in place, and switching back to "Doesn't repeat" clears it from the task.
 - **Light/dark mode** — a toggle in the header that persists the choice and falls back to the OS theme preference.

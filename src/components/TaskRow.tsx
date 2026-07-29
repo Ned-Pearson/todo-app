@@ -38,6 +38,24 @@ export default function TaskRow({
   const [dragOver, setDragOver] = useState(false);
   const children = childrenByParent.get(task.id) ?? [];
   const hasChildren = children.length > 0;
+
+  // Counts the whole subtree (not just direct children) so a task with
+  // nested sub-subtasks still shows accurate overall progress.
+  function countSubtreeProgress(id: number): { total: number; completed: number } {
+    const kids = childrenByParent.get(id) ?? [];
+    let total = 0;
+    let completed = 0;
+    for (const kid of kids) {
+      total += 1;
+      if (kid.completed) completed += 1;
+      const nested = countSubtreeProgress(kid.id);
+      total += nested.total;
+      completed += nested.completed;
+    }
+    return { total, completed };
+  }
+
+  const subtreeProgress = hasChildren ? countSubtreeProgress(task.id) : null;
   // While filtering by priority, a matching task's non-matching subtasks are
   // still shown (so nothing's hidden), but start collapsed so the flagged
   // task itself doesn't get buried under clutter you didn't ask to see.
@@ -204,6 +222,23 @@ export default function TaskRow({
         >
           {task.title}
         </span>
+        {subtreeProgress && (
+          <span
+            title={`${subtreeProgress.completed} of ${subtreeProgress.total} subtasks done`}
+            style={{
+              fontSize: 12,
+              color: "var(--color-text-muted)",
+              background: "var(--color-surface-sunken)",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              padding: "2px 6px",
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+            }}
+          >
+            {subtreeProgress.completed}/{subtreeProgress.total}
+          </span>
+        )}
         {task.dueDate && (
           <span
             title={overdue ? "Overdue" : undefined}
