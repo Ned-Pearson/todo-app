@@ -166,6 +166,26 @@ export async function createRecurrenceRule(
   return result.lastInsertId as number;
 }
 
+export async function updateRecurrenceRule(
+  id: number,
+  frequency: RecurrenceFrequency,
+  interval: number,
+  endDate?: string
+): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE recurrence_rules SET frequency = ?, interval = ?, end_date = ? WHERE id = ?", [
+    frequency,
+    interval,
+    endDate || null,
+    id,
+  ]);
+}
+
+export async function setTaskRecurrenceId(id: number, recurrenceId: number): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE tasks SET recurrence_id = ? WHERE id = ?", [recurrenceId, id]);
+}
+
 async function nextSortOrder(db: Database, parentId: number | null): Promise<number> {
   const rows = await db.select<any[]>(
     parentId == null

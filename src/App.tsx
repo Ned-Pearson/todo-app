@@ -11,6 +11,8 @@ import {
   updateTagColor,
   deleteTag,
   createRecurrenceRule,
+  updateRecurrenceRule,
+  setTaskRecurrenceId,
   clearTaskRecurrence,
   setTaskCompleted,
   deleteTask,
@@ -31,16 +33,7 @@ import { addInterval, getWeekRange, isOverdue, nowTimestamp, todayStr } from "./
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "./lib/priority";
 import { buildTaskTree } from "./lib/tree";
 import { exportToFile, importFromFile } from "./lib/backup";
-
-type RepeatOption = "none" | RecurrenceFrequency;
-
-const REPEAT_LABELS: Record<RepeatOption, string> = {
-  none: "Doesn't repeat",
-  daily: "Daily",
-  weekly: "Weekly",
-  monthly: "Monthly",
-  yearly: "Yearly",
-};
+import { REPEAT_LABELS, type RepeatOption } from "./lib/recurrence";
 
 type View = "all" | "today" | "this-week" | "no-date" | "calendar" | "history";
 
@@ -286,6 +279,22 @@ export default function App() {
 
   async function handleSavePriority(id: number, priority: Priority | null) {
     await updateTaskPriority(id, priority);
+    await reload();
+  }
+
+  async function handleSaveRecurrence(
+    id: number,
+    recurrence: { frequency: RecurrenceFrequency; interval: number; endDate: string } | null
+  ) {
+    const task = tasks.find((t) => t.id === id);
+    if (!recurrence) {
+      if (task?.recurrence) await clearTaskRecurrence(id);
+    } else if (task?.recurrence) {
+      await updateRecurrenceRule(task.recurrence.id, recurrence.frequency, recurrence.interval, recurrence.endDate);
+    } else {
+      const recurrenceId = await createRecurrenceRule(recurrence.frequency, recurrence.interval, recurrence.endDate);
+      await setTaskRecurrenceId(id, recurrenceId);
+    }
     await reload();
   }
 
@@ -935,12 +944,13 @@ export default function App() {
           task={selectedTask}
           allTags={tags}
           onClose={() => setSelectedTask(null)}
-          onSave={(title, description, dueDate, dueTime, priority) =>
+          onSave={(title, description, dueDate, dueTime, priority, recurrence) =>
             Promise.all([
               handleSaveTitle(selectedTask.id, title),
               handleSaveDescription(selectedTask.id, description),
               handleSaveDueDate(selectedTask.id, dueDate, dueTime),
               handleSavePriority(selectedTask.id, priority),
+              handleSaveRecurrence(selectedTask.id, recurrence),
             ])
           }
           onToggleTag={(tagId, assign) => handleToggleTag(selectedTask.id, tagId, assign)}

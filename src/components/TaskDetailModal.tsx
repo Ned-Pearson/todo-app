@@ -2,9 +2,10 @@ import { useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { convertFileSrc } from "@tauri-apps/api/core";
-import type { Priority, Tag, Task } from "../types";
+import type { Priority, RecurrenceFrequency, Tag, Task } from "../types";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "../lib/priority";
 import { fileNameFromPath, isImagePath } from "../lib/attachments";
+import { REPEAT_LABELS, type RepeatOption } from "../lib/recurrence";
 
 interface Props {
   task: Task;
@@ -15,7 +16,8 @@ interface Props {
     description: string,
     dueDate: string,
     dueTime: string,
-    priority: Priority | null
+    priority: Priority | null,
+    recurrence: { frequency: RecurrenceFrequency; interval: number; endDate: string } | null
   ) => Promise<unknown>;
   onToggleTag: (tagId: number, assign: boolean) => void;
   onCreateTag: (name: string, color: string) => void;
@@ -64,6 +66,9 @@ export default function TaskDetailModal({
   const [dueDate, setDueDate] = useState(task.dueDate ?? "");
   const [dueTime, setDueTime] = useState(task.dueTime ?? "");
   const [priority, setPriority] = useState<Priority | null>(task.priority);
+  const [repeat, setRepeat] = useState<RepeatOption>(task.recurrence?.frequency ?? "none");
+  const [repeatInterval, setRepeatInterval] = useState(task.recurrence?.interval ?? 1);
+  const [repeatEndDate, setRepeatEndDate] = useState(task.recurrence?.endDate ?? "");
   const [saving, setSaving] = useState(false);
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState(() => pickUnusedColor(allTags.map((t) => t.color)));
@@ -74,7 +79,8 @@ export default function TaskDetailModal({
     if (!trimmedTitle) return;
     setSaving(true);
     try {
-      await onSave(trimmedTitle, description, dueDate, dueTime, priority);
+      const recurrence = repeat === "none" ? null : { frequency: repeat, interval: repeatInterval, endDate: repeatEndDate };
+      await onSave(trimmedTitle, description, dueDate, dueTime, priority, recurrence);
       onClose();
     } finally {
       setSaving(false);
@@ -210,6 +216,71 @@ export default function TaskDetailModal({
               </button>
             );
           })}
+        </div>
+
+        <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
+          Repeat
+        </label>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 16 }}>
+          <select
+            value={repeat}
+            onChange={(e) => setRepeat(e.target.value as RepeatOption)}
+            style={{
+              padding: "6px 8px",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              background: "var(--color-surface)",
+              color: "var(--color-text)",
+              fontSize: 13,
+            }}
+          >
+            {(Object.keys(REPEAT_LABELS) as RepeatOption[]).map((option) => (
+              <option key={option} value={option}>
+                {REPEAT_LABELS[option]}
+              </option>
+            ))}
+          </select>
+
+          {repeat !== "none" && (
+            <>
+              <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>every</span>
+              <input
+                type="number"
+                min={1}
+                value={repeatInterval}
+                onChange={(e) => setRepeatInterval(Math.max(1, Number(e.target.value)))}
+                style={{
+                  width: 50,
+                  padding: "6px 8px",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-sm)",
+                  background: "var(--color-surface)",
+                  color: "var(--color-text)",
+                  fontSize: 13,
+                }}
+              />
+              <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
+                {repeat === "daily" && "day(s)"}
+                {repeat === "weekly" && "week(s)"}
+                {repeat === "monthly" && "month(s)"}
+                {repeat === "yearly" && "year(s)"}
+              </span>
+              <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>until</span>
+              <input
+                type="date"
+                value={repeatEndDate}
+                onChange={(e) => setRepeatEndDate(e.target.value)}
+                style={{
+                  padding: "6px 8px",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-sm)",
+                  background: "var(--color-surface)",
+                  color: "var(--color-text)",
+                  fontSize: 13,
+                }}
+              />
+            </>
+          )}
         </div>
 
         <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>

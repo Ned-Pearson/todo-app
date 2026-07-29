@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { Priority, Task } from "../types";
-import { formatDate, todayStr } from "../lib/date";
+import { addInterval, formatDate, todayStr } from "../lib/date";
 import { PRIORITY_COLORS } from "../lib/priority";
 import TaskRow from "./TaskRow";
 
@@ -100,7 +100,39 @@ export default function CalendarView({
     cells.push(new Date(d));
   }
 
+  const gridStartStr = formatDate(gridStart);
+  const gridEndStr = formatDate(gridEnd);
+
+  // A recurring task only ever has one real row in the database (its next
+  // upcoming instance) — completing it clears that row's recurrence and
+  // spawns the next one. So the calendar projects the rest of the series
+  // forward as virtual, non-interactive occurrences within the visible
+  // month, rather than only ever showing the single instance that exists.
+  function projectOccurrences(task: Task): string[] {
+    if (!task.recurrence || !task.dueDate) return [];
+    const dates: string[] = [];
+    let current = task.dueDate;
+    for (let i = 0; i < 500; i++) {
+      current = addInterval(current, task.recurrence.frequency, task.recurrence.interval);
+      if (task.recurrence.endDate && current > task.recurrence.endDate) break;
+      if (current > gridEndStr) break;
+      if (current >= gridStartStr) dates.push(current);
+    }
+    return dates;
+  }
+
+  const virtualByDate = new Map<string, Task[]>();
+  for (const t of tasks) {
+    if (!t.recurrence) continue;
+    for (const dateStr of projectOccurrences(t)) {
+      const list = virtualByDate.get(dateStr) ?? [];
+      list.push(t);
+      virtualByDate.set(dateStr, list);
+    }
+  }
+
   const selectedTasks = tasksByDate.get(selectedDate) ?? [];
+  const virtualSelectedTasks = virtualByDate.get(selectedDate) ?? [];
 
   return (
     <div>
@@ -134,11 +166,14 @@ export default function CalendarView({
         {cells.map((date) => {
           const dateStr = formatDate(date);
           const isCurrentMonth = date.getMonth() === month;
-          const stripTasks = stripTasksFor(dateStr);
+          const stripEntries = [
+            ...stripTasksFor(dateStr).map((task) => ({ task, virtual: false })),
+            ...(virtualByDate.get(dateStr) ?? []).map((task) => ({ task, virtual: true })),
+          ];
           const isToday = dateStr === today;
           const isSelected = dateStr === selectedDate;
-          const visibleStrips = stripTasks.slice(0, MAX_VISIBLE_STRIPS);
-          const overflowCount = stripTasks.length - visibleStrips.length;
+          const visibleStrips = stripEntries.slice(0, MAX_VISIBLE_STRIPS);
+          const overflowCount = stripEntries.length - visibleStrips.length;
 
           return (
             <button
@@ -169,23 +204,25 @@ export default function CalendarView({
               >
                 {date.getDate()}
               </span>
-              {visibleStrips.map((task) => (
+              {visibleStrips.map(({ task, virtual }, i) => (
                 <div
-                  key={task.id}
-                  title={task.title}
+                  key={virtual ? `v-${task.id}-${i}` : task.id}
+                  title={virtual ? `${task.title} (upcoming repeat)` : task.title}
                   style={{
                     fontSize: 11,
                     padding: "2px 5px",
                     borderRadius: 3,
-                    background: stripColor(task),
-                    color: "#fff",
-                    textDecoration: task.completed ? "line-through" : "none",
-                    opacity: task.completed ? 0.55 : 1,
+                    background: virtual ? "none" : stripColor(task),
+                    border: virtual ? `1px dashed ${stripColor(task)}` : "none",
+                    color: virtual ? stripColor(task) : "#fff",
+                    textDecoration: !virtual && task.completed ? "line-through" : "none",
+                    opacity: virtual ? 0.75 : task.completed ? 0.55 : 1,
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
                   }}
                 >
+                  {virtual ? "⟳ " : ""}
                   {task.title}
                 </div>
               ))}
@@ -218,7 +255,7 @@ export default function CalendarView({
         >
           {selectedDate}
         </div>
-        {selectedTasks.length === 0 && (
+        {selectedTasks.length === 0 && virtualSelectedTasks.length === 0 && (
           <div style={{ padding: 20, color: "var(--color-text-faint)", fontSize: 13 }}>No tasks due this day.</div>
         )}
         {selectedTasks.map((task) => (
@@ -234,6 +271,34 @@ export default function CalendarView({
             onAddSubtask={onAddSubtask}
           />
         ))}
+        {virtualSelectedTasks.length > 0 && (
+          <div
+            style={{
+              padding: "8px 14px",
+              borderTop: selectedTasks.length > 0 ? "1px solid var(--color-border)" : "none",
+            }}
+          >
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted)", marginBottom: 4 }}>
+              Upcoming repeats
+            </div>
+            {virtualSelectedTasks.map((task, i) => (
+              <div
+                key={`${task.id}-${i}`}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "4px 0",
+                  fontSize: 13,
+                  color: "var(--color-text-faint)",
+                }}
+              >
+                <span>⟳</span>
+                <span>{task.title}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
