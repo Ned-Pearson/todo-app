@@ -71,6 +71,7 @@ export default function App() {
   const [repeatEndDate, setRepeatEndDate] = useState("");
   const [priority, setPriority] = useState<Priority | null>(null);
   const [priorityFilter, setPriorityFilter] = useState<Priority | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showManageTags, setShowManageTags] = useState(false);
   const [view, setView] = useState<View>("all");
@@ -312,15 +313,23 @@ export default function App() {
     return tagFilteredTasks.filter((t) => visibleIdSet.has(t.id));
   })();
 
+  const searchFilteredTasks = (() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return priorityFilteredTasks;
+    return priorityFilteredTasks.filter(
+      (t) => t.title.toLowerCase().includes(q) || (t.description ?? "").toLowerCase().includes(q)
+    );
+  })();
+
   const [weekStart, weekEnd] = getWeekRange();
   const visibleTasks =
     view === "today"
-      ? priorityFilteredTasks.filter((t) => t.dueDate === todayStr())
+      ? searchFilteredTasks.filter((t) => t.dueDate === todayStr())
       : view === "this-week"
-        ? priorityFilteredTasks.filter((t) => t.dueDate != null && t.dueDate >= weekStart && t.dueDate <= weekEnd)
+        ? searchFilteredTasks.filter((t) => t.dueDate != null && t.dueDate >= weekStart && t.dueDate <= weekEnd)
         : view === "no-date"
-          ? priorityFilteredTasks.filter((t) => t.dueDate == null)
-          : priorityFilteredTasks;
+          ? searchFilteredTasks.filter((t) => t.dueDate == null)
+          : searchFilteredTasks;
   const completedCount = visibleTasks.filter((t) => t.completed).length;
 
   const { topLevel: topLevelTasks, childrenByParent } = buildTaskTree(visibleTasks);
@@ -329,7 +338,7 @@ export default function App() {
   // disappear once their due date passes, since Today only shows dueDate ===
   // today. Surface them in their own section above the Today list instead.
   const overdueTasks =
-    view === "today" ? priorityFilteredTasks.filter((t) => isOverdue(t.dueDate, t.completed)) : [];
+    view === "today" ? searchFilteredTasks.filter((t) => isOverdue(t.dueDate, t.completed)) : [];
   const { topLevel: overdueTopLevel, childrenByParent: overdueChildrenByParent } = buildTaskTree(overdueTasks);
 
   return (
@@ -430,6 +439,43 @@ export default function App() {
             {VIEW_LABELS[v]}
           </button>
         ))}
+      </div>
+
+      <div style={{ position: "relative", marginBottom: 20 }}>
+        <input
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search tasks…"
+          style={{
+            width: "100%",
+            padding: "8px 30px 8px 10px",
+            border: "1px solid var(--color-border)",
+            borderRadius: "var(--radius-sm)",
+            background: "var(--color-surface)",
+            color: "var(--color-text)",
+            fontSize: 14,
+          }}
+        />
+        {searchQuery && (
+          <button
+            type="button"
+            onClick={() => setSearchQuery("")}
+            title="Clear search"
+            style={{
+              position: "absolute",
+              right: 6,
+              top: "50%",
+              transform: "translateY(-50%)",
+              border: "none",
+              background: "none",
+              color: "var(--color-text-faint)",
+              fontSize: 13,
+              padding: 4,
+            }}
+          >
+            ✕
+          </button>
+        )}
       </div>
 
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginBottom: 20 }}>
@@ -646,7 +692,7 @@ export default function App() {
 
       {view === "calendar" ? (
         <CalendarView
-          tasks={priorityFilteredTasks}
+          tasks={searchFilteredTasks}
           priorityFilter={priorityFilter}
           onToggle={handleToggle}
           onDelete={handleDelete}
@@ -656,7 +702,7 @@ export default function App() {
         />
       ) : view === "history" ? (
         <HistoryView
-          tasks={priorityFilteredTasks}
+          tasks={searchFilteredTasks}
           priorityFilter={priorityFilter}
           onToggle={handleToggle}
           onDelete={handleDelete}
@@ -704,15 +750,17 @@ export default function App() {
           >
             {topLevelTasks.length === 0 && (
               <div style={{ padding: 20, color: "var(--color-text-faint)", fontSize: 13 }}>
-                {priorityFilter
-                  ? `No ${priorityFilter} priority tasks.`
-                  : view === "today"
-                    ? "No tasks due today."
-                    : view === "this-week"
-                      ? "No tasks due this week."
-                      : view === "no-date"
-                        ? "No tasks without a due date."
-                        : "No tasks yet."}
+                {searchQuery.trim()
+                  ? "No tasks match your search."
+                  : priorityFilter
+                    ? `No ${priorityFilter} priority tasks.`
+                    : view === "today"
+                      ? "No tasks due today."
+                      : view === "this-week"
+                        ? "No tasks due this week."
+                        : view === "no-date"
+                          ? "No tasks without a due date."
+                          : "No tasks yet."}
               </div>
             )}
             {topLevelTasks.map((task) => (
