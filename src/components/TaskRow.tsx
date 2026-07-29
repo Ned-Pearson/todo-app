@@ -18,6 +18,9 @@ interface Props {
   readOnly?: boolean;
   showCompletedDate?: boolean;
   onReorder?: (draggedId: number, targetId: number) => void;
+  selectable?: boolean;
+  selectedIds?: Set<number>;
+  onToggleSelect?: (id: number) => void;
 }
 
 export default function TaskRow({
@@ -32,7 +35,11 @@ export default function TaskRow({
   readOnly = false,
   showCompletedDate = false,
   onReorder,
+  selectable = false,
+  selectedIds,
+  onToggleSelect,
 }: Props) {
+  const selected = selectable && (selectedIds?.has(task.id) ?? false);
   const [addingSubtask, setAddingSubtask] = useState(false);
   const [subtaskTitle, setSubtaskTitle] = useState("");
   const [dragOver, setDragOver] = useState(false);
@@ -100,9 +107,9 @@ export default function TaskRow({
   return (
     <>
       <div
-        onClick={() => onSelect(task)}
+        onClick={() => (selectable ? onToggleSelect?.(task.id) : onSelect(task))}
         onKeyDown={(e) => {
-          if (e.key === "Enter") onSelect(task);
+          if (e.key === "Enter") (selectable ? onToggleSelect?.(task.id) : onSelect(task));
         }}
         tabIndex={0}
         data-task-row
@@ -139,6 +146,21 @@ export default function TaskRow({
           cursor: "pointer",
         }}
       >
+        {selectable && (
+          <input
+            type="checkbox"
+            checked={selected}
+            onClick={(e) => e.stopPropagation()}
+            onChange={() => onToggleSelect?.(task.id)}
+            style={{
+              width: 16,
+              height: 16,
+              accentColor: "var(--color-accent)",
+              flexShrink: 0,
+              cursor: "pointer",
+            }}
+          />
+        )}
         {onReorder && (
           <span
             draggable
@@ -463,6 +485,9 @@ export default function TaskRow({
             readOnly={readOnly}
             showCompletedDate={showCompletedDate}
             onReorder={onReorder}
+            selectable={selectable}
+            selectedIds={selectedIds}
+            onToggleSelect={onToggleSelect}
           />
         ))}
     </>

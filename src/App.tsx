@@ -71,8 +71,13 @@ export default function App() {
   const [view, setView] = useState<View>("all");
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const [showShortcuts, setShowShortcuts] = useState(false);
-  const [pendingDelete, setPendingDelete] = useState<{ id: number; ids: number[]; title: string } | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{ rootIds: number[]; allIds: number[]; label: string } | null>(
+    null
+  );
   const pendingDeleteTimeout = useRef<number | null>(null);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [showBulkTagPicker, setShowBulkTagPicker] = useState(false);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -124,6 +129,8 @@ export default function App() {
 
   useEffect(() => {
     if (view === "today") setDueDate(todayStr());
+    // Bulk select only applies to the list views, not Calendar/History.
+    if (view === "calendar" || view === "history") exitSelectMode();
   }, [view]);
 
   async function reload() {
@@ -175,7 +182,11 @@ export default function App() {
     return children.flatMap((childId) => [childId, ...getDescendantIds(childId)]);
   }
 
-  async function handleToggle(id: number, completed: boolean) {
+  // Shared by single-task and bulk completion: marks a task and its
+  // descendants complete/incomplete, and — only when completing — spawns the
+  // next instance of any recurring task in that set. Doesn't reload on its
+  // own so bulk completion can do a single reload after the whole batch.
+  async function applyCompletion(id: number, completed: boolean) {
     const idsToUpdate = completed ? [id, ...getDescendantIds(id)] : [id];
     const completedAt = completed ? nowTimestamp() : null;
     for (const taskId of idsToUpdate) {
@@ -195,34 +206,50 @@ export default function App() {
         }
       }
     }
+  }
 
+  async function handleToggle(id: number, completed: boolean) {
+    await applyCompletion(id, completed);
     await reload();
   }
 
-  // Deleting doesn't hit the database right away: the task (and its
+  // Deleting doesn't hit the database right away: the task(s) (and their
   // subtasks) are just hidden from the UI for a few seconds while a toast
   // offers "Undo". Only once that window elapses without being cancelled
   // does the actual cascading DELETE happen — cascading delete on a parent
-  // with subtasks is otherwise unforgiving.
-  async function commitPendingDelete(id: number) {
+  // with subtasks is otherwise unforgiving. `rootIds` are the tasks the user
+  // actually deleted (deleteTask cascades to their descendants itself);
+  // `allIds` is the full set hidden from the UI in the meantime.
+  function schedulePendingDelete(pending: { rootIds: number[]; allIds: number[]; label: string }) {
+    setPendingDelete(pending);
+    pendingDeleteTimeout.current = window.setTimeout(() => {
+      commitPendingDelete();
+    }, 5000);
+  }
+
+  async function commitPendingDelete() {
     if (pendingDeleteTimeout.current != null) {
       window.clearTimeout(pendingDeleteTimeout.current);
       pendingDeleteTimeout.current = null;
     }
-    await deleteTask(id);
-    setPendingDelete((prev) => (prev?.id === id ? null : prev));
+    const rootIds = pendingDelete?.rootIds ?? [];
+    setPendingDelete(null);
+    for (const id of rootIds) {
+      await deleteTask(id);
+    }
     await reload();
   }
 
   async function handleDelete(id: number) {
-    if (pendingDelete) await commitPendingDelete(pendingDelete.id);
+    if (pendingDelete) await commitPendingDelete();
 
     const task = tasks.find((t) => t.id === id);
-    const ids = [id, ...getDescendantIds(id)];
-    setPendingDelete({ id, ids, title: task?.title ?? "Task" });
-    pendingDeleteTimeout.current = window.setTimeout(() => {
-      commitPendingDelete(id);
-    }, 5000);
+    const allIds = [id, ...getDescendantIds(id)];
+    schedulePendingDelete({
+      rootIds: [id],
+      allIds,
+      label: `"${task?.title ?? "Task"}" deleted${allIds.length > 1 ? ` (with ${allIds.length - 1} subtask(s))` : ""}`,
+    });
   }
 
   function handleUndoDelete() {
@@ -231,6 +258,53 @@ export default function App() {
       pendingDeleteTimeout.current = null;
     }
     setPendingDelete(null);
+  }
+
+  function exitSelectMode() {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+    setShowBulkTagPicker(false);
+  }
+
+  function handleToggleSelect(id: number) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  async function handleBulkComplete() {
+    for (const id of selectedIds) {
+      await applyCompletion(id, true);
+    }
+    exitSelectMode();
+    await reload();
+  }
+
+  async function handleBulkDelete() {
+    if (selectedIds.size === 0) return;
+    if (pendingDelete) await commitPendingDelete();
+
+    const rootIds = [...selectedIds];
+    const allIds = [...new Set(rootIds.flatMap((id) => [id, ...getDescendantIds(id)]))];
+    schedulePendingDelete({
+      rootIds,
+      allIds,
+      label: `${rootIds.length} task${rootIds.length > 1 ? "s" : ""} deleted`,
+    });
+    exitSelectMode();
+  }
+
+  async function handleBulkAddTag(tagId: number) {
+    for (const id of selectedIds) {
+      await addTagToTask(id, tagId);
+    }
+    await reload();
   }
 
   async function handleAddSubtask(parentId: number, title: string) {
@@ -404,7 +478,7 @@ export default function App() {
   // Tasks pending a delete-undo window are filtered out here, upstream of
   // every other filter, so they disappear from every view immediately while
   // still existing in the database until the undo window elapses.
-  const activeTasks = pendingDelete ? tasks.filter((t) => !pendingDelete.ids.includes(t.id)) : tasks;
+  const activeTasks = pendingDelete ? tasks.filter((t) => !pendingDelete.allIds.includes(t.id)) : tasks;
 
   const tagFilteredTasks =
     activeTagFilter == null
@@ -767,22 +841,150 @@ export default function App() {
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={() => setShowAddModal(true)}
-        style={{
-          marginBottom: 20,
-          padding: "8px 14px",
-          border: "none",
-          borderRadius: "var(--radius-sm)",
-          background: "var(--color-accent)",
-          color: "#fff",
-          fontSize: 14,
-          fontWeight: 500,
-        }}
-      >
-        + Add task
-      </button>
+      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+        <button
+          type="button"
+          onClick={() => setShowAddModal(true)}
+          style={{
+            padding: "8px 14px",
+            border: "none",
+            borderRadius: "var(--radius-sm)",
+            background: "var(--color-accent)",
+            color: "#fff",
+            fontSize: 14,
+            fontWeight: 500,
+          }}
+        >
+          + Add task
+        </button>
+        {view !== "calendar" && view !== "history" && (
+          <button
+            type="button"
+            onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
+            style={{
+              padding: "8px 14px",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              background: selectMode ? "var(--color-accent-soft)" : "none",
+              color: selectMode ? "var(--color-accent)" : "var(--color-text-muted)",
+              fontSize: 14,
+              fontWeight: 500,
+            }}
+          >
+            {selectMode ? "Cancel select" : "Select"}
+          </button>
+        )}
+      </div>
+
+      {selectMode && (
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 20,
+            padding: "8px 12px",
+            border: "1px solid var(--color-border)",
+            borderRadius: "var(--radius-sm)",
+            background: "var(--color-surface-sunken)",
+          }}
+        >
+          <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>{selectedIds.size} selected</span>
+          <button
+            type="button"
+            disabled={selectedIds.size === 0}
+            onClick={handleBulkComplete}
+            style={{
+              padding: "6px 10px",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              background: "none",
+              color: "var(--color-text)",
+              fontSize: 13,
+              opacity: selectedIds.size === 0 ? 0.5 : 1,
+            }}
+          >
+            Complete
+          </button>
+          <div style={{ position: "relative" }}>
+            <button
+              type="button"
+              disabled={selectedIds.size === 0}
+              onClick={() => setShowBulkTagPicker((v) => !v)}
+              style={{
+                padding: "6px 10px",
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-sm)",
+                background: "none",
+                color: "var(--color-text)",
+                fontSize: 13,
+                opacity: selectedIds.size === 0 ? 0.5 : 1,
+              }}
+            >
+              Tag ▾
+            </button>
+            {showBulkTagPicker && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "calc(100% + 4px)",
+                  left: 0,
+                  zIndex: 30,
+                  minWidth: 140,
+                  padding: 6,
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-sm)",
+                  background: "var(--color-surface)",
+                  boxShadow: "var(--shadow-card)",
+                }}
+              >
+                {tags.length === 0 && (
+                  <div style={{ fontSize: 12, color: "var(--color-text-faint)", padding: "4px 6px" }}>
+                    No tags yet.
+                  </div>
+                )}
+                {tags.map((tag) => (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    onClick={() => handleBulkAddTag(tag.id)}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      textAlign: "left",
+                      padding: "4px 6px",
+                      border: "none",
+                      background: "none",
+                      color: tag.color,
+                      fontSize: 12,
+                      fontWeight: 500,
+                    }}
+                  >
+                    {tag.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
+            disabled={selectedIds.size === 0}
+            onClick={handleBulkDelete}
+            style={{
+              padding: "6px 10px",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              background: "none",
+              color: "#c9184a",
+              fontSize: 13,
+              opacity: selectedIds.size === 0 ? 0.5 : 1,
+            }}
+          >
+            Delete
+          </button>
+        </div>
+      )}
 
       {view === "calendar" ? (
         <CalendarView
@@ -828,6 +1030,9 @@ export default function App() {
                     onSelect={setSelectedTask}
                     onAddSubtask={handleAddSubtask}
                     onReorder={handleReorder}
+                    selectable={selectMode}
+                    selectedIds={selectedIds}
+                    onToggleSelect={handleToggleSelect}
                   />
                 ))}
               </div>
@@ -869,6 +1074,9 @@ export default function App() {
                 onSelect={setSelectedTask}
                 onAddSubtask={handleAddSubtask}
                 onReorder={handleReorder}
+                selectable={selectMode}
+                selectedIds={selectedIds}
+                onToggleSelect={handleToggleSelect}
               />
             ))}
           </div>
@@ -930,10 +1138,7 @@ export default function App() {
             color: "var(--color-text)",
           }}
         >
-          <span>
-            "{pendingDelete.title}" deleted
-            {pendingDelete.ids.length > 1 ? ` (with ${pendingDelete.ids.length - 1} subtask(s))` : ""}
-          </span>
+          <span>{pendingDelete.label}</span>
           <button
             onClick={handleUndoDelete}
             style={{
