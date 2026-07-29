@@ -1,4 +1,4 @@
-import { useState, KeyboardEvent } from "react";
+import { useState, FocusEvent, KeyboardEvent } from "react";
 import type { Priority, Task } from "../types";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "../lib/priority";
 import { isOverdue } from "../lib/date";
@@ -53,12 +53,23 @@ export default function TaskRow({
     setAddingSubtask(false);
   }
 
+  function cancelSubtask() {
+    setAddingSubtask(false);
+    setSubtaskTitle("");
+  }
+
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Enter") submitSubtask();
-    if (e.key === "Escape") {
-      setAddingSubtask(false);
-      setSubtaskTitle("");
-    }
+    if (e.key === "Escape") cancelSubtask();
+  }
+
+  // Clicking away from the subtask form without typing anything just closes
+  // it instead of leaving an empty form hanging around; relatedTarget lets
+  // us tell a click on the form's own Add/Cancel buttons apart from a click
+  // elsewhere, so those buttons still get their click before we'd close it.
+  function handleSubtaskFormBlur(e: FocusEvent<HTMLDivElement>) {
+    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+    if (!subtaskTitle.trim()) cancelSubtask();
   }
 
   const hasTags = task.tags.length > 0 || task.inheritedTags.length > 0;
@@ -345,6 +356,7 @@ export default function TaskRow({
       {addingSubtask && (
         <div
           onClick={(e) => e.stopPropagation()}
+          onBlur={handleSubtaskFormBlur}
           style={{
             display: "flex",
             gap: 8,
@@ -382,6 +394,20 @@ export default function TaskRow({
             }}
           >
             Add
+          </button>
+          <button
+            type="button"
+            onClick={cancelSubtask}
+            title="Cancel"
+            style={{
+              border: "none",
+              background: "none",
+              color: "var(--color-text-faint)",
+              fontSize: 13,
+              padding: "6px 4px",
+            }}
+          >
+            ✕
           </button>
         </div>
       )}

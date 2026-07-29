@@ -145,6 +145,24 @@ export default function App() {
     reload();
   }, []);
 
+  // Today keeps defaulting to today's date, Calendar keeps whatever day is
+  // selected — only clear the field when neither has a sensible default to
+  // fall back to.
+  function resetAddForm() {
+    setTitle("");
+    if (view === "today") {
+      setDueDate(todayStr());
+    } else if (view !== "calendar") {
+      setDueDate("");
+    }
+    setRepeat("none");
+    setRepeatInterval(1);
+    setRepeatEndDate("");
+    setPriority(null);
+  }
+
+  const isAddFormDirty = title.trim() !== "" || priority !== null || repeat !== "none";
+
   async function handleAdd(e: FormEvent) {
     e.preventDefault();
     const trimmed = title.trim();
@@ -153,19 +171,7 @@ export default function App() {
       const recurrenceId =
         repeat === "none" ? undefined : await createRecurrenceRule(repeat, repeatInterval, repeatEndDate);
       await createTask(trimmed, dueDate, undefined, recurrenceId, priority ?? undefined);
-      setTitle("");
-      // Today keeps defaulting to today's date, Calendar keeps whatever day
-      // is selected — only clear the field when neither has a sensible
-      // default to fall back to.
-      if (view === "today") {
-        setDueDate(todayStr());
-      } else if (view !== "calendar") {
-        setDueDate("");
-      }
-      setRepeat("none");
-      setRepeatInterval(1);
-      setRepeatEndDate("");
-      setPriority(null);
+      resetAddForm();
       await reload();
     } catch (err) {
       console.error("Failed to add task:", err);
@@ -706,6 +712,23 @@ export default function App() {
           >
             Add
           </button>
+          {isAddFormDirty && (
+            <button
+              type="button"
+              onClick={resetAddForm}
+              style={{
+                padding: "8px 14px",
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-sm)",
+                background: "none",
+                color: "var(--color-text-muted)",
+                fontSize: 14,
+                fontWeight: 500,
+              }}
+            >
+              Cancel
+            </button>
+          )}
         </div>
 
         <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
