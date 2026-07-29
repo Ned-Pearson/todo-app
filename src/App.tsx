@@ -30,6 +30,7 @@ import ManageTagsModal from "./components/ManageTagsModal";
 import { addInterval, getWeekRange, isOverdue, nowTimestamp, todayStr } from "./lib/date";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "./lib/priority";
 import { buildTaskTree } from "./lib/tree";
+import { exportToFile, importFromFile } from "./lib/backup";
 
 type RepeatOption = "none" | RecurrenceFrequency;
 
@@ -285,6 +286,37 @@ export default function App() {
     await reload();
   }
 
+  async function handleExport() {
+    try {
+      const exported = await exportToFile();
+      if (exported) window.alert("Backup saved.");
+    } catch (err) {
+      console.error("Failed to export backup:", err);
+      window.alert(`Couldn't export backup: ${err}`);
+    }
+  }
+
+  async function handleImport() {
+    if (
+      !window.confirm(
+        "Importing a backup replaces everything currently in this app — all tasks, tags, and recurrence rules will be deleted first. This can't be undone. Continue?"
+      )
+    ) {
+      return;
+    }
+    try {
+      const imported = await importFromFile();
+      if (imported) {
+        setSelectedTask(null);
+        await reload();
+        window.alert("Backup restored.");
+      }
+    } catch (err) {
+      console.error("Failed to import backup:", err);
+      window.alert(`Couldn't import backup: ${err}`);
+    }
+  }
+
   const tagFilteredTasks =
     activeTagFilter == null
       ? tasks
@@ -404,6 +436,34 @@ export default function App() {
               </div>
             )}
           </div>
+          <button
+            onClick={handleExport}
+            title="Export a backup of everything to a JSON file"
+            style={{
+              padding: "6px 10px",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              background: "var(--color-surface)",
+              color: "var(--color-text-muted)",
+              fontSize: 13,
+            }}
+          >
+            Export
+          </button>
+          <button
+            onClick={handleImport}
+            title="Restore from a backup JSON file (replaces everything currently in the app)"
+            style={{
+              padding: "6px 10px",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              background: "var(--color-surface)",
+              color: "var(--color-text-muted)",
+              fontSize: 13,
+            }}
+          >
+            Import
+          </button>
           <button
             onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
             title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
