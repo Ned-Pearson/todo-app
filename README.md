@@ -3,7 +3,6 @@
 Tauri + React + TypeScript + SQLite
 
 TODO:
-- Undo for delete — a brief "Task deleted, Undo" toast, since cascading delete on a parent with subtasks is currently unforgiving.
 - Differentiate between priority addition and filtering buttons
 - cancel button after pressing add task 
 - Add a due time
@@ -50,3 +49,4 @@ todo-app/
 - **Keyboard shortcuts** — `n` focuses the add-task field, `↑`/`↓` move focus between task rows (any currently rendered row — collapsed subtasks are skipped automatically since they're just not in the DOM), and `Enter` opens whichever row has focus (submitting the add-task form still works via the browser's native Enter-in-a-form behavior). All shortcuts are suppressed while a modal is open or while typing in any text field, so they never hijack normal typing. A small "i" icon in the header shows the full list in a hover popover.
 - **Search** — a text field filters tasks by a case-insensitive substring match against title or description. It composes with everything else (tag filter → priority filter → search → view filter), so it narrows whichever view/filters are already active — including Calendar and History — rather than being a separate mode. A matching subtask whose parent doesn't also match gets promoted to a root in the results, same as the other filters.
 - **Export/import** — "Export" (via `@tauri-apps/plugin-dialog`'s native save dialog) writes every raw table (tasks, tags, task_tags, recurrence_rules, attachments — not the app's joined/computed shape) to a JSON file, so a re-import can restore the exact schema state. "Import" is a full **replace**, not a merge: after an explicit confirm (it's destructive and can't be undone), it wipes those tables and reinserts the backup's rows with their original ids intact, so every relationship (parent_id, tags, attachments) still points at the right place afterward. Uses `@tauri-apps/plugin-fs` for the actual file read/write.
+- **Undo for delete** — deleting a task doesn't touch the database right away: it (and its subtasks) are hidden from every view immediately, and a "`<task>` deleted" toast with an **Undo** button appears for 5 seconds. Only once that window elapses uncancelled does the real cascading `DELETE` happen. Undo just cancels the pending timer; deleting a second task while one is already pending commits the first one immediately rather than juggling two undo windows at once.

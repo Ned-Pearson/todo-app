@@ -78,12 +78,20 @@ export default function App() {
   const [view, setView] = useState<View>("all");
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<{ id: number; ids: number[]; title: string } | null>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const pendingDeleteTimeout = useRef<number | null>(null);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    return () => {
+      if (pendingDeleteTimeout.current != null) window.clearTimeout(pendingDeleteTimeout.current);
+    };
+  }, []);
 
   // Keyboard shortcuts: "n" focuses the add-task field, arrow keys move focus
   // between task rows, Enter opens whatever row currently has focus (handled
@@ -194,9 +202,38 @@ export default function App() {
     await reload();
   }
 
-  async function handleDelete(id: number) {
+  // Deleting doesn't hit the database right away: the task (and its
+  // subtasks) are just hidden from the UI for a few seconds while a toast
+  // offers "Undo". Only once that window elapses without being cancelled
+  // does the actual cascading DELETE happen — cascading delete on a parent
+  // with subtasks is otherwise unforgiving.
+  async function commitPendingDelete(id: number) {
+    if (pendingDeleteTimeout.current != null) {
+      window.clearTimeout(pendingDeleteTimeout.current);
+      pendingDeleteTimeout.current = null;
+    }
     await deleteTask(id);
-    reload();
+    setPendingDelete((prev) => (prev?.id === id ? null : prev));
+    await reload();
+  }
+
+  async function handleDelete(id: number) {
+    if (pendingDelete) await commitPendingDelete(pendingDelete.id);
+
+    const task = tasks.find((t) => t.id === id);
+    const ids = [id, ...getDescendantIds(id)];
+    setPendingDelete({ id, ids, title: task?.title ?? "Task" });
+    pendingDeleteTimeout.current = window.setTimeout(() => {
+      commitPendingDelete(id);
+    }, 5000);
+  }
+
+  function handleUndoDelete() {
+    if (pendingDeleteTimeout.current != null) {
+      window.clearTimeout(pendingDeleteTimeout.current);
+      pendingDeleteTimeout.current = null;
+    }
+    setPendingDelete(null);
   }
 
   async function handleAddSubtask(parentId: number, title: string) {
@@ -317,10 +354,15 @@ export default function App() {
     }
   }
 
+  // Tasks pending a delete-undo window are filtered out here, upstream of
+  // every other filter, so they disappear from every view immediately while
+  // still existing in the database until the undo window elapses.
+  const activeTasks = pendingDelete ? tasks.filter((t) => !pendingDelete.ids.includes(t.id)) : tasks;
+
   const tagFilteredTasks =
     activeTagFilter == null
-      ? tasks
-      : tasks.filter(
+      ? activeTasks
+      : activeTasks.filter(
           (t) =>
             t.tags.some((tag) => tag.id === activeTagFilter) ||
             t.inheritedTags.some((tag) => tag.id === activeTagFilter)
@@ -869,6 +911,45 @@ export default function App() {
           onRecolor={handleRecolorTag}
           onDelete={handleDeleteTag}
         />
+      )}
+
+      {pendingDelete && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 24,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 40,
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: "10px 16px",
+            border: "1px solid var(--color-border)",
+            borderRadius: "var(--radius-md)",
+            background: "var(--color-surface)",
+            boxShadow: "var(--shadow-card)",
+            fontSize: 13,
+            color: "var(--color-text)",
+          }}
+        >
+          <span>
+            "{pendingDelete.title}" deleted
+            {pendingDelete.ids.length > 1 ? ` (with ${pendingDelete.ids.length - 1} subtask(s))` : ""}
+          </span>
+          <button
+            onClick={handleUndoDelete}
+            style={{
+              border: "none",
+              background: "none",
+              color: "var(--color-accent)",
+              fontWeight: 600,
+              fontSize: 13,
+            }}
+          >
+            Undo
+          </button>
+        </div>
       )}
     </div>
   );
