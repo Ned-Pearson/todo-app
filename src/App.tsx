@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, FormEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Priority, RecurrenceFrequency, Tag, Task } from "./types";
 import {
   getAllTasks,
@@ -25,6 +25,7 @@ import {
   updateTaskSortOrder,
 } from "./lib/db";
 import TaskDetailModal from "./components/TaskDetailModal";
+import AddTaskModal from "./components/AddTaskModal";
 import TaskRow from "./components/TaskRow";
 import CalendarView from "./components/CalendarView";
 import HistoryView from "./components/HistoryView";
@@ -33,7 +34,6 @@ import { addInterval, getWeekRange, isOverdue, nowTimestamp, todayStr } from "./
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "./lib/priority";
 import { buildTaskTree } from "./lib/tree";
 import { exportToFile, importFromFile } from "./lib/backup";
-import { REPEAT_LABELS, type RepeatOption } from "./lib/recurrence";
 
 type View = "all" | "today" | "this-week" | "no-date" | "calendar" | "history";
 
@@ -58,22 +58,16 @@ export default function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [activeTagFilter, setActiveTagFilter] = useState<number | null>(null);
-  const [title, setTitle] = useState("");
   const [dueDate, setDueDate] = useState("");
-  const [dueTime, setDueTime] = useState("");
-  const [repeat, setRepeat] = useState<RepeatOption>("none");
-  const [repeatInterval, setRepeatInterval] = useState(1);
-  const [repeatEndDate, setRepeatEndDate] = useState("");
-  const [priority, setPriority] = useState<Priority | null>(null);
   const [priorityFilter, setPriorityFilter] = useState<Priority | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [showManageTags, setShowManageTags] = useState(false);
   const [view, setView] = useState<View>("all");
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<{ id: number; ids: number[]; title: string } | null>(null);
-  const titleInputRef = useRef<HTMLInputElement>(null);
   const pendingDeleteTimeout = useRef<number | null>(null);
 
   useEffect(() => {
@@ -87,7 +81,7 @@ export default function App() {
     };
   }, []);
 
-  // Keyboard shortcuts: "n" focuses the add-task field, arrow keys move focus
+  // Keyboard shortcuts: "n" opens the add-task modal, arrow keys move focus
   // between task rows, Enter opens whatever row currently has focus (handled
   // by TaskRow itself). Skipped entirely while a modal is open or while
   // typing in any text field, so shortcuts never hijack normal typing.
@@ -98,11 +92,11 @@ export default function App() {
     }
 
     function handleKeyDown(e: KeyboardEvent) {
-      if (selectedTask || showManageTags) return;
+      if (selectedTask || showManageTags || showAddModal) return;
 
       if (e.key === "n" && !isTextEntry(e.target)) {
         e.preventDefault();
-        titleInputRef.current?.focus();
+        setShowAddModal(true);
         return;
       }
 
@@ -122,7 +116,7 @@ export default function App() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedTask, showManageTags]);
+  }, [selectedTask, showManageTags, showAddModal]);
 
   useEffect(() => {
     if (view === "today") setDueDate(todayStr());
@@ -139,34 +133,27 @@ export default function App() {
     reload();
   }, []);
 
-  // Today keeps defaulting to today's date, Calendar keeps whatever day is
-  // selected — only clear the field when neither has a sensible default to
-  // fall back to.
-  function resetAddForm() {
-    setTitle("");
-    if (view === "today") {
-      setDueDate(todayStr());
-    } else if (view !== "calendar") {
-      setDueDate("");
-    }
-    setDueTime("");
-    setRepeat("none");
-    setRepeatInterval(1);
-    setRepeatEndDate("");
-    setPriority(null);
-  }
-
-  const isAddFormDirty = title.trim() !== "" || priority !== null || repeat !== "none" || dueTime !== "";
-
-  async function handleAdd(e: FormEvent) {
-    e.preventDefault();
-    const trimmed = title.trim();
-    if (!trimmed) return;
+  async function handleAddTask(
+    title: string,
+    taskDueDate: string,
+    dueTime: string,
+    priority: Priority | null,
+    recurrence: { frequency: RecurrenceFrequency; interval: number; endDate: string } | null
+  ) {
     try {
-      const recurrenceId =
-        repeat === "none" ? undefined : await createRecurrenceRule(repeat, repeatInterval, repeatEndDate);
-      await createTask(trimmed, dueDate, undefined, recurrenceId, priority ?? undefined, dueDate ? dueTime : undefined);
-      resetAddForm();
+      const recurrenceId = recurrence
+        ? await createRecurrenceRule(recurrence.frequency, recurrence.interval, recurrence.endDate)
+        : undefined;
+      await createTask(title, taskDueDate, undefined, recurrenceId, priority ?? undefined, taskDueDate ? dueTime : undefined);
+      // Today keeps defaulting to today's date, Calendar keeps whatever day is
+      // selected — only clear the field when neither has a sensible default
+      // to fall back to.
+      if (view === "today") {
+        setDueDate(todayStr());
+      } else if (view !== "calendar") {
+        setDueDate("");
+      }
+      setShowAddModal(false);
       await reload();
     } catch (err) {
       console.error("Failed to add task:", err);
@@ -679,174 +666,22 @@ export default function App() {
         </div>
       )}
 
-      <form onSubmit={handleAdd} style={{ marginBottom: 20 }}>
-        <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-          <input
-            ref={titleInputRef}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Add a task…"
-            style={{
-              flex: 1,
-              padding: "8px 10px",
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-sm)",
-              background: "var(--color-surface)",
-              color: "var(--color-text)",
-              fontSize: 14,
-            }}
-          />
-          <input
-            type="date"
-            value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
-            style={{
-              padding: "8px 10px",
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-sm)",
-              background: "var(--color-surface)",
-              color: "var(--color-text)",
-              fontSize: 14,
-            }}
-          />
-          <input
-            type="time"
-            value={dueTime}
-            onChange={(e) => setDueTime(e.target.value)}
-            disabled={!dueDate}
-            title={!dueDate ? "Set a due date first" : undefined}
-            style={{
-              padding: "8px 10px",
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-sm)",
-              background: "var(--color-surface)",
-              color: "var(--color-text)",
-              fontSize: 14,
-              opacity: dueDate ? 1 : 0.5,
-            }}
-          />
-          <button
-            type="submit"
-            style={{
-              padding: "8px 14px",
-              border: "none",
-              borderRadius: "var(--radius-sm)",
-              background: "var(--color-accent)",
-              color: "#fff",
-              fontSize: 14,
-              fontWeight: 500,
-            }}
-          >
-            Add
-          </button>
-          {isAddFormDirty && (
-            <button
-              type="button"
-              onClick={resetAddForm}
-              style={{
-                padding: "8px 14px",
-                border: "1px solid var(--color-border)",
-                borderRadius: "var(--radius-sm)",
-                background: "none",
-                color: "var(--color-text-muted)",
-                fontSize: 14,
-                fontWeight: 500,
-              }}
-            >
-              Cancel
-            </button>
-          )}
-        </div>
-
-        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted)", marginRight: 2 }}>
-            Priority:
-          </span>
-          {(["high", "medium", "low"] as Priority[]).map((level) => {
-            const selected = priority === level;
-            return (
-              <button
-                key={level}
-                type="button"
-                onClick={() => setPriority(selected ? null : level)}
-                style={{
-                  fontSize: 12,
-                  fontWeight: 500,
-                  padding: "4px 8px",
-                  borderRadius: "var(--radius-sm)",
-                  border: selected ? "1px solid transparent" : `1px solid ${PRIORITY_COLORS[level]}`,
-                  background: selected ? PRIORITY_COLORS[level] : "none",
-                  color: selected ? "#fff" : PRIORITY_COLORS[level],
-                }}
-              >
-                {PRIORITY_LABELS[level]}
-              </button>
-            );
-          })}
-        </div>
-
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <select
-            value={repeat}
-            onChange={(e) => setRepeat(e.target.value as RepeatOption)}
-            style={{
-              padding: "6px 8px",
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-sm)",
-              background: "var(--color-surface)",
-              color: "var(--color-text)",
-              fontSize: 13,
-            }}
-          >
-            {(Object.keys(REPEAT_LABELS) as RepeatOption[]).map((option) => (
-              <option key={option} value={option}>
-                {REPEAT_LABELS[option]}
-              </option>
-            ))}
-          </select>
-
-          {repeat !== "none" && (
-            <>
-              <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>every</span>
-              <input
-                type="number"
-                min={1}
-                value={repeatInterval}
-                onChange={(e) => setRepeatInterval(Math.max(1, Number(e.target.value)))}
-                style={{
-                  width: 50,
-                  padding: "6px 8px",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "var(--radius-sm)",
-                  background: "var(--color-surface)",
-                  color: "var(--color-text)",
-                  fontSize: 13,
-                }}
-              />
-              <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
-                {repeat === "daily" && "day(s)"}
-                {repeat === "weekly" && "week(s)"}
-                {repeat === "monthly" && "month(s)"}
-                {repeat === "yearly" && "year(s)"}
-              </span>
-              <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>until</span>
-              <input
-                type="date"
-                value={repeatEndDate}
-                onChange={(e) => setRepeatEndDate(e.target.value)}
-                style={{
-                  padding: "6px 8px",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "var(--radius-sm)",
-                  background: "var(--color-surface)",
-                  color: "var(--color-text)",
-                  fontSize: 13,
-                }}
-              />
-            </>
-          )}
-        </div>
-      </form>
+      <button
+        type="button"
+        onClick={() => setShowAddModal(true)}
+        style={{
+          marginBottom: 20,
+          padding: "8px 14px",
+          border: "none",
+          borderRadius: "var(--radius-sm)",
+          background: "var(--color-accent)",
+          color: "#fff",
+          fontSize: 14,
+          fontWeight: 500,
+        }}
+      >
+        + Add task
+      </button>
 
       {view === "calendar" ? (
         <CalendarView
@@ -937,6 +772,10 @@ export default function App() {
             ))}
           </div>
         </>
+      )}
+
+      {showAddModal && (
+        <AddTaskModal defaultDueDate={dueDate} onClose={() => setShowAddModal(false)} onAdd={handleAddTask} />
       )}
 
       {selectedTask && (
