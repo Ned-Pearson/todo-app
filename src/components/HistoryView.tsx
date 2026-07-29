@@ -10,11 +10,20 @@ interface Props {
   onDelete: (id: number) => void;
   onSelectTask: (task: Task) => void;
   onAddSubtask: (parentId: number, title: string) => void;
+  onDuplicate: (id: number) => void;
 }
 
 const UNKNOWN_DATE = "Unknown date";
 
-export default function HistoryView({ tasks, priorityFilter, onToggle, onDelete, onSelectTask, onAddSubtask }: Props) {
+export default function HistoryView({
+  tasks,
+  priorityFilter,
+  onToggle,
+  onDelete,
+  onSelectTask,
+  onAddSubtask,
+  onDuplicate,
+}: Props) {
   const completed = tasks.filter((t) => t.completed);
 
   const byDate = new Map<string, Task[]>();
@@ -76,6 +85,7 @@ export default function HistoryView({ tasks, priorityFilter, onToggle, onDelete,
                   onDelete={onDelete}
                   onSelect={onSelectTask}
                   onAddSubtask={onAddSubtask}
+                  onDuplicate={onDuplicate}
                   readOnly
                   showCompletedDate
                 />

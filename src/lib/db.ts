@@ -253,6 +253,45 @@ export async function createTask(
   );
 }
 
+// Duplicates a task's own fields (title, description, due date/time,
+// priority) and its whole subtask subtree, recursively re-parenting each
+// duplicated descendant under its sibling's duplicate rather than the
+// original tree. Deliberately does NOT copy: completion state (a duplicate
+// starts fresh), recurrence (two tasks sharing one recurrence_id would both
+// try to spawn "the next instance" on completion), or attachments (those are
+// file paths — "duplicating" one would just point two tasks at the same file
+// rather than making a real copy). The duplicate keeps the original's
+// sort_order so it lands immediately next to it rather than jumping to the
+// top of the sibling group.
+async function duplicateTaskRecursive(db: Database, sourceId: number, newParentId: number | null): Promise<number> {
+  const rows = await db.select<any[]>("SELECT * FROM tasks WHERE id = ?", [sourceId]);
+  const row = rows[0];
+  const result = await db.execute(
+    "INSERT INTO tasks (title, description, due_date, due_time, parent_id, priority, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    [row.title, row.description, row.due_date, row.due_time, newParentId, row.priority, row.sort_order]
+  );
+  const newId = result.lastInsertId as number;
+
+  const tagRows = await db.select<any[]>("SELECT tag_id FROM task_tags WHERE task_id = ?", [sourceId]);
+  for (const t of tagRows) {
+    await db.execute("INSERT INTO task_tags (task_id, tag_id) VALUES (?, ?)", [newId, t.tag_id]);
+  }
+
+  const children = await db.select<any[]>("SELECT id FROM tasks WHERE parent_id = ?", [sourceId]);
+  for (const child of children) {
+    await duplicateTaskRecursive(db, child.id, newId);
+  }
+
+  return newId;
+}
+
+export async function duplicateTask(id: number): Promise<number> {
+  const db = await getDb();
+  const rows = await db.select<any[]>("SELECT parent_id FROM tasks WHERE id = ?", [id]);
+  const parentId = rows[0]?.parent_id ?? null;
+  return duplicateTaskRecursive(db, id, parentId);
+}
+
 export async function updateTaskSortOrder(id: number, sortOrder: number): Promise<void> {
   const db = await getDb();
   await db.execute("UPDATE tasks SET sort_order = ? WHERE id = ?", [sortOrder, id]);

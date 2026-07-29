@@ -21,6 +21,7 @@ interface Props {
   selectable?: boolean;
   selectedIds?: Set<number>;
   onToggleSelect?: (id: number) => void;
+  onDuplicate?: (id: number) => void;
 }
 
 export default function TaskRow({
@@ -38,6 +39,7 @@ export default function TaskRow({
   selectable = false,
   selectedIds,
   onToggleSelect,
+  onDuplicate,
 }: Props) {
   const selected = selectable && (selectedIds?.has(task.id) ?? false);
   const [addingSubtask, setAddingSubtask] = useState(false);
@@ -328,6 +330,18 @@ export default function TaskRow({
         >
           + Subtask
         </button>
+        {onDuplicate && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDuplicate(task.id);
+            }}
+            title="Duplicate this task (and its subtasks)"
+            style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 13 }}
+          >
+            Duplicate
+          </button>
+        )}
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -488,6 +502,7 @@ export default function TaskRow({
             selectable={selectable}
             selectedIds={selectedIds}
             onToggleSelect={onToggleSelect}
+            onDuplicate={onDuplicate}
           />
         ))}
     </>

@@ -26,6 +26,7 @@ import {
   getAllSavedViews,
   createSavedView,
   deleteSavedView,
+  duplicateTask,
 } from "./lib/db";
 import TaskDetailModal from "./components/TaskDetailModal";
 import AddTaskModal from "./components/AddTaskModal";
@@ -310,6 +311,11 @@ export default function App() {
   async function handleAddSubtask(parentId: number, title: string) {
     const parent = tasks.find((t) => t.id === parentId);
     await createTask(title, parent?.dueDate ?? undefined, parentId, undefined, undefined, parent?.dueTime ?? undefined);
+    await reload();
+  }
+
+  async function handleDuplicateTask(id: number) {
+    await duplicateTask(id);
     await reload();
   }
 
@@ -995,6 +1001,7 @@ export default function App() {
           onSelectTask={setSelectedTask}
           onAddSubtask={handleAddSubtask}
           onSelectDate={setDueDate}
+          onDuplicate={handleDuplicateTask}
         />
       ) : view === "history" ? (
         <HistoryView
@@ -1004,6 +1011,7 @@ export default function App() {
           onDelete={handleDelete}
           onSelectTask={setSelectedTask}
           onAddSubtask={handleAddSubtask}
+          onDuplicate={handleDuplicateTask}
         />
       ) : (
         <>
@@ -1033,6 +1041,7 @@ export default function App() {
                     selectable={selectMode}
                     selectedIds={selectedIds}
                     onToggleSelect={handleToggleSelect}
+                    onDuplicate={handleDuplicateTask}
                   />
                 ))}
               </div>
@@ -1077,6 +1086,7 @@ export default function App() {
                 selectable={selectMode}
                 selectedIds={selectedIds}
                 onToggleSelect={handleToggleSelect}
+                onDuplicate={handleDuplicateTask}
               />
             ))}
           </div>
