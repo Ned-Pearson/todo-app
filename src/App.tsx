@@ -581,6 +581,9 @@ export default function App() {
       </div>
 
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginBottom: 20 }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted)", marginRight: 2 }}>
+          Filter by priority:
+        </span>
         {(["high", "medium", "low"] as Priority[]).map((level) => {
           const active = priorityFilter === level;
           return (
@@ -591,8 +594,8 @@ export default function App() {
                 fontSize: 12,
                 fontWeight: 500,
                 padding: "4px 10px",
-                borderRadius: "var(--radius-sm)",
-                border: active ? "1px solid transparent" : `1px solid ${PRIORITY_COLORS[level]}`,
+                borderRadius: 999,
+                border: `1px solid ${PRIORITY_COLORS[level]}`,
                 background: active ? PRIORITY_COLORS[level] : "none",
                 color: active ? "#fff" : PRIORITY_COLORS[level],
               }}
@@ -706,6 +709,9 @@ export default function App() {
         </div>
 
         <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted)", marginRight: 2 }}>
+            Priority:
+          </span>
           {(["high", "medium", "low"] as Priority[]).map((level) => {
             const selected = priority === level;
             return (
