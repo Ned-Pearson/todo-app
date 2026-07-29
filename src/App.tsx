@@ -50,6 +50,15 @@ const VIEW_LABELS: Record<View, string> = {
   history: "History",
 };
 
+type SortOption = "manual" | "dueDate" | "priority" | "title";
+
+const SORT_LABELS: Record<SortOption, string> = {
+  manual: "Manual (drag order)",
+  dueDate: "Due date",
+  priority: "Priority",
+  title: "Title",
+};
+
 type Theme = "light" | "dark";
 
 function getInitialTheme(): Theme {
@@ -65,6 +74,7 @@ export default function App() {
   const [activeTagFilter, setActiveTagFilter] = useState<number | null>(null);
   const [dueDate, setDueDate] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<Priority | null>(null);
+  const [sortBy, setSortBy] = useState<SortOption>("manual");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -543,6 +553,35 @@ export default function App() {
     );
   })();
 
+  // "Manual" preserves the order the query already came back in (driven by
+  // sort_order, i.e. drag order); the other options re-sort every sibling
+  // group by that criterion instead. Sorting the flat list before
+  // buildTaskTree is enough to sort every level of nesting, since grouping
+  // by parent preserves relative order (Array.sort is stable).
+  function compareTasks(a: Task, b: Task): number {
+    switch (sortBy) {
+      case "dueDate": {
+        if (a.dueDate == null && b.dueDate == null) return 0;
+        if (a.dueDate == null) return 1;
+        if (b.dueDate == null) return -1;
+        const cmp = a.dueDate.localeCompare(b.dueDate);
+        return cmp !== 0 ? cmp : (a.dueTime ?? "").localeCompare(b.dueTime ?? "");
+      }
+      case "priority": {
+        const rank: Record<Priority, number> = { high: 0, medium: 1, low: 2 };
+        return (a.priority ? rank[a.priority] : 3) - (b.priority ? rank[b.priority] : 3);
+      }
+      case "title":
+        return a.title.localeCompare(b.title, undefined, { sensitivity: "base" });
+      default:
+        return 0;
+    }
+  }
+
+  function sortTasks(list: Task[]): Task[] {
+    return sortBy === "manual" ? list : [...list].sort(compareTasks);
+  }
+
   const [weekStart, weekEnd] = getWeekRange();
   const visibleTasks =
     view === "today"
@@ -554,14 +593,16 @@ export default function App() {
           : searchFilteredTasks;
   const completedCount = visibleTasks.filter((t) => t.completed).length;
 
-  const { topLevel: topLevelTasks, childrenByParent } = buildTaskTree(visibleTasks);
+  const { topLevel: topLevelTasks, childrenByParent } = buildTaskTree(sortTasks(visibleTasks));
 
   // Overdue tasks (due date in the past, not completed) would otherwise
   // disappear once their due date passes, since Today only shows dueDate ===
   // today. Surface them in their own section above the Today list instead.
   const overdueTasks =
     view === "today" ? searchFilteredTasks.filter((t) => isOverdue(t.dueDate, t.dueTime, t.completed)) : [];
-  const { topLevel: overdueTopLevel, childrenByParent: overdueChildrenByParent } = buildTaskTree(overdueTasks);
+  const { topLevel: overdueTopLevel, childrenByParent: overdueChildrenByParent } = buildTaskTree(
+    sortTasks(overdueTasks)
+  );
 
   return (
     <div style={{ maxWidth: view === "calendar" ? 880 : 560, margin: "0 auto", padding: "40px 24px" }}>
@@ -727,6 +768,30 @@ export default function App() {
           </button>
         )}
       </div>
+
+      {view !== "calendar" && view !== "history" && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 20 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted)" }}>Sort by:</span>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortOption)}
+            style={{
+              padding: "4px 8px",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              background: "var(--color-surface)",
+              color: "var(--color-text)",
+              fontSize: 12,
+            }}
+          >
+            {(Object.keys(SORT_LABELS) as SortOption[]).map((option) => (
+              <option key={option} value={option}>
+                {SORT_LABELS[option]}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginBottom: 20 }}>
         <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted)", marginRight: 2 }}>
@@ -1060,7 +1125,7 @@ export default function App() {
                     onDelete={handleDelete}
                     onSelect={setSelectedTask}
                     onAddSubtask={handleAddSubtask}
-                    onReorder={handleReorder}
+                    onReorder={sortBy === "manual" ? handleReorder : undefined}
                     selectable={selectMode}
                     selectedIds={selectedIds}
                     onToggleSelect={handleToggleSelect}
@@ -1106,7 +1171,7 @@ export default function App() {
                 onDelete={handleDelete}
                 onSelect={setSelectedTask}
                 onAddSubtask={handleAddSubtask}
-                onReorder={handleReorder}
+                onReorder={sortBy === "manual" ? handleReorder : undefined}
                 selectable={selectMode}
                 selectedIds={selectedIds}
                 onToggleSelect={handleToggleSelect}
