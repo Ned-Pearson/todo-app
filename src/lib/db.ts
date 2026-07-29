@@ -1,5 +1,5 @@
 import Database from "@tauri-apps/plugin-sql";
-import type { Attachment, Priority, RecurrenceFrequency, Tag, Task } from "../types";
+import type { Attachment, Priority, RecurrenceFrequency, SavedView, Tag, Task } from "../types";
 
 let dbInstance: Database | null = null;
 
@@ -129,7 +129,45 @@ export async function createTag(name: string, color: string): Promise<number> {
 export async function deleteTag(id: number): Promise<void> {
   const db = await getDb();
   await db.execute("DELETE FROM task_tags WHERE tag_id = ?", [id]);
+  // A saved view referencing this tag still works afterward — it just drops
+  // the tag part of its filter combo instead of pointing at a dead id.
+  await db.execute("UPDATE saved_views SET tag_id = NULL WHERE tag_id = ?", [id]);
   await db.execute("DELETE FROM tags WHERE id = ?", [id]);
+}
+
+function rowToSavedView(row: any): SavedView {
+  return {
+    id: row.id,
+    name: row.name,
+    tagId: row.tag_id,
+    priority: row.priority,
+    searchQuery: row.search_query,
+  };
+}
+
+export async function getAllSavedViews(): Promise<SavedView[]> {
+  const db = await getDb();
+  const rows = await db.select<any[]>("SELECT * FROM saved_views ORDER BY id");
+  return rows.map(rowToSavedView);
+}
+
+export async function createSavedView(
+  name: string,
+  tagId: number | null,
+  priority: Priority | null,
+  searchQuery: string
+): Promise<number> {
+  const db = await getDb();
+  const result = await db.execute(
+    "INSERT INTO saved_views (name, tag_id, priority, search_query) VALUES (?, ?, ?, ?)",
+    [name, tagId, priority, searchQuery || null]
+  );
+  return result.lastInsertId as number;
+}
+
+export async function deleteSavedView(id: number): Promise<void> {
+  const db = await getDb();
+  await db.execute("DELETE FROM saved_views WHERE id = ?", [id]);
 }
 
 export async function updateTagName(id: number, name: string): Promise<void> {

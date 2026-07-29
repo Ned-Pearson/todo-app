@@ -20,6 +20,14 @@ export interface Attachment {
   path: string;
 }
 
+export interface SavedView {
+  id: number;
+  name: string;
+  tagId: number | null;
+  priority: Priority | null;
+  searchQuery: string | null;
+}
+
 export interface Task {
   id: number;
   title: string;

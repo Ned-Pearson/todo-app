@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { Priority, RecurrenceFrequency, Tag, Task } from "./types";
+import type { Priority, RecurrenceFrequency, SavedView, Tag, Task } from "./types";
 import {
   getAllTasks,
   getAllTags,
@@ -23,6 +23,9 @@ import {
   addAttachmentToTask,
   removeAttachment,
   updateTaskSortOrder,
+  getAllSavedViews,
+  createSavedView,
+  deleteSavedView,
 } from "./lib/db";
 import TaskDetailModal from "./components/TaskDetailModal";
 import AddTaskModal from "./components/AddTaskModal";
@@ -57,6 +60,7 @@ function getInitialTheme(): Theme {
 export default function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
+  const [savedViews, setSavedViews] = useState<SavedView[]>([]);
   const [activeTagFilter, setActiveTagFilter] = useState<number | null>(null);
   const [dueDate, setDueDate] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<Priority | null>(null);
@@ -123,9 +127,14 @@ export default function App() {
   }, [view]);
 
   async function reload() {
-    const [updatedTasks, updatedTags] = await Promise.all([getAllTasks(), getAllTags()]);
+    const [updatedTasks, updatedTags, updatedSavedViews] = await Promise.all([
+      getAllTasks(),
+      getAllTags(),
+      getAllSavedViews(),
+    ]);
     setTasks(updatedTasks);
     setTags(updatedTags);
+    setSavedViews(updatedSavedViews);
     setSelectedTask((prev) => (prev ? (updatedTasks.find((t) => t.id === prev.id) ?? null) : prev));
   }
 
@@ -324,6 +333,40 @@ export default function App() {
   async function handleDeleteTag(id: number) {
     await deleteTag(id);
     if (activeTagFilter === id) setActiveTagFilter(null);
+    await reload();
+  }
+
+  // A saved view is just a shortcut for the tag/priority/search combo — it
+  // doesn't touch which view (All/Today/Calendar/etc.) is currently open, so
+  // "show me high-priority Work tasks" applies whether you're checking Today
+  // or All rather than also forcing a page jump.
+  function isSavedViewActive(view: SavedView): boolean {
+    return (
+      activeTagFilter === view.tagId && priorityFilter === view.priority && searchQuery === (view.searchQuery ?? "")
+    );
+  }
+
+  function handleApplySavedView(view: SavedView) {
+    if (isSavedViewActive(view)) {
+      setActiveTagFilter(null);
+      setPriorityFilter(null);
+      setSearchQuery("");
+    } else {
+      setActiveTagFilter(view.tagId);
+      setPriorityFilter(view.priority);
+      setSearchQuery(view.searchQuery ?? "");
+    }
+  }
+
+  async function handleSaveCurrentView() {
+    const name = window.prompt("Name this view:");
+    if (!name || !name.trim()) return;
+    await createSavedView(name.trim(), activeTagFilter, priorityFilter, searchQuery);
+    await reload();
+  }
+
+  async function handleDeleteSavedView(id: number) {
+    await deleteSavedView(id);
     await reload();
   }
 
@@ -638,6 +681,64 @@ export default function App() {
           >
             Edit tags
           </button>
+        </div>
+      )}
+
+      {(savedViews.length > 0 || activeTagFilter != null || priorityFilter != null || searchQuery.trim() !== "") && (
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginBottom: 20 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted)", marginRight: 2 }}>
+            Saved views:
+          </span>
+          {savedViews.map((savedView) => {
+            const active = isSavedViewActive(savedView);
+            return (
+              <div
+                key={savedView.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  padding: "4px 6px 4px 10px",
+                  borderRadius: 999,
+                  border: active ? "1px solid transparent" : "1px solid var(--color-border)",
+                  background: active ? "var(--color-accent)" : "none",
+                  color: active ? "#fff" : "var(--color-text-muted)",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => handleApplySavedView(savedView)}
+                  style={{
+                    border: "none",
+                    background: "none",
+                    color: "inherit",
+                    fontSize: 12,
+                    fontWeight: 500,
+                    padding: 0,
+                  }}
+                >
+                  {savedView.name}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteSavedView(savedView.id)}
+                  title="Delete this saved view"
+                  style={{ border: "none", background: "none", color: "inherit", fontSize: 11, padding: 0, opacity: 0.7 }}
+                >
+                  ✕
+                </button>
+              </div>
+            );
+          })}
+          {(activeTagFilter != null || priorityFilter != null || searchQuery.trim() !== "") && (
+            <button
+              type="button"
+              onClick={handleSaveCurrentView}
+              style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 12 }}
+            >
+              + Save current filters
+            </button>
+          )}
         </div>
       )}
 
