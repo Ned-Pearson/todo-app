@@ -3,6 +3,15 @@
 Tauri + React + TypeScript + SQLite
 
 TODO:
+- Subtask progress indicator on parent tasks (e.g. "2/5 done")
+- Saved/custom filter views (name and reuse a tag + priority + search combo)
+- Bulk select for multi-complete/delete/tag
+- Duplicate task button
+- Skip a single recurring occurrence without breaking the rest of the series
+- Sort options for list views (due date, priority, title — on top of manual drag order)
+- Desktop notifications for due/overdue tasks
+- Natural language due dates when typing a task title (e.g. "tomorrow", "next friday")
+- Global keyboard shortcut to quick-add a task even when the app isn't focused
 
 ## Project structure
 
