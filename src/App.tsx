@@ -319,6 +319,27 @@ export default function App() {
     await reload();
   }
 
+  // Advances a recurring task's own due date to the next occurrence in
+  // place, without touching `completed`/`completed_at` or spawning a new
+  // row — the series' single live row just moves forward a beat, so this
+  // occurrence is skipped rather than marked done. If the next date would
+  // fall past the rule's end date, there's nothing left to skip to, so the
+  // recurrence is simply dropped instead (same as what happens when a normal
+  // completion runs out the end date).
+  async function handleSkipOccurrence(id: number) {
+    const task = tasks.find((t) => t.id === id);
+    if (!task?.recurrence) return;
+    const baseDate = task.dueDate ?? todayStr();
+    const nextDue = addInterval(baseDate, task.recurrence.frequency, task.recurrence.interval);
+    const withinEnd = !task.recurrence.endDate || nextDue <= task.recurrence.endDate;
+    if (withinEnd) {
+      await updateTaskDueDate(id, nextDue, task.dueTime ?? "");
+    } else {
+      await clearTaskRecurrence(id);
+    }
+    await reload();
+  }
+
   // Reordering only makes sense among true siblings (same parent), and
   // operates on the full sibling group rather than whatever subset the
   // current view/filter happens to show, so a hidden sibling's position
@@ -1002,6 +1023,7 @@ export default function App() {
           onAddSubtask={handleAddSubtask}
           onSelectDate={setDueDate}
           onDuplicate={handleDuplicateTask}
+          onSkipOccurrence={handleSkipOccurrence}
         />
       ) : view === "history" ? (
         <HistoryView
@@ -1012,6 +1034,7 @@ export default function App() {
           onSelectTask={setSelectedTask}
           onAddSubtask={handleAddSubtask}
           onDuplicate={handleDuplicateTask}
+          onSkipOccurrence={handleSkipOccurrence}
         />
       ) : (
         <>
@@ -1042,6 +1065,7 @@ export default function App() {
                     selectedIds={selectedIds}
                     onToggleSelect={handleToggleSelect}
                     onDuplicate={handleDuplicateTask}
+                    onSkipOccurrence={handleSkipOccurrence}
                   />
                 ))}
               </div>
@@ -1087,6 +1111,7 @@ export default function App() {
                 selectedIds={selectedIds}
                 onToggleSelect={handleToggleSelect}
                 onDuplicate={handleDuplicateTask}
+                onSkipOccurrence={handleSkipOccurrence}
               />
             ))}
           </div>

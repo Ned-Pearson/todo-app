@@ -22,6 +22,7 @@ interface Props {
   selectedIds?: Set<number>;
   onToggleSelect?: (id: number) => void;
   onDuplicate?: (id: number) => void;
+  onSkipOccurrence?: (id: number) => void;
 }
 
 export default function TaskRow({
@@ -40,6 +41,7 @@ export default function TaskRow({
   selectedIds,
   onToggleSelect,
   onDuplicate,
+  onSkipOccurrence,
 }: Props) {
   const selected = selectable && (selectedIds?.has(task.id) ?? false);
   const [addingSubtask, setAddingSubtask] = useState(false);
@@ -330,6 +332,18 @@ export default function TaskRow({
         >
           + Subtask
         </button>
+        {task.recurrence && onSkipOccurrence && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onSkipOccurrence(task.id);
+            }}
+            title="Skip this occurrence and advance to the next one, without marking it complete"
+            style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 13 }}
+          >
+            Skip
+          </button>
+        )}
         {onDuplicate && (
           <button
             onClick={(e) => {
@@ -503,6 +517,7 @@ export default function TaskRow({
             selectedIds={selectedIds}
             onToggleSelect={onToggleSelect}
             onDuplicate={onDuplicate}
+            onSkipOccurrence={onSkipOccurrence}
           />
         ))}
     </>

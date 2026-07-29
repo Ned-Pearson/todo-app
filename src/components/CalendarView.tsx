@@ -13,6 +13,7 @@ interface Props {
   onAddSubtask: (parentId: number, title: string) => void;
   onSelectDate: (date: string) => void;
   onDuplicate: (id: number) => void;
+  onSkipOccurrence: (id: number) => void;
 }
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -49,6 +50,7 @@ export default function CalendarView({
   onAddSubtask,
   onSelectDate,
   onDuplicate,
+  onSkipOccurrence,
 }: Props) {
   const today = todayStr();
   const [cursor, setCursor] = useState(() => {
@@ -272,6 +274,7 @@ export default function CalendarView({
             onSelect={onSelectTask}
             onAddSubtask={onAddSubtask}
             onDuplicate={onDuplicate}
+            onSkipOccurrence={onSkipOccurrence}
           />
         ))}
         {virtualSelectedTasks.length > 0 && (
