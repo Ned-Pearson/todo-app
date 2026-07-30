@@ -80,6 +80,12 @@ fn main() {
             sql: include_str!("../migrations/013_saved_views.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 14,
+            description: "add custom_tabs",
+            sql: include_str!("../migrations/014_custom_tabs.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

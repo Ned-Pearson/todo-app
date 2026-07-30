@@ -1,5 +1,5 @@
 import Database from "@tauri-apps/plugin-sql";
-import type { Attachment, Priority, RecurrenceFrequency, SavedView, Tag, Task } from "../types";
+import type { Attachment, CustomTab, Priority, RecurrenceFrequency, SavedView, Tag, Task } from "../types";
 
 let dbInstance: Database | null = null;
 
@@ -132,6 +132,10 @@ export async function deleteTag(id: number): Promise<void> {
   // A saved view referencing this tag still works afterward — it just drops
   // the tag part of its filter combo instead of pointing at a dead id.
   await db.execute("UPDATE saved_views SET tag_id = NULL WHERE tag_id = ?", [id]);
+  // A custom tab has no meaning without its tag (unlike a saved view, which
+  // can drop just the tag part and still apply its other filters), so the
+  // tab itself is removed rather than left pointing at nothing.
+  await db.execute("DELETE FROM custom_tabs WHERE tag_id = ?", [id]);
   await db.execute("DELETE FROM tags WHERE id = ?", [id]);
 }
 
@@ -168,6 +172,33 @@ export async function createSavedView(
 export async function deleteSavedView(id: number): Promise<void> {
   const db = await getDb();
   await db.execute("DELETE FROM saved_views WHERE id = ?", [id]);
+}
+
+function rowToCustomTab(row: any): CustomTab {
+  return { id: row.id, name: row.name, tagId: row.tag_id };
+}
+
+export async function getAllCustomTabs(): Promise<CustomTab[]> {
+  const db = await getDb();
+  const rows = await db.select<any[]>("SELECT * FROM custom_tabs ORDER BY sort_order ASC, id ASC");
+  return rows.map(rowToCustomTab);
+}
+
+export async function createCustomTab(name: string, tagId: number): Promise<number> {
+  const db = await getDb();
+  const rows = await db.select<any[]>("SELECT MAX(sort_order) AS m FROM custom_tabs");
+  const nextSortOrder = (typeof rows[0]?.m === "number" ? rows[0].m : -1) + 1;
+  const result = await db.execute("INSERT INTO custom_tabs (name, tag_id, sort_order) VALUES (?, ?, ?)", [
+    name,
+    tagId,
+    nextSortOrder,
+  ]);
+  return result.lastInsertId as number;
+}
+
+export async function deleteCustomTab(id: number): Promise<void> {
+  const db = await getDb();
+  await db.execute("DELETE FROM custom_tabs WHERE id = ?", [id]);
 }
 
 export async function updateTagName(id: number, name: string): Promise<void> {

@@ -28,6 +28,12 @@ export interface SavedView {
   searchQuery: string | null;
 }
 
+export interface CustomTab {
+  id: number;
+  name: string;
+  tagId: number;
+}
+
 export interface Task {
   id: number;
   title: string;

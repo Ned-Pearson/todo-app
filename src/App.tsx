@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { Priority, RecurrenceFrequency, SavedView, Tag, Task } from "./types";
+import type { CustomTab, Priority, RecurrenceFrequency, SavedView, Tag, Task } from "./types";
 import {
   getAllTasks,
   getAllTags,
@@ -27,9 +27,13 @@ import {
   createSavedView,
   deleteSavedView,
   duplicateTask,
+  getAllCustomTabs,
+  createCustomTab,
+  deleteCustomTab,
 } from "./lib/db";
 import TaskDetailModal from "./components/TaskDetailModal";
 import AddTaskModal from "./components/AddTaskModal";
+import AddCustomTabModal from "./components/AddCustomTabModal";
 import TaskRow from "./components/TaskRow";
 import CalendarView from "./components/CalendarView";
 import HistoryView from "./components/HistoryView";
@@ -77,6 +81,8 @@ export default function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [savedViews, setSavedViews] = useState<SavedView[]>([]);
+  const [customTabs, setCustomTabs] = useState<CustomTab[]>([]);
+  const [showAddTabModal, setShowAddTabModal] = useState(false);
   const [activeTagFilter, setActiveTagFilter] = useState<number | null>(null);
   const [dueDate, setDueDate] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<Priority | null>(null);
@@ -249,14 +255,16 @@ export default function App() {
   }, [view]);
 
   async function reload() {
-    const [updatedTasks, updatedTags, updatedSavedViews] = await Promise.all([
+    const [updatedTasks, updatedTags, updatedSavedViews, updatedCustomTabs] = await Promise.all([
       getAllTasks(),
       getAllTags(),
       getAllSavedViews(),
+      getAllCustomTabs(),
     ]);
     setTasks(updatedTasks);
     setTags(updatedTags);
     setSavedViews(updatedSavedViews);
+    setCustomTabs(updatedCustomTabs);
     setSelectedTask((prev) => (prev ? (updatedTasks.find((t) => t.id === prev.id) ?? null) : prev));
   }
 
@@ -585,6 +593,29 @@ export default function App() {
     await reload();
   }
 
+  // A custom tab is really just a shortcut for "switch to All and filter by
+  // this tag" — clicking one sets exactly that pair of state, and it reads
+  // as "active" whenever those two happen to already match (including via
+  // the ordinary tag filter row), the same way saved views work.
+  async function handleCreateCustomTab(tabName: string, tag: { id: number } | { name: string; color: string }) {
+    const tagId = "id" in tag ? tag.id : await createTag(tag.name, tag.color);
+    await createCustomTab(tabName, tagId);
+    setShowAddTabModal(false);
+    await reload();
+    setView("all");
+    setActiveTagFilter(tagId);
+  }
+
+  function handleSelectCustomTab(tab: CustomTab) {
+    setView("all");
+    setActiveTagFilter(tab.tagId);
+  }
+
+  async function handleDeleteCustomTab(id: number) {
+    await deleteCustomTab(id);
+    await reload();
+  }
+
   async function handleExport() {
     try {
       const exported = await exportToFile();
@@ -828,7 +859,7 @@ export default function App() {
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 4, marginBottom: 20 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4, marginBottom: 20 }}>
         {(["all", "today", "this-week", "no-date", "calendar", "history"] as View[]).map((v) => (
           <button
             key={v}
@@ -846,6 +877,66 @@ export default function App() {
             {VIEW_LABELS[v]}
           </button>
         ))}
+        {customTabs.map((tab) => {
+          const active = view === "all" && activeTagFilter === tab.tagId;
+          return (
+            <div
+              key={tab.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                padding: "6px 6px 6px 12px",
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-sm)",
+                background: active ? "var(--color-accent-soft)" : "none",
+              }}
+            >
+              <button
+                onClick={() => handleSelectCustomTab(tab)}
+                style={{
+                  border: "none",
+                  background: "none",
+                  color: active ? "var(--color-accent)" : "var(--color-text-muted)",
+                  fontSize: 13,
+                  fontWeight: 500,
+                }}
+              >
+                {tab.name}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeleteCustomTab(tab.id)}
+                title="Delete this tab"
+                style={{
+                  border: "none",
+                  background: "none",
+                  color: active ? "var(--color-accent)" : "var(--color-text-faint)",
+                  fontSize: 11,
+                  opacity: 0.7,
+                  padding: 0,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => setShowAddTabModal(true)}
+          title="Add a custom tab for a project/tag"
+          style={{
+            padding: "6px 12px",
+            border: "1px dashed var(--color-border)",
+            borderRadius: "var(--radius-sm)",
+            background: "none",
+            color: "var(--color-text-faint)",
+            fontSize: 13,
+          }}
+        >
+          + Tab
+        </button>
       </div>
 
       <div style={{ position: "relative", marginBottom: 20 }}>
@@ -1332,6 +1423,14 @@ export default function App() {
           onRename={handleRenameTag}
           onRecolor={handleRecolorTag}
           onDelete={handleDeleteTag}
+        />
+      )}
+
+      {showAddTabModal && (
+        <AddCustomTabModal
+          tags={tags}
+          onClose={() => setShowAddTabModal(false)}
+          onCreate={handleCreateCustomTab}
         />
       )}
 

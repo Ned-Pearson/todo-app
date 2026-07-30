@@ -12,6 +12,7 @@ interface BackupData {
   taskTags: Record<string, unknown>[];
   attachments: Record<string, unknown>[];
   savedViews: Record<string, unknown>[];
+  customTabs: Record<string, unknown>[];
 }
 
 async function insertRaw(db: Database, table: string, row: Record<string, unknown>): Promise<void> {
@@ -43,6 +44,7 @@ export async function exportToFile(): Promise<boolean> {
     taskTags: await db.select("SELECT * FROM task_tags"),
     attachments: await db.select("SELECT * FROM attachments"),
     savedViews: await db.select("SELECT * FROM saved_views"),
+    customTabs: await db.select("SELECT * FROM custom_tabs"),
   };
 
   await writeTextFile(path, JSON.stringify(data, null, 2));
@@ -64,6 +66,7 @@ export async function importFromFile(): Promise<boolean> {
   }
 
   const db = await getDb();
+  await db.execute("DELETE FROM custom_tabs");
   await db.execute("DELETE FROM saved_views");
   await db.execute("DELETE FROM task_tags");
   await db.execute("DELETE FROM attachments");
@@ -77,6 +80,7 @@ export async function importFromFile(): Promise<boolean> {
   for (const tt of data.taskTags ?? []) await insertRaw(db, "task_tags", tt);
   for (const a of data.attachments ?? []) await insertRaw(db, "attachments", a);
   for (const v of data.savedViews ?? []) await insertRaw(db, "saved_views", v);
+  for (const c of data.customTabs ?? []) await insertRaw(db, "custom_tabs", c);
 
   return true;
 }
