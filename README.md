@@ -3,8 +3,15 @@
 Tauri + React + TypeScript + SQLite
 
 TODO:
-- Desktop notifications for due/overdue tasks
-
+- Ability to create custom tabs, for example having different tabs for each project etc.
+- Postpone button (push a non-recurring task's due date forward a day), mirroring recurring tasks' "Skip"
+- Snooze a notification (remind me again in N minutes/hours) instead of only firing once
+- Pin/star a task, separate from priority, for a small always-on-top shortlist
+- Completion stats/streaks view (tasks completed per day/week over time)
+- Task templates (save a task's title/tags/priority/subtasks as a reusable starting point)
+- Markdown rendering in the description field
+- Custom accent color picker, on top of the existing light/dark toggle
+- Task dependencies (block a task from being completed until another one is)
 
 ## Project structure
 
@@ -32,6 +39,7 @@ todo-app/
 - **Due dates** — a date picker in the Add Task modal and the detail modal; due dates show as a badge on each task row. An optional time picker sits next to it (disabled until a date is set, and cleared automatically if the date is), and a set time shows right alongside the date in the badge, e.g. `2026-08-01 14:30`. Overdue detection now accounts for the time too — a task due today at a specific time only flips to overdue once that time has actually passed, instead of the whole day counting as overdue from midnight.
 - **Today view** — filters tasks due today, shows a completed/total progress bar, and nests matching subtasks under their parent the same way the All view does.
 - **Overdue handling** — incomplete tasks whose due date has passed get a distinct visual state everywhere they appear (a red left-border accent down the whole task block, plus a bolded, red-tinted due-date badge with a warning icon), not just a plain badge. The Today view also gets a dedicated "Overdue" section above the day's list, so a missed task doesn't just silently disappear once its due date passes (it wouldn't otherwise show in Today, which only matches `dueDate === today`).
+- **Desktop notifications** — a native OS notification fires the moment an incomplete task becomes overdue (via `@tauri-apps/plugin-notification`), reusing the exact same due/overdue check the rest of the app already relies on — for a task with a specific time that's the instant that time passes, otherwise it's midnight on the due date. Permission is requested once on startup if not already granted. Each task only notifies once per occurrence: it's tracked in a session-local set that a task drops out of the moment it's no longer overdue (completed, or its due date/time pushed later), so it's free to notify again if it becomes overdue a second time. A background check runs every 60 seconds (plus once immediately) so a task that's due later today still gets caught without the app needing to reload.
 - **This Week view** — filters tasks due within the current Sunday–Saturday week (matching the Calendar view's week layout), shows the same completed/total progress bar as the Today view, and nests matching subtasks the same way the other filtered views do.
 - **No-due-date view** — filters tasks with no due date set, nesting matching subtasks under their parent the same way the All view does.
 - **Subtasks** — unlimited nesting via a self-referencing `parent_id`, rendered recursively with inline "+ Subtask" add and cascading delete; a new subtask inherits its parent's due date; ticking a task also ticks all of its subtasks; tasks with subtasks can be collapsed/expanded via a caret toggle. The inline add-subtask form has its own ✕ button (and Escape) to back out, and closes itself automatically if you click away while it's still empty, so an unused form never lingers. A task with subtasks also shows a small "`<completed>/<total>`" badge next to its title, counting its *entire* subtree (nested sub-subtasks included, not just direct children) so overall progress is visible at a glance even while collapsed.

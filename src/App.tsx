@@ -40,8 +40,10 @@ import { buildTaskTree } from "./lib/tree";
 import { exportToFile, importFromFile } from "./lib/backup";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { register, unregisterAll } from "@tauri-apps/plugin-global-shortcut";
+import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 
 const GLOBAL_QUICK_ADD_SHORTCUT = "CommandOrControl+Shift+N";
+const OVERDUE_CHECK_INTERVAL_MS = 60_000;
 
 type View = "all" | "today" | "this-week" | "no-date" | "calendar" | "history";
 
@@ -91,6 +93,7 @@ export default function App() {
   );
   const pendingDeleteTimeout = useRef<number | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const notifiedOverdueIds = useRef<Set<number>>(new Set());
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [showBulkTagPicker, setShowBulkTagPicker] = useState(false);
@@ -196,6 +199,48 @@ export default function App() {
       unregisterAll().catch(() => {});
     };
   }, []);
+
+  // Desktop notifications for due/overdue tasks. Reuses the same isOverdue()
+  // check the rest of the app already relies on — a task becomes "due" the
+  // instant it turns overdue (right at its due time for a timed task, or at
+  // midnight for a plain due-date one), so there's one unified moment to
+  // notify at rather than two separate "due" vs "overdue" concepts. Each
+  // task only fires once per session: notifiedOverdueIds tracks which ones
+  // have already been notified, and a task is removed from that set the
+  // moment it's no longer overdue (completed, or its due date/time pushed
+  // out), so it can notify again if it becomes overdue a second time.
+  useEffect(() => {
+    (async () => {
+      let granted = await isPermissionGranted();
+      if (!granted) {
+        const permission = await requestPermission();
+        granted = permission === "granted";
+      }
+    })().catch((err) => console.error("Failed to request notification permission:", err));
+  }, []);
+
+  useEffect(() => {
+    async function checkOverdue() {
+      const granted = await isPermissionGranted().catch(() => false);
+      if (!granted) return;
+      for (const task of tasks) {
+        const overdue = isOverdue(task.dueDate, task.dueTime, task.completed);
+        if (overdue && !notifiedOverdueIds.current.has(task.id)) {
+          notifiedOverdueIds.current.add(task.id);
+          sendNotification({
+            title: "Task overdue",
+            body: task.dueTime ? `${task.title} — was due ${task.dueDate} ${task.dueTime}` : `${task.title} — was due ${task.dueDate}`,
+          });
+        } else if (!overdue && notifiedOverdueIds.current.has(task.id)) {
+          notifiedOverdueIds.current.delete(task.id);
+        }
+      }
+    }
+
+    checkOverdue();
+    const interval = window.setInterval(checkOverdue, OVERDUE_CHECK_INTERVAL_MS);
+    return () => window.clearInterval(interval);
+  }, [tasks]);
 
   useEffect(() => {
     if (view === "today") setDueDate(todayStr());
