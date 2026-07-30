@@ -2,6 +2,7 @@ import { useState, FormEvent } from "react";
 import type { Priority, RecurrenceFrequency } from "../types";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "../lib/priority";
 import { REPEAT_LABELS, type RepeatOption } from "../lib/recurrence";
+import { parseNaturalDate } from "../lib/naturalDate";
 
 interface Props {
   defaultDueDate: string;
@@ -25,14 +26,33 @@ export default function AddTaskModal({ defaultDueDate, onClose, onAdd }: Props) 
   const [repeatEndDate, setRepeatEndDate] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // Only offer to fill in a date from the title text while no due date has
+  // been picked yet — an explicit pick always wins, and the hint disappears
+  // the moment one exists so it doesn't look like it might override it.
+  const detectedDate = !dueDate && title.trim() ? parseNaturalDate(title) : null;
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     const trimmed = title.trim();
     if (!trimmed) return;
     setSaving(true);
     try {
+      const detected = !dueDate ? parseNaturalDate(trimmed) : null;
+      const strippedTitle = detected
+        ? trimmed
+            .replace(detected.dateMatch, "")
+            .replace(detected.timeMatch ?? "", "")
+            .replace(/\s{2,}/g, " ")
+            .trim()
+        : trimmed;
+      // Don't let stripping the matched phrase(s) leave an empty title (e.g.
+      // the whole title was just "tomorrow") — keep the original text and
+      // still apply the date/time rather than save a blank task.
+      const finalTitle = strippedTitle || trimmed;
+      const finalDueDate = detected ? detected.date : dueDate;
+      const finalDueTime = detected?.time && !dueTime ? detected.time : dueTime;
       const recurrence = repeat === "none" ? null : { frequency: repeat, interval: repeatInterval, endDate: repeatEndDate };
-      await onAdd(trimmed, dueDate, dueTime, priority, recurrence);
+      await onAdd(finalTitle, finalDueDate, finalDueTime, priority, recurrence);
     } finally {
       setSaving(false);
     }
@@ -69,10 +89,10 @@ export default function AddTaskModal({ defaultDueDate, onClose, onAdd }: Props) 
           autoFocus
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Task title…"
+          placeholder="Task title… (try “tomorrow at 3pm” or “next friday”)"
           style={{
             width: "100%",
-            marginBottom: 12,
+            marginBottom: detectedDate ? 4 : 12,
             padding: "4px 0",
             border: "none",
             background: "none",
@@ -82,6 +102,14 @@ export default function AddTaskModal({ defaultDueDate, onClose, onAdd }: Props) 
             fontFamily: "inherit",
           }}
         />
+        {detectedDate && (
+          <div style={{ fontSize: 12, color: "var(--color-accent)", marginBottom: 12 }}>
+            📅 Due {detectedDate.date}
+            {detectedDate.time ? ` ${detectedDate.time}` : ""} — will be set automatically from "
+            {detectedDate.dateMatch}
+            {detectedDate.timeMatch ? ` ${detectedDate.timeMatch}` : ""}"
+          </div>
+        )}
 
         <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
           Due date
