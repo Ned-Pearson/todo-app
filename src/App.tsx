@@ -38,6 +38,10 @@ import { addInterval, getWeekRange, isOverdue, nowTimestamp, todayStr } from "./
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "./lib/priority";
 import { buildTaskTree } from "./lib/tree";
 import { exportToFile, importFromFile } from "./lib/backup";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { register, unregisterAll } from "@tauri-apps/plugin-global-shortcut";
+
+const GLOBAL_QUICK_ADD_SHORTCUT = "CommandOrControl+Shift+N";
 
 type View = "all" | "today" | "this-week" | "no-date" | "calendar" | "history";
 
@@ -86,6 +90,7 @@ export default function App() {
     null
   );
   const pendingDeleteTimeout = useRef<number | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [showBulkTagPicker, setShowBulkTagPicker] = useState(false);
@@ -101,10 +106,14 @@ export default function App() {
     };
   }, []);
 
-  // Keyboard shortcuts: "n" opens the add-task modal, arrow keys move focus
-  // between task rows, Enter opens whatever row currently has focus (handled
-  // by TaskRow itself). Skipped entirely while a modal is open or while
-  // typing in any text field, so shortcuts never hijack normal typing.
+  // Keyboard shortcuts: "n" opens the add-task modal, "/" focuses search,
+  // arrow keys move focus between task rows, Enter opens whatever row
+  // currently has focus (handled by TaskRow itself), and Escape closes
+  // whichever modal is open or clears a focused, non-empty search field.
+  // Everything except Escape is skipped while a modal is open or while
+  // typing in any text field, so shortcuts never hijack normal typing —
+  // Escape is the one shortcut that needs to work *while* a modal is open,
+  // since that's how it closes one.
   useEffect(() => {
     function isTextEntry(el: EventTarget | null): boolean {
       if (!(el instanceof HTMLElement)) return false;
@@ -112,11 +121,37 @@ export default function App() {
     }
 
     function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        if (selectedTask) {
+          setSelectedTask(null);
+        } else if (showManageTags) {
+          setShowManageTags(false);
+        } else if (showAddModal) {
+          setShowAddModal(false);
+        } else if (e.target === searchInputRef.current && searchQuery) {
+          // Clear first; a second Escape (now that it's empty) falls through
+          // to the blur below instead of doing nothing.
+          setSearchQuery("");
+        } else if (document.activeElement instanceof HTMLElement && document.activeElement !== document.body) {
+          // Nothing left to close/clear — just drop focus from whatever's
+          // currently focused (search box, a task row from arrow-key nav,
+          // etc.) so Escape always has *something* to do.
+          document.activeElement.blur();
+        }
+        return;
+      }
+
       if (selectedTask || showManageTags || showAddModal) return;
 
       if (e.key === "n" && !isTextEntry(e.target)) {
         e.preventDefault();
         setShowAddModal(true);
+        return;
+      }
+
+      if (e.key === "/" && !isTextEntry(e.target)) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
         return;
       }
 
@@ -136,7 +171,31 @@ export default function App() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedTask, showManageTags, showAddModal]);
+  }, [selectedTask, showManageTags, showAddModal, searchQuery]);
+
+  // A global (OS-level) shortcut so quick-add works even when the app isn't
+  // focused — pressing it brings the window to the front and opens the Add
+  // Task modal, unlike "n" which only works while the app already has focus.
+  useEffect(() => {
+    register(GLOBAL_QUICK_ADD_SHORTCUT, async (event) => {
+      if (event.state !== "Pressed") return;
+      try {
+        const win = getCurrentWindow();
+        if (await win.isMinimized()) await win.unminimize();
+        await win.show();
+        await win.setFocus();
+      } catch (err) {
+        console.error("Failed to focus window from global shortcut:", err);
+      }
+      setShowAddModal(true);
+    }).catch((err) => {
+      console.error(`Failed to register global shortcut ${GLOBAL_QUICK_ADD_SHORTCUT}:`, err);
+    });
+
+    return () => {
+      unregisterAll().catch(() => {});
+    };
+  }, []);
 
   useEffect(() => {
     if (view === "today") setDueDate(todayStr());
@@ -639,7 +698,7 @@ export default function App() {
                   top: "calc(100% + 6px)",
                   right: 0,
                   zIndex: 30,
-                  width: 220,
+                  width: 240,
                   padding: "10px 12px",
                   border: "1px solid var(--color-border)",
                   borderRadius: "var(--radius-sm)",
@@ -657,12 +716,24 @@ export default function App() {
                   <span>New task</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                  <span>/</span>
+                  <span>Focus search</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                   <span>↑ / ↓</span>
                   <span>Move between tasks</span>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                   <span>Enter</span>
                   <span>Submit / open task</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                  <span>Esc</span>
+                  <span>Close modal / clear or unfocus search</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span>Ctrl/⌘+Shift+N</span>
+                  <span>New task (global)</span>
                 </div>
               </div>
             )}
@@ -734,9 +805,10 @@ export default function App() {
 
       <div style={{ position: "relative", marginBottom: 20 }}>
         <input
+          ref={searchInputRef}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search tasks…"
+          placeholder="Search tasks… (/)"
           style={{
             width: "100%",
             padding: "8px 30px 8px 10px",
