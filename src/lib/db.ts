@@ -7,6 +7,7 @@ import type {
   SavedView,
   Tag,
   Task,
+  TaskDependency,
   TaskTemplate,
   TemplateNode,
 } from "../types";
@@ -20,7 +21,13 @@ export async function getDb(): Promise<Database> {
   return dbInstance;
 }
 
-function rowToTask(row: any, tags: Tag[], inheritedTags: Tag[], attachments: Attachment[]): Task {
+function rowToTask(
+  row: any,
+  tags: Tag[],
+  inheritedTags: Tag[],
+  attachments: Attachment[],
+  dependsOn: TaskDependency[]
+): Task {
   return {
     id: row.id,
     title: row.title,
@@ -45,6 +52,7 @@ function rowToTask(row: any, tags: Tag[], inheritedTags: Tag[], attachments: Att
     priority: row.priority,
     attachments,
     pinned: !!row.pinned,
+    dependsOn,
   };
 }
 
@@ -116,12 +124,26 @@ export async function getAllTasks(): Promise<Task[]> {
     attachmentsByTask.set(row.task_id, list);
   }
 
+  const dependencyRows = await db.select<any[]>(`
+    SELECT task_dependencies.task_id AS task_id,
+           tasks.id AS dep_id, tasks.title AS dep_title, tasks.completed AS dep_completed
+    FROM task_dependencies
+    JOIN tasks ON tasks.id = task_dependencies.depends_on_id
+  `);
+  const dependsOnByTask = new Map<number, TaskDependency[]>();
+  for (const row of dependencyRows) {
+    const list = dependsOnByTask.get(row.task_id) ?? [];
+    list.push({ id: row.dep_id, title: row.dep_title, completed: !!row.dep_completed });
+    dependsOnByTask.set(row.task_id, list);
+  }
+
   return rows.map((row) =>
     rowToTask(
       row,
       tagsByTask.get(row.id) ?? [],
       inheritedTagsByTask.get(row.id) ?? [],
-      attachmentsByTask.get(row.id) ?? []
+      attachmentsByTask.get(row.id) ?? [],
+      dependsOnByTask.get(row.id) ?? []
     )
   );
 }
@@ -480,5 +502,47 @@ export async function deleteTask(id: number): Promise<void> {
   for (const child of children) {
     await deleteTask(child.id);
   }
+  await db.execute("DELETE FROM task_dependencies WHERE task_id = ? OR depends_on_id = ?", [id, id]);
   await db.execute("DELETE FROM tasks WHERE id = ?", [id]);
+}
+
+// Is there a dependency path from `fromId` to `toId` (i.e. does fromId
+// depend on toId, directly or transitively)? Used to reject an edge that
+// would otherwise create a cycle — two tasks depending on each other,
+// directly or through a chain, would leave every task in that chain
+// permanently uncompletable.
+async function hasDependencyPath(db: Database, fromId: number, toId: number): Promise<boolean> {
+  const visited = new Set<number>();
+  async function walk(id: number): Promise<boolean> {
+    if (id === toId) return true;
+    if (visited.has(id)) return false;
+    visited.add(id);
+    const rows = await db.select<any[]>("SELECT depends_on_id FROM task_dependencies WHERE task_id = ?", [id]);
+    for (const row of rows) {
+      if (await walk(row.depends_on_id)) return true;
+    }
+    return false;
+  }
+  return walk(fromId);
+}
+
+export async function addTaskDependency(taskId: number, dependsOnId: number): Promise<void> {
+  if (taskId === dependsOnId) {
+    throw new Error("A task can't depend on itself.");
+  }
+  const db = await getDb();
+  // Adding taskId -> dependsOnId would create a cycle if dependsOnId already
+  // (transitively) depends on taskId.
+  if (await hasDependencyPath(db, dependsOnId, taskId)) {
+    throw new Error("That would create a circular dependency.");
+  }
+  await db.execute("INSERT OR IGNORE INTO task_dependencies (task_id, depends_on_id) VALUES (?, ?)", [
+    taskId,
+    dependsOnId,
+  ]);
+}
+
+export async function removeTaskDependency(taskId: number, dependsOnId: number): Promise<void> {
+  const db = await getDb();
+  await db.execute("DELETE FROM task_dependencies WHERE task_id = ? AND depends_on_id = ?", [taskId, dependsOnId]);
 }

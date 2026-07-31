@@ -98,6 +98,12 @@ fn main() {
             sql: include_str!("../migrations/016_task_templates.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 17,
+            description: "add task_dependencies",
+            sql: include_str!("../migrations/017_task_dependencies.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

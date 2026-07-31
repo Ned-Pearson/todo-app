@@ -52,6 +52,14 @@ export interface TaskTemplate {
   data: TemplateNode;
 }
 
+// A lightweight stand-in for a prerequisite task — just enough to show what
+// a task is waiting on and whether it's cleared, not a full Task.
+export interface TaskDependency {
+  id: number;
+  title: string;
+  completed: boolean;
+}
+
 export interface Task {
   id: number;
   title: string;
@@ -68,4 +76,5 @@ export interface Task {
   priority: Priority | null;
   attachments: Attachment[];
   pinned: boolean;
+  dependsOn: TaskDependency[];
 }

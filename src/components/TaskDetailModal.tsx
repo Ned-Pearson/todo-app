@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { convertFileSrc } from "@tauri-apps/api/core";
@@ -12,6 +12,7 @@ import { renderMarkdown } from "../lib/markdown";
 interface Props {
   task: Task;
   allTags: Tag[];
+  allTasks: Task[];
   onClose: () => void;
   onSave: (
     title: string,
@@ -25,17 +26,22 @@ interface Props {
   onCreateTag: (name: string, color: string) => void;
   onAddAttachment: (path: string) => void;
   onRemoveAttachment: (attachmentId: number) => void;
+  onAddDependency: (dependsOnId: number) => void;
+  onRemoveDependency: (dependsOnId: number) => void;
 }
 
 export default function TaskDetailModal({
   task,
   allTags,
+  allTasks,
   onClose,
   onSave,
   onToggleTag,
   onCreateTag,
   onAddAttachment,
   onRemoveAttachment,
+  onAddDependency,
+  onRemoveDependency,
 }: Props) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? "");
@@ -49,6 +55,21 @@ export default function TaskDetailModal({
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState(() => pickUnusedColor(allTags.map((t) => t.color)));
   const [previewPath, setPreviewPath] = useState<string | null>(null);
+
+  const dependencyCandidates = allTasks.filter(
+    (t) => t.id !== task.id && !task.dependsOn.some((d) => d.id === t.id)
+  );
+  const [selectedDependencyId, setSelectedDependencyId] = useState<number | null>(
+    dependencyCandidates[0]?.id ?? null
+  );
+
+  // Keep the dropdown's selection valid as the candidate list shrinks (a
+  // dependency just added should disappear from the options) or grows.
+  useEffect(() => {
+    if (selectedDependencyId != null && !dependencyCandidates.some((c) => c.id === selectedDependencyId)) {
+      setSelectedDependencyId(dependencyCandidates[0]?.id ?? null);
+    }
+  }, [task.dependsOn]);
 
   async function handleSave() {
     const trimmedTitle = title.trim();
@@ -258,6 +279,91 @@ export default function TaskDetailModal({
             </>
           )}
         </div>
+
+        <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
+          Depends on
+        </label>
+        {task.dependsOn.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
+            {task.dependsOn.map((dep) => (
+              <div
+                key={dep.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "4px 8px",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-sm)",
+                  background: "var(--color-surface-sunken)",
+                }}
+              >
+                <span style={{ fontSize: 13 }}>{dep.completed ? "✅" : "⏳"}</span>
+                <span
+                  style={{
+                    flex: 1,
+                    fontSize: 13,
+                    textDecoration: dep.completed ? "line-through" : "none",
+                    color: dep.completed ? "var(--color-text-faint)" : "var(--color-text)",
+                  }}
+                >
+                  {dep.title}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onRemoveDependency(dep.id)}
+                  title="Remove this dependency"
+                  style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 12 }}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        {dependencyCandidates.length > 0 ? (
+          <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 16 }}>
+            <select
+              value={selectedDependencyId ?? ""}
+              onChange={(e) => setSelectedDependencyId(Number(e.target.value))}
+              style={{
+                flex: 1,
+                padding: "6px 8px",
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-sm)",
+                background: "var(--color-surface)",
+                color: "var(--color-text)",
+                fontSize: 13,
+              }}
+            >
+              {dependencyCandidates.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.title}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => selectedDependencyId != null && onAddDependency(selectedDependencyId)}
+              style={{
+                padding: "6px 10px",
+                border: "none",
+                borderRadius: "var(--radius-sm)",
+                background: "var(--color-accent)",
+                color: "#fff",
+                fontSize: 13,
+              }}
+            >
+              Add
+            </button>
+          </div>
+        ) : (
+          task.dependsOn.length === 0 && (
+            <div style={{ fontSize: 12, color: "var(--color-text-faint)", marginBottom: 16 }}>
+              No other tasks to depend on yet.
+            </div>
+          )
+        )}
 
         <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
           Tags

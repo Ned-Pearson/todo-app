@@ -35,6 +35,8 @@ import {
   saveTaskAsTemplate,
   createTaskFromTemplate,
   deleteTaskTemplate,
+  addTaskDependency,
+  removeTaskDependency,
 } from "./lib/db";
 import TaskDetailModal from "./components/TaskDetailModal";
 import AddTaskModal from "./components/AddTaskModal";
@@ -389,6 +391,14 @@ export default function App() {
   // next instance of any recurring task in that set. Doesn't reload on its
   // own so bulk completion can do a single reload after the whole batch.
   async function applyCompletion(id: number, completed: boolean) {
+    if (completed) {
+      // Blocked tasks can't be completed — the checkbox is already disabled
+      // for this in TaskRow, but bulk-complete bypasses that UI entirely, so
+      // this is the one choke point both paths go through where it's worth
+      // guarding again rather than trusting the UI alone.
+      const task = tasks.find((t) => t.id === id);
+      if (task?.dependsOn.some((d) => !d.completed)) return;
+    }
     const idsToUpdate = completed ? [id, ...getDescendantIds(id)] : [id];
     const completedAt = completed ? nowTimestamp() : null;
     for (const taskId of idsToUpdate) {
@@ -643,6 +653,21 @@ export default function App() {
 
   async function handleRemoveAttachment(attachmentId: number) {
     await removeAttachment(attachmentId);
+    await reload();
+  }
+
+  async function handleAddDependency(taskId: number, dependsOnId: number) {
+    try {
+      await addTaskDependency(taskId, dependsOnId);
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : String(err));
+      return;
+    }
+    await reload();
+  }
+
+  async function handleRemoveDependency(taskId: number, dependsOnId: number) {
+    await removeTaskDependency(taskId, dependsOnId);
     await reload();
   }
 
@@ -1785,6 +1810,7 @@ export default function App() {
         <TaskDetailModal
           task={selectedTask}
           allTags={tags}
+          allTasks={tasks}
           onClose={() => setSelectedTask(null)}
           onSave={(title, description, dueDate, dueTime, priority, recurrence) =>
             Promise.all([
@@ -1799,6 +1825,8 @@ export default function App() {
           onCreateTag={handleCreateTag}
           onAddAttachment={(path) => handleAddAttachment(selectedTask.id, path)}
           onRemoveAttachment={handleRemoveAttachment}
+          onAddDependency={(dependsOnId) => handleAddDependency(selectedTask.id, dependsOnId)}
+          onRemoveDependency={(dependsOnId) => handleRemoveDependency(selectedTask.id, dependsOnId)}
         />
       )}
 

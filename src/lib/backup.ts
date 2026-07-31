@@ -14,6 +14,7 @@ interface BackupData {
   savedViews: Record<string, unknown>[];
   customTabs: Record<string, unknown>[];
   taskTemplates: Record<string, unknown>[];
+  taskDependencies: Record<string, unknown>[];
 }
 
 async function insertRaw(db: Database, table: string, row: Record<string, unknown>): Promise<void> {
@@ -47,6 +48,7 @@ export async function exportToFile(): Promise<boolean> {
     savedViews: await db.select("SELECT * FROM saved_views"),
     customTabs: await db.select("SELECT * FROM custom_tabs"),
     taskTemplates: await db.select("SELECT * FROM task_templates"),
+    taskDependencies: await db.select("SELECT * FROM task_dependencies"),
   };
 
   await writeTextFile(path, JSON.stringify(data, null, 2));
@@ -68,6 +70,7 @@ export async function importFromFile(): Promise<boolean> {
   }
 
   const db = await getDb();
+  await db.execute("DELETE FROM task_dependencies");
   await db.execute("DELETE FROM task_templates");
   await db.execute("DELETE FROM custom_tabs");
   await db.execute("DELETE FROM saved_views");
@@ -85,6 +88,7 @@ export async function importFromFile(): Promise<boolean> {
   for (const v of data.savedViews ?? []) await insertRaw(db, "saved_views", v);
   for (const c of data.customTabs ?? []) await insertRaw(db, "custom_tabs", c);
   for (const t of data.taskTemplates ?? []) await insertRaw(db, "task_templates", t);
+  for (const d of data.taskDependencies ?? []) await insertRaw(db, "task_dependencies", d);
 
   return true;
 }

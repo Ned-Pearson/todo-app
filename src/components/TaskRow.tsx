@@ -74,6 +74,8 @@ export default function TaskRow({
   }
 
   const subtreeProgress = hasChildren ? countSubtreeProgress(task.id) : null;
+  const blockingDeps = task.dependsOn.filter((d) => !d.completed);
+  const blocked = !task.completed && blockingDeps.length > 0;
   // While filtering by priority, a matching task's non-matching subtasks are
   // still shown (so nothing's hidden), but start collapsed so the flagged
   // task itself doesn't get buried under clutter you didn't ask to see.
@@ -227,7 +229,8 @@ export default function TaskRow({
         <input
           type="checkbox"
           checked={task.completed}
-          disabled={readOnly}
+          disabled={readOnly || blocked}
+          title={blocked ? `Blocked by: ${blockingDeps.map((d) => d.title).join(", ")}` : undefined}
           onClick={(e) => e.stopPropagation()}
           onChange={(e) => onToggle(task.id, e.target.checked)}
           style={{
@@ -235,9 +238,17 @@ export default function TaskRow({
             height: 16,
             accentColor: "var(--color-accent)",
             flexShrink: 0,
-            cursor: readOnly ? "default" : "pointer",
+            cursor: readOnly || blocked ? "default" : "pointer",
           }}
         />
+        {blocked && (
+          <span
+            title={`Blocked by: ${blockingDeps.map((d) => d.title).join(", ")}`}
+            style={{ fontSize: 12, flexShrink: 0 }}
+          >
+            🔒
+          </span>
+        )}
         {onTogglePin && (
           <button
             onClick={(e) => {
