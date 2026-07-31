@@ -140,6 +140,7 @@ export default function App() {
   const [showAccentPicker, setShowAccentPicker] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [notifySnoozeMinutes, setNotifySnoozeMinutes] = useState<number>(getInitialSnoozeMinutes);
+  const [dndEnabled, setDndEnabled] = useState<boolean>(() => localStorage.getItem("notifyDnd") === "true");
   const [showNotifySettings, setShowNotifySettings] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<{ rootIds: number[]; allIds: number[]; label: string } | null>(
     null
@@ -177,6 +178,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("notifySnoozeMinutes", String(notifySnoozeMinutes));
   }, [notifySnoozeMinutes]);
+
+  useEffect(() => {
+    localStorage.setItem("notifyDnd", String(dndEnabled));
+  }, [dndEnabled]);
 
   useEffect(() => {
     return () => {
@@ -299,6 +304,12 @@ export default function App() {
 
   useEffect(() => {
     async function checkOverdue() {
+      // Do Not Disturb pauses the check entirely — not just the send, but
+      // the snooze-clock bookkeeping too, so time spent with DND on doesn't
+      // count against it. Turning DND back off re-evaluates on the very next
+      // tick as if no time had passed while paused, rather than picking up a
+      // stale countdown.
+      if (dndEnabled) return;
       const granted = await isPermissionGranted().catch(() => false);
       if (!granted) return;
       const now = Date.now();
@@ -325,7 +336,7 @@ export default function App() {
     checkOverdue();
     const interval = window.setInterval(checkOverdue, OVERDUE_CHECK_INTERVAL_MS);
     return () => window.clearInterval(interval);
-  }, [tasks, notifySnoozeMinutes]);
+  }, [tasks, notifySnoozeMinutes, dndEnabled]);
 
   useEffect(() => {
     if (view === "today") setDueDate(todayStr());
@@ -1002,7 +1013,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => setShowNotifySettings((v) => !v)}
-              title="Overdue notification repeat interval"
+              title={dndEnabled ? "Notifications paused (Do Not Disturb)" : "Overdue notification settings"}
               style={{
                 width: 28,
                 height: 28,
@@ -1017,7 +1028,7 @@ export default function App() {
                 fontSize: 13,
               }}
             >
-              🔔
+              {dndEnabled ? "🔕" : "🔔"}
             </button>
             {showNotifySettings && (
               <div
@@ -1036,30 +1047,52 @@ export default function App() {
                   color: "var(--color-text-muted)",
                 }}
               >
-                <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 6 }}>
-                  Remind me again every
-                </div>
-                <select
-                  value={notifySnoozeMinutes}
-                  onChange={(e) => setNotifySnoozeMinutes(Number(e.target.value))}
+                <label
                   style={{
-                    width: "100%",
-                    padding: "6px 8px",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: "var(--radius-sm)",
-                    background: "var(--color-surface)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontWeight: 600,
                     color: "var(--color-text)",
-                    fontSize: 13,
+                    marginBottom: 10,
+                    cursor: "pointer",
                   }}
                 >
-                  {SNOOZE_OPTIONS_MINUTES.map((minutes) => (
-                    <option key={minutes} value={minutes}>
-                      {SNOOZE_LABELS[minutes]}
-                    </option>
-                  ))}
-                </select>
-                <div style={{ marginTop: 6, color: "var(--color-text-faint)" }}>
-                  for as long as a task stays overdue
+                  <input
+                    type="checkbox"
+                    checked={dndEnabled}
+                    onChange={(e) => setDndEnabled(e.target.checked)}
+                    style={{ accentColor: "var(--color-accent)" }}
+                  />
+                  Do Not Disturb
+                </label>
+                <div style={{ opacity: dndEnabled ? 0.5 : 1 }}>
+                  <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 6 }}>
+                    Remind me again every
+                  </div>
+                  <select
+                    value={notifySnoozeMinutes}
+                    onChange={(e) => setNotifySnoozeMinutes(Number(e.target.value))}
+                    disabled={dndEnabled}
+                    style={{
+                      width: "100%",
+                      padding: "6px 8px",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: "var(--radius-sm)",
+                      background: "var(--color-surface)",
+                      color: "var(--color-text)",
+                      fontSize: 13,
+                    }}
+                  >
+                    {SNOOZE_OPTIONS_MINUTES.map((minutes) => (
+                      <option key={minutes} value={minutes}>
+                        {SNOOZE_LABELS[minutes]}
+                      </option>
+                    ))}
+                  </select>
+                  <div style={{ marginTop: 6, color: "var(--color-text-faint)" }}>
+                    for as long as a task stays overdue
+                  </div>
                 </div>
               </div>
             )}
