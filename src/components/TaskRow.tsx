@@ -3,6 +3,7 @@ import type { Priority, Task } from "../types";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "../lib/priority";
 import { isOverdue } from "../lib/date";
 import { fileNameFromPath } from "../lib/attachments";
+import { renderInlineMarkdown } from "../lib/markdown";
 
 const OVERDUE_COLOR = "#c9184a";
 
@@ -484,7 +485,7 @@ export default function TaskRow({
             cursor: "pointer",
           }}
         >
-          {task.description}
+          {renderInlineMarkdown(task.description, `desc${task.id}`)}
         </div>
       )}
 

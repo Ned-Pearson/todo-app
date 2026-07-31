@@ -3,7 +3,6 @@
 Tauri + React + TypeScript + SQLite
 
 TODO:
-- Markdown rendering in the description field
 - Custom accent color picker, on top of the existing light/dark toggle
 - Task dependencies (block a task from being completed until another one is)
 - Add a dnd toggle for silencing notifications
@@ -28,7 +27,7 @@ todo-app/
 
 ## Features implemented
 
-- **Descriptions** — each task can have a description, edited from a detail modal opened by clicking the task row; when set, it shows as a single truncated line (with an ellipsis if it overflows) beneath the task.
+- **Descriptions** — each task can have a description, edited from a detail modal opened by clicking the task row; when set, it shows as a single truncated line (with an ellipsis if it overflows) beneath the task. Supports a small hand-rolled markdown subset — **bold**, *italic*, `code`, [links](url), and `-`/numbered lists — rendered as real React elements rather than parsed HTML, so there's no `dangerouslySetInnerHTML`/sanitization surface at all. The detail modal shows a live "Preview" box below the textarea as you type; the row's truncated one-line summary renders the same inline formatting (bold/italic/code/links) without the block-level list/paragraph structure, since that wouldn't make sense clamped to one line.
 - **Attachments/links** — a task can have multiple attachments (own `attachments` table, one-to-many), added via an "Add attachment…" button in the detail modal that opens a native multi-select file picker (`@tauri-apps/plugin-dialog`). Image attachments (png/jpg/jpeg/gif/webp/svg/bmp) render as inline thumbnail previews right there in the modal (via `convertFileSrc` + the Tauri asset protocol) and enlarge into a full-size in-app lightbox on click; anything else shows as a filename link that opens the file in its default application (`@tauri-apps/plugin-opener`'s `openPath`, with errors surfaced via an alert instead of failing silently) without leaving the app. Each attachment has its own remove button. The task row shows a 📎 badge (with a count once there's more than one) listing the filenames in its tooltip.
 - **Edit task title** — the same detail modal has the title as an editable field directly (no separate edit button/mode) alongside due date and description.
 - **Due dates** — a date picker in the Add Task modal and the detail modal; due dates show as a badge on each task row. An optional time picker sits next to it (disabled until a date is set, and cleared automatically if the date is), and a set time shows right alongside the date in the badge, e.g. `2026-08-01 14:30`. Overdue detection now accounts for the time too — a task due today at a specific time only flips to overdue once that time has actually passed, instead of the whole day counting as overdue from midnight.

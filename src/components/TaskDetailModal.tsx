@@ -7,6 +7,7 @@ import { PRIORITY_COLORS, PRIORITY_LABELS } from "../lib/priority";
 import { fileNameFromPath, isImagePath } from "../lib/attachments";
 import { REPEAT_LABELS, type RepeatOption } from "../lib/recurrence";
 import { pickUnusedColor } from "../lib/tagColor";
+import { renderMarkdown } from "../lib/markdown";
 
 interface Props {
   task: Task;
@@ -351,9 +352,12 @@ export default function TaskDetailModal({
           </button>
         </div>
 
-        <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
+        <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 2 }}>
           Description
         </label>
+        <div style={{ fontSize: 11, color: "var(--color-text-faint)", marginBottom: 6 }}>
+          Supports **bold**, *italic*, `code`, [links](url), and - lists
+        </div>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
@@ -361,7 +365,7 @@ export default function TaskDetailModal({
           placeholder="Add a description…"
           style={{
             width: "100%",
-            marginBottom: 16,
+            marginBottom: 8,
             padding: "8px 10px",
             border: "1px solid var(--color-border)",
             borderRadius: "var(--radius-sm)",
@@ -371,6 +375,22 @@ export default function TaskDetailModal({
             resize: "vertical",
           }}
         />
+        {description.trim() && (
+          <div
+            style={{
+              marginBottom: 16,
+              padding: "8px 10px",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              background: "var(--color-surface-sunken)",
+              fontSize: 13,
+              color: "var(--color-text)",
+            }}
+          >
+            <div style={{ fontSize: 11, color: "var(--color-text-faint)", marginBottom: 4 }}>Preview</div>
+            {renderMarkdown(description)}
+          </div>
+        )}
 
         <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
           Attachments
