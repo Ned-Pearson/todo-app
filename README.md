@@ -3,6 +3,15 @@
 Tauri + React + TypeScript + SQLite
 
 TODO:
+- Recurring tasks: option to end "after N occurrences" instead of only a fixed end date
+- Weekday-specific recurrence (e.g. "every Mon/Wed/Fri") beyond the current simple interval model
+- Archive view for old completed tasks, separate from History, to keep things lean over time
+- Standalone reminders not tied to a due date (a plain time-based nudge that doesn't imply the task is "due")
+- Undo/redo for edits in general (title/description/priority/etc.), not just delete
+- A per-task custom highlight color for the row, independent of tags/priority
+- A "next 5 occurrences" preview when setting up a recurrence rule, before committing to it
+- A tri-state or percentage "in progress" status, beyond the current binary complete/incomplete
+- Drag a subtask to reparent it (move to a different parent, or promote to top-level), not just reorder within its current siblings
 
 ## Project structure~
 
