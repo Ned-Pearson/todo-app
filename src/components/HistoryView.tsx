@@ -12,6 +12,7 @@ interface Props {
   onAddSubtask: (parentId: number, title: string) => void;
   onDuplicate: (id: number) => void;
   onSkipOccurrence: (id: number) => void;
+  onPostpone: (id: number) => void;
 }
 
 const UNKNOWN_DATE = "Unknown date";
@@ -25,6 +26,7 @@ export default function HistoryView({
   onAddSubtask,
   onDuplicate,
   onSkipOccurrence,
+  onPostpone,
 }: Props) {
   const completed = tasks.filter((t) => t.completed);
 
@@ -89,6 +91,7 @@ export default function HistoryView({
                   onAddSubtask={onAddSubtask}
                   onDuplicate={onDuplicate}
                   onSkipOccurrence={onSkipOccurrence}
+                  onPostpone={onPostpone}
                   readOnly
                   showCompletedDate
                 />

@@ -462,6 +462,17 @@ export default function App() {
     await reload();
   }
 
+  // The non-recurring counterpart to "Skip" — just pushes a task's own due
+  // date forward a day in place, reusing addInterval's "daily" step so the
+  // date math stays in one place rather than duplicating it.
+  async function handlePostpone(id: number) {
+    const task = tasks.find((t) => t.id === id);
+    if (!task?.dueDate || task.recurrence) return;
+    const nextDue = addInterval(task.dueDate, "daily", 1);
+    await updateTaskDueDate(id, nextDue, task.dueTime ?? "");
+    await reload();
+  }
+
   // Reordering only makes sense among true siblings (same parent), and
   // operates on the full sibling group rather than whatever subset the
   // current view/filter happens to show, so a hidden sibling's position
@@ -1297,6 +1308,7 @@ export default function App() {
           onSelectDate={setDueDate}
           onDuplicate={handleDuplicateTask}
           onSkipOccurrence={handleSkipOccurrence}
+          onPostpone={handlePostpone}
         />
       ) : view === "history" ? (
         <HistoryView
@@ -1308,6 +1320,7 @@ export default function App() {
           onAddSubtask={handleAddSubtask}
           onDuplicate={handleDuplicateTask}
           onSkipOccurrence={handleSkipOccurrence}
+          onPostpone={handlePostpone}
         />
       ) : (
         <>
@@ -1339,6 +1352,7 @@ export default function App() {
                     onToggleSelect={handleToggleSelect}
                     onDuplicate={handleDuplicateTask}
                     onSkipOccurrence={handleSkipOccurrence}
+                    onPostpone={handlePostpone}
                   />
                 ))}
               </div>
@@ -1385,6 +1399,7 @@ export default function App() {
                 onToggleSelect={handleToggleSelect}
                 onDuplicate={handleDuplicateTask}
                 onSkipOccurrence={handleSkipOccurrence}
+                onPostpone={handlePostpone}
               />
             ))}
           </div>

@@ -23,6 +23,7 @@ interface Props {
   onToggleSelect?: (id: number) => void;
   onDuplicate?: (id: number) => void;
   onSkipOccurrence?: (id: number) => void;
+  onPostpone?: (id: number) => void;
 }
 
 export default function TaskRow({
@@ -42,6 +43,7 @@ export default function TaskRow({
   onToggleSelect,
   onDuplicate,
   onSkipOccurrence,
+  onPostpone,
 }: Props) {
   const selected = selectable && (selectedIds?.has(task.id) ?? false);
   const [addingSubtask, setAddingSubtask] = useState(false);
@@ -344,6 +346,18 @@ export default function TaskRow({
             Skip
           </button>
         )}
+        {task.dueDate && !task.recurrence && onPostpone && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onPostpone(task.id);
+            }}
+            title="Push this task's due date forward by a day"
+            style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 13 }}
+          >
+            Postpone
+          </button>
+        )}
         {onDuplicate && (
           <button
             onClick={(e) => {
@@ -518,6 +532,7 @@ export default function TaskRow({
             onToggleSelect={onToggleSelect}
             onDuplicate={onDuplicate}
             onSkipOccurrence={onSkipOccurrence}
+            onPostpone={onPostpone}
           />
         ))}
     </>
