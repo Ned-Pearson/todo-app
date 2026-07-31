@@ -24,6 +24,7 @@ interface Props {
   onDuplicate?: (id: number) => void;
   onSkipOccurrence?: (id: number) => void;
   onPostpone?: (id: number) => void;
+  onTogglePin?: (id: number) => void;
 }
 
 export default function TaskRow({
@@ -44,6 +45,7 @@ export default function TaskRow({
   onDuplicate,
   onSkipOccurrence,
   onPostpone,
+  onTogglePin,
 }: Props) {
   const selected = selectable && (selectedIds?.has(task.id) ?? false);
   const [addingSubtask, setAddingSubtask] = useState(false);
@@ -233,6 +235,25 @@ export default function TaskRow({
             cursor: readOnly ? "default" : "pointer",
           }}
         />
+        {onTogglePin && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onTogglePin(task.id);
+            }}
+            title={task.pinned ? "Unpin" : "Pin to shortlist"}
+            style={{
+              border: "none",
+              background: "none",
+              color: task.pinned ? "#f2994a" : "var(--color-text-faint)",
+              fontSize: 14,
+              padding: 0,
+              flexShrink: 0,
+            }}
+          >
+            {task.pinned ? "★" : "☆"}
+          </button>
+        )}
         {task.priority && (
           <span
             title={`${PRIORITY_LABELS[task.priority]} priority`}
@@ -533,6 +554,7 @@ export default function TaskRow({
             onDuplicate={onDuplicate}
             onSkipOccurrence={onSkipOccurrence}
             onPostpone={onPostpone}
+            onTogglePin={onTogglePin}
           />
         ))}
     </>

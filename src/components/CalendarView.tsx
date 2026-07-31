@@ -15,6 +15,7 @@ interface Props {
   onDuplicate: (id: number) => void;
   onSkipOccurrence: (id: number) => void;
   onPostpone: (id: number) => void;
+  onTogglePin: (id: number) => void;
 }
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -53,6 +54,7 @@ export default function CalendarView({
   onDuplicate,
   onSkipOccurrence,
   onPostpone,
+  onTogglePin,
 }: Props) {
   const today = todayStr();
   const [cursor, setCursor] = useState(() => {
@@ -278,6 +280,7 @@ export default function CalendarView({
             onDuplicate={onDuplicate}
             onSkipOccurrence={onSkipOccurrence}
             onPostpone={onPostpone}
+            onTogglePin={onTogglePin}
           />
         ))}
         {virtualSelectedTasks.length > 0 && (

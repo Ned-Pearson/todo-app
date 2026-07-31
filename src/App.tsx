@@ -20,6 +20,7 @@ import {
   updateTaskDescription,
   updateTaskDueDate,
   updateTaskPriority,
+  updateTaskPinned,
   addAttachmentToTask,
   removeAttachment,
   updateTaskSortOrder,
@@ -504,6 +505,13 @@ export default function App() {
     await reload();
   }
 
+  async function handleTogglePin(id: number) {
+    const task = tasks.find((t) => t.id === id);
+    if (!task) return;
+    await updateTaskPinned(id, !task.pinned);
+    await reload();
+  }
+
   // Reordering only makes sense among true siblings (same parent), and
   // operates on the full sibling group rather than whatever subset the
   // current view/filter happens to show, so a hidden sibling's position
@@ -693,6 +701,12 @@ export default function App() {
   // every other filter, so they disappear from every view immediately while
   // still existing in the database until the undo window elapses.
   const activeTasks = pendingDelete ? tasks.filter((t) => !pendingDelete.allIds.includes(t.id)) : tasks;
+
+  // The pinned shortlist is deliberately independent of whatever tag/
+  // priority/search/view filters are currently active — it's meant to be an
+  // always-visible glance list, not one more thing subject to the current
+  // filter context.
+  const pinnedTasks = activeTasks.filter((t) => t.pinned);
 
   const tagFilteredTasks =
     activeTagFilter == null
@@ -966,6 +980,38 @@ export default function App() {
           </button>
         </div>
       </div>
+
+      {pinnedTasks.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "#f2994a", marginBottom: 6 }}>★ Pinned</div>
+          <div
+            style={{
+              background: "var(--color-surface)",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-md)",
+              boxShadow: "var(--shadow-card)",
+            }}
+          >
+            {pinnedTasks.map((task) => (
+              <TaskRow
+                key={task.id}
+                task={task}
+                depth={0}
+                childrenByParent={new Map()}
+                priorityFilter={priorityFilter}
+                onToggle={handleToggle}
+                onDelete={handleDelete}
+                onSelect={setSelectedTask}
+                onAddSubtask={handleAddSubtask}
+                onDuplicate={handleDuplicateTask}
+                onSkipOccurrence={handleSkipOccurrence}
+                onPostpone={handlePostpone}
+                onTogglePin={handleTogglePin}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4, marginBottom: 20 }}>
         {(["all", "today", "this-week", "no-date", "calendar", "history"] as View[]).map((v) => (
@@ -1406,6 +1452,7 @@ export default function App() {
           onDuplicate={handleDuplicateTask}
           onSkipOccurrence={handleSkipOccurrence}
           onPostpone={handlePostpone}
+          onTogglePin={handleTogglePin}
         />
       ) : view === "history" ? (
         <HistoryView
@@ -1418,6 +1465,7 @@ export default function App() {
           onDuplicate={handleDuplicateTask}
           onSkipOccurrence={handleSkipOccurrence}
           onPostpone={handlePostpone}
+          onTogglePin={handleTogglePin}
         />
       ) : (
         <>
@@ -1450,6 +1498,7 @@ export default function App() {
                     onDuplicate={handleDuplicateTask}
                     onSkipOccurrence={handleSkipOccurrence}
                     onPostpone={handlePostpone}
+                    onTogglePin={handleTogglePin}
                   />
                 ))}
               </div>
@@ -1497,6 +1546,7 @@ export default function App() {
                 onDuplicate={handleDuplicateTask}
                 onSkipOccurrence={handleSkipOccurrence}
                 onPostpone={handlePostpone}
+                onTogglePin={handleTogglePin}
               />
             ))}
           </div>

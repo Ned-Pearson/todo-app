@@ -86,6 +86,12 @@ fn main() {
             sql: include_str!("../migrations/014_custom_tabs.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 15,
+            description: "add task pinned",
+            sql: include_str!("../migrations/015_pinned.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

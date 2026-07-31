@@ -49,4 +49,5 @@ export interface Task {
   inheritedTags: Tag[];
   priority: Priority | null;
   attachments: Attachment[];
+  pinned: boolean;
 }

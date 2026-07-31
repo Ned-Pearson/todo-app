@@ -34,6 +34,7 @@ function rowToTask(row: any, tags: Tag[], inheritedTags: Tag[], attachments: Att
     inheritedTags,
     priority: row.priority,
     attachments,
+    pinned: !!row.pinned,
   };
 }
 
@@ -331,6 +332,11 @@ export async function updateTaskSortOrder(id: number, sortOrder: number): Promis
 export async function updateTaskPriority(id: number, priority: Priority | null): Promise<void> {
   const db = await getDb();
   await db.execute("UPDATE tasks SET priority = ? WHERE id = ?", [priority, id]);
+}
+
+export async function updateTaskPinned(id: number, pinned: boolean): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE tasks SET pinned = ? WHERE id = ?", [pinned ? 1 : 0, id]);
 }
 
 export async function clearTaskRecurrence(id: number): Promise<void> {
