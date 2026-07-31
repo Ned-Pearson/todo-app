@@ -84,6 +84,23 @@ function getInitialTheme(): Theme {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
+// The light/dark stylesheet defaults from index.css — used as the color
+// picker's starting value while no custom accent is set, so it opens on
+// something sensible instead of an arbitrary color.
+const DEFAULT_ACCENT: Record<Theme, string> = { light: "#3d4f3a", dark: "#7fa374" };
+
+function hexToRgba(hex: string, alpha: number): string {
+  const clean = hex.replace("#", "");
+  const full = clean.length === 3
+    ? clean.split("").map((c) => c + c).join("")
+    : clean;
+  const num = parseInt(full, 16);
+  const r = (num >> 16) & 255;
+  const g = (num >> 8) & 255;
+  const b = num & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 const SNOOZE_OPTIONS_MINUTES = [15, 30, 60, 120, 240];
 
 const SNOOZE_LABELS: Record<number, string> = {
@@ -117,6 +134,8 @@ export default function App() {
   const [showManageTags, setShowManageTags] = useState(false);
   const [view, setView] = useState<View>("all");
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
+  const [customAccent, setCustomAccent] = useState<string | null>(() => localStorage.getItem("accentColor"));
+  const [showAccentPicker, setShowAccentPicker] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [notifySnoozeMinutes, setNotifySnoozeMinutes] = useState<number>(getInitialSnoozeMinutes);
   const [showNotifySettings, setShowNotifySettings] = useState(false);
@@ -134,6 +153,24 @@ export default function App() {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("theme", theme);
   }, [theme]);
+
+  // A custom accent overrides --color-accent/--color-accent-soft as inline
+  // styles on the root element, which win over index.css's :root/[data-
+  // theme] rules regardless of which theme is active. Clearing it back to
+  // null removes the inline properties so the stylesheet's per-theme
+  // defaults take over again — no need to track what those defaults are.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (customAccent) {
+      root.style.setProperty("--color-accent", customAccent);
+      root.style.setProperty("--color-accent-soft", hexToRgba(customAccent, 0.15));
+      localStorage.setItem("accentColor", customAccent);
+    } else {
+      root.style.removeProperty("--color-accent");
+      root.style.removeProperty("--color-accent-soft");
+      localStorage.removeItem("accentColor");
+    }
+  }, [customAccent]);
 
   useEffect(() => {
     localStorage.setItem("notifySnoozeMinutes", String(notifySnoozeMinutes));
@@ -1016,6 +1053,79 @@ export default function App() {
           >
             {theme === "light" ? "🌙" : "☀️"}
           </button>
+          <div style={{ position: "relative", display: "flex" }}>
+            <button
+              type="button"
+              onClick={() => setShowAccentPicker((v) => !v)}
+              title="Custom accent color"
+              style={{
+                width: 28,
+                height: 28,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: 0,
+                border: "1px solid var(--color-border)",
+                borderRadius: "50%",
+                background: "var(--color-surface)",
+              }}
+            >
+              <span
+                style={{
+                  width: 14,
+                  height: 14,
+                  borderRadius: "50%",
+                  background: "var(--color-accent)",
+                  display: "block",
+                }}
+              />
+            </button>
+            {showAccentPicker && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "calc(100% + 6px)",
+                  right: 0,
+                  zIndex: 30,
+                  width: 180,
+                  padding: "10px 12px",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-sm)",
+                  background: "var(--color-surface)",
+                  boxShadow: "var(--shadow-card)",
+                  fontSize: 12,
+                  color: "var(--color-text-muted)",
+                }}
+              >
+                <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 6 }}>Accent color</div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: customAccent ? 6 : 0 }}>
+                  <input
+                    type="color"
+                    value={customAccent ?? DEFAULT_ACCENT[theme]}
+                    onChange={(e) => setCustomAccent(e.target.value)}
+                    style={{
+                      width: 40,
+                      height: 28,
+                      padding: 0,
+                      border: "1px solid var(--color-border)",
+                      borderRadius: "var(--radius-sm)",
+                      background: "none",
+                    }}
+                  />
+                  <span style={{ fontSize: 12 }}>{customAccent ?? "Theme default"}</span>
+                </div>
+                {customAccent && (
+                  <button
+                    type="button"
+                    onClick={() => setCustomAccent(null)}
+                    style={{ border: "none", background: "none", color: "var(--color-accent)", fontSize: 12 }}
+                  >
+                    Reset to theme default
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
