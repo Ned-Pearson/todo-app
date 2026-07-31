@@ -92,6 +92,12 @@ fn main() {
             sql: include_str!("../migrations/015_pinned.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 16,
+            description: "add task_templates",
+            sql: include_str!("../migrations/016_task_templates.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

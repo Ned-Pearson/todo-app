@@ -14,6 +14,7 @@ interface Props {
   onSkipOccurrence: (id: number) => void;
   onPostpone: (id: number) => void;
   onTogglePin: (id: number) => void;
+  onSaveAsTemplate: (id: number) => void;
 }
 
 const UNKNOWN_DATE = "Unknown date";
@@ -29,6 +30,7 @@ export default function HistoryView({
   onSkipOccurrence,
   onPostpone,
   onTogglePin,
+  onSaveAsTemplate,
 }: Props) {
   const completed = tasks.filter((t) => t.completed);
 
@@ -95,6 +97,7 @@ export default function HistoryView({
                   onSkipOccurrence={onSkipOccurrence}
                   onPostpone={onPostpone}
                   onTogglePin={onTogglePin}
+                  onSaveAsTemplate={onSaveAsTemplate}
                   readOnly
                   showCompletedDate
                 />

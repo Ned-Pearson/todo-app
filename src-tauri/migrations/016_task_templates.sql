@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS task_templates (
+    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    name    TEXT NOT NULL,
+    data    TEXT NOT NULL
+);

@@ -1,5 +1,15 @@
 import Database from "@tauri-apps/plugin-sql";
-import type { Attachment, CustomTab, Priority, RecurrenceFrequency, SavedView, Tag, Task } from "../types";
+import type {
+  Attachment,
+  CustomTab,
+  Priority,
+  RecurrenceFrequency,
+  SavedView,
+  Tag,
+  Task,
+  TaskTemplate,
+  TemplateNode,
+} from "../types";
 
 let dbInstance: Database | null = null;
 
@@ -322,6 +332,88 @@ export async function duplicateTask(id: number): Promise<number> {
   const rows = await db.select<any[]>("SELECT parent_id FROM tasks WHERE id = ?", [id]);
   const parentId = rows[0]?.parent_id ?? null;
   return duplicateTaskRecursive(db, id, parentId);
+}
+
+// Captures a task's own title/priority/tags and its whole subtask subtree as
+// a static JSON blueprint (see TemplateNode) — deliberately not a live copy
+// like duplicateTask: renaming/retagging/deleting the original task never
+// touches a template built from it.
+async function buildTemplateNode(db: Database, taskId: number): Promise<TemplateNode> {
+  const rows = await db.select<any[]>("SELECT title, priority FROM tasks WHERE id = ?", [taskId]);
+  const row = rows[0];
+  const tagRows = await db.select<any[]>("SELECT tag_id FROM task_tags WHERE task_id = ?", [taskId]);
+  const children = await db.select<any[]>(
+    "SELECT id FROM tasks WHERE parent_id = ? ORDER BY sort_order ASC, id ASC",
+    [taskId]
+  );
+  const subtasks: TemplateNode[] = [];
+  for (const child of children) {
+    subtasks.push(await buildTemplateNode(db, child.id));
+  }
+  return {
+    title: row.title,
+    priority: row.priority,
+    tagIds: tagRows.map((t) => t.tag_id),
+    subtasks,
+  };
+}
+
+export async function saveTaskAsTemplate(taskId: number, name: string): Promise<number> {
+  const db = await getDb();
+  const node = await buildTemplateNode(db, taskId);
+  const result = await db.execute("INSERT INTO task_templates (name, data) VALUES (?, ?)", [
+    name,
+    JSON.stringify(node),
+  ]);
+  return result.lastInsertId as number;
+}
+
+export async function getAllTaskTemplates(): Promise<TaskTemplate[]> {
+  const db = await getDb();
+  const rows = await db.select<any[]>("SELECT * FROM task_templates ORDER BY id");
+  return rows.map((row) => ({ id: row.id, name: row.name, data: JSON.parse(row.data) as TemplateNode }));
+}
+
+export async function deleteTaskTemplate(id: number): Promise<void> {
+  const db = await getDb();
+  await db.execute("DELETE FROM task_templates WHERE id = ?", [id]);
+}
+
+// Stamps out a real task (and its whole subtask subtree) from a template's
+// static blueprint. Every node in the tree gets the same due date/time,
+// matching the existing convention that a new subtask inherits its parent's
+// due date. A tagId the template captured that no longer exists (its tag
+// was deleted since) is silently a no-op here — task_tags has no enforced
+// foreign key, so it just never resolves to a real tag in any join.
+async function instantiateTemplateNode(
+  db: Database,
+  node: TemplateNode,
+  parentId: number | null,
+  dueDate: string | null,
+  dueTime: string | null
+): Promise<number> {
+  const sortOrder = await nextSortOrder(db, parentId);
+  const result = await db.execute(
+    "INSERT INTO tasks (title, due_date, due_time, parent_id, priority, sort_order) VALUES (?, ?, ?, ?, ?, ?)",
+    [node.title, dueDate, dueTime, parentId, node.priority, sortOrder]
+  );
+  const newId = result.lastInsertId as number;
+  for (const tagId of node.tagIds) {
+    await db.execute("INSERT OR IGNORE INTO task_tags (task_id, tag_id) VALUES (?, ?)", [newId, tagId]);
+  }
+  for (const child of node.subtasks) {
+    await instantiateTemplateNode(db, child, newId, dueDate, dueTime);
+  }
+  return newId;
+}
+
+export async function createTaskFromTemplate(templateId: number, dueDate?: string, dueTime?: string): Promise<number> {
+  const db = await getDb();
+  const rows = await db.select<any[]>("SELECT * FROM task_templates WHERE id = ?", [templateId]);
+  const row = rows[0];
+  if (!row) throw new Error("Template not found");
+  const node = JSON.parse(row.data) as TemplateNode;
+  return instantiateTemplateNode(db, node, null, dueDate || null, dueTime || null);
 }
 
 export async function updateTaskSortOrder(id: number, sortOrder: number): Promise<void> {

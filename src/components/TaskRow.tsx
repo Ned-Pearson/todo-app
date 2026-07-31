@@ -25,6 +25,7 @@ interface Props {
   onSkipOccurrence?: (id: number) => void;
   onPostpone?: (id: number) => void;
   onTogglePin?: (id: number) => void;
+  onSaveAsTemplate?: (id: number) => void;
 }
 
 export default function TaskRow({
@@ -46,6 +47,7 @@ export default function TaskRow({
   onSkipOccurrence,
   onPostpone,
   onTogglePin,
+  onSaveAsTemplate,
 }: Props) {
   const selected = selectable && (selectedIds?.has(task.id) ?? false);
   const [addingSubtask, setAddingSubtask] = useState(false);
@@ -391,6 +393,18 @@ export default function TaskRow({
             Duplicate
           </button>
         )}
+        {onSaveAsTemplate && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onSaveAsTemplate(task.id);
+            }}
+            title="Save this task's title/priority/tags and subtasks as a reusable template"
+            style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 13 }}
+          >
+            Save as template
+          </button>
+        )}
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -555,6 +569,7 @@ export default function TaskRow({
             onSkipOccurrence={onSkipOccurrence}
             onPostpone={onPostpone}
             onTogglePin={onTogglePin}
+            onSaveAsTemplate={onSaveAsTemplate}
           />
         ))}
     </>

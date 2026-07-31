@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { CustomTab, Priority, RecurrenceFrequency, SavedView, Tag, Task } from "./types";
+import type { CustomTab, Priority, RecurrenceFrequency, SavedView, Tag, Task, TaskTemplate } from "./types";
 import {
   getAllTasks,
   getAllTags,
@@ -31,6 +31,10 @@ import {
   getAllCustomTabs,
   createCustomTab,
   deleteCustomTab,
+  getAllTaskTemplates,
+  saveTaskAsTemplate,
+  createTaskFromTemplate,
+  deleteTaskTemplate,
 } from "./lib/db";
 import TaskDetailModal from "./components/TaskDetailModal";
 import AddTaskModal from "./components/AddTaskModal";
@@ -100,6 +104,8 @@ export default function App() {
   const [tags, setTags] = useState<Tag[]>([]);
   const [savedViews, setSavedViews] = useState<SavedView[]>([]);
   const [customTabs, setCustomTabs] = useState<CustomTab[]>([]);
+  const [taskTemplates, setTaskTemplates] = useState<TaskTemplate[]>([]);
+  const [showTemplatesPicker, setShowTemplatesPicker] = useState(false);
   const [showAddTabModal, setShowAddTabModal] = useState(false);
   const [activeTagFilter, setActiveTagFilter] = useState<number | null>(null);
   const [dueDate, setDueDate] = useState("");
@@ -289,16 +295,18 @@ export default function App() {
   }, [view]);
 
   async function reload() {
-    const [updatedTasks, updatedTags, updatedSavedViews, updatedCustomTabs] = await Promise.all([
+    const [updatedTasks, updatedTags, updatedSavedViews, updatedCustomTabs, updatedTemplates] = await Promise.all([
       getAllTasks(),
       getAllTags(),
       getAllSavedViews(),
       getAllCustomTabs(),
+      getAllTaskTemplates(),
     ]);
     setTasks(updatedTasks);
     setTags(updatedTags);
     setSavedViews(updatedSavedViews);
     setCustomTabs(updatedCustomTabs);
+    setTaskTemplates(updatedTemplates);
     setSelectedTask((prev) => (prev ? (updatedTasks.find((t) => t.id === prev.id) ?? null) : prev));
   }
 
@@ -511,6 +519,28 @@ export default function App() {
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
     await updateTaskPinned(id, !task.pinned);
+    await reload();
+  }
+
+  async function handleSaveAsTemplate(id: number) {
+    const task = tasks.find((t) => t.id === id);
+    const name = window.prompt("Name this template:", task?.title ?? "");
+    if (!name || !name.trim()) return;
+    await saveTaskAsTemplate(id, name.trim());
+    await reload();
+  }
+
+  // Stamps out a fresh task (and its whole subtask subtree) from a saved
+  // template, using whatever due date is currently pending for the add form
+  // — the same default a manually-added task on this view would get.
+  async function handleUseTemplate(templateId: number) {
+    await createTaskFromTemplate(templateId, dueDate || undefined);
+    setShowTemplatesPicker(false);
+    await reload();
+  }
+
+  async function handleDeleteTemplate(id: number) {
+    await deleteTaskTemplate(id);
     await reload();
   }
 
@@ -1015,6 +1045,7 @@ export default function App() {
                 onSkipOccurrence={handleSkipOccurrence}
                 onPostpone={handlePostpone}
                 onTogglePin={handleTogglePin}
+                onSaveAsTemplate={handleSaveAsTemplate}
               />
             ))}
           </div>
@@ -1319,6 +1350,75 @@ export default function App() {
         >
           + Add task
         </button>
+        <div style={{ position: "relative", display: "flex" }}>
+          <button
+            type="button"
+            onClick={() => setShowTemplatesPicker((v) => !v)}
+            style={{
+              padding: "8px 14px",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              background: showTemplatesPicker ? "var(--color-accent-soft)" : "none",
+              color: showTemplatesPicker ? "var(--color-accent)" : "var(--color-text-muted)",
+              fontSize: 14,
+              fontWeight: 500,
+            }}
+          >
+            Templates ▾
+          </button>
+          {showTemplatesPicker && (
+            <div
+              style={{
+                position: "absolute",
+                top: "calc(100% + 4px)",
+                left: 0,
+                zIndex: 30,
+                minWidth: 220,
+                padding: 6,
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-sm)",
+                background: "var(--color-surface)",
+                boxShadow: "var(--shadow-card)",
+              }}
+            >
+              {taskTemplates.length === 0 && (
+                <div style={{ fontSize: 12, color: "var(--color-text-faint)", padding: "4px 6px" }}>
+                  No templates yet — use "Save as template" on any task.
+                </div>
+              )}
+              {taskTemplates.map((template) => (
+                <div
+                  key={template.id}
+                  style={{ display: "flex", alignItems: "center", gap: 4 }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleUseTemplate(template.id)}
+                    style={{
+                      flex: 1,
+                      textAlign: "left",
+                      padding: "6px 6px",
+                      border: "none",
+                      background: "none",
+                      color: "var(--color-text)",
+                      fontSize: 13,
+                    }}
+                  >
+                    {template.name}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteTemplate(template.id)}
+                    title="Delete this template"
+                    style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 11 }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
         {view !== "calendar" && view !== "history" && view !== "stats" && (
           <button
             type="button"
@@ -1461,6 +1561,7 @@ export default function App() {
           onSkipOccurrence={handleSkipOccurrence}
           onPostpone={handlePostpone}
           onTogglePin={handleTogglePin}
+          onSaveAsTemplate={handleSaveAsTemplate}
         />
       ) : view === "history" ? (
         <HistoryView
@@ -1474,6 +1575,7 @@ export default function App() {
           onSkipOccurrence={handleSkipOccurrence}
           onPostpone={handlePostpone}
           onTogglePin={handleTogglePin}
+          onSaveAsTemplate={handleSaveAsTemplate}
         />
       ) : view === "stats" ? (
         <StatsView tasks={searchFilteredTasks} />
@@ -1509,6 +1611,7 @@ export default function App() {
                     onSkipOccurrence={handleSkipOccurrence}
                     onPostpone={handlePostpone}
                     onTogglePin={handleTogglePin}
+                    onSaveAsTemplate={handleSaveAsTemplate}
                   />
                 ))}
               </div>
@@ -1557,6 +1660,7 @@ export default function App() {
                 onSkipOccurrence={handleSkipOccurrence}
                 onPostpone={handlePostpone}
                 onTogglePin={handleTogglePin}
+                onSaveAsTemplate={handleSaveAsTemplate}
               />
             ))}
           </div>
