@@ -38,6 +38,7 @@ import AddCustomTabModal from "./components/AddCustomTabModal";
 import TaskRow from "./components/TaskRow";
 import CalendarView from "./components/CalendarView";
 import HistoryView from "./components/HistoryView";
+import StatsView from "./components/StatsView";
 import ManageTagsModal from "./components/ManageTagsModal";
 import { addInterval, getWeekRange, isOverdue, nowTimestamp, todayStr } from "./lib/date";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "./lib/priority";
@@ -50,7 +51,7 @@ import { isPermissionGranted, requestPermission, sendNotification } from "@tauri
 const GLOBAL_QUICK_ADD_SHORTCUT = "CommandOrControl+Shift+N";
 const OVERDUE_CHECK_INTERVAL_MS = 60_000;
 
-type View = "all" | "today" | "this-week" | "no-date" | "calendar" | "history";
+type View = "all" | "today" | "this-week" | "no-date" | "calendar" | "history" | "stats";
 
 const VIEW_LABELS: Record<View, string> = {
   all: "All",
@@ -59,6 +60,7 @@ const VIEW_LABELS: Record<View, string> = {
   "no-date": "No due date",
   calendar: "Calendar",
   history: "History",
+  stats: "Stats",
 };
 
 type SortOption = "manual" | "dueDate" | "priority" | "title";
@@ -282,8 +284,8 @@ export default function App() {
 
   useEffect(() => {
     if (view === "today") setDueDate(todayStr());
-    // Bulk select only applies to the list views, not Calendar/History.
-    if (view === "calendar" || view === "history") exitSelectMode();
+    // Bulk select only applies to the list views, not Calendar/History/Stats.
+    if (view === "calendar" || view === "history" || view === "stats") exitSelectMode();
   }, [view]);
 
   async function reload() {
@@ -796,7 +798,13 @@ export default function App() {
   );
 
   return (
-    <div style={{ maxWidth: view === "calendar" ? 880 : 560, margin: "0 auto", padding: "40px 24px" }}>
+    <div
+      style={{
+        maxWidth: view === "calendar" || view === "stats" ? 880 : 560,
+        margin: "0 auto",
+        padding: "40px 24px",
+      }}
+    >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
         <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>Tasks</h1>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -1014,7 +1022,7 @@ export default function App() {
       )}
 
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4, marginBottom: 20 }}>
-        {(["all", "today", "this-week", "no-date", "calendar", "history"] as View[]).map((v) => (
+        {(["all", "today", "this-week", "no-date", "calendar", "history", "stats"] as View[]).map((v) => (
           <button
             key={v}
             onClick={() => setView(v)}
@@ -1131,7 +1139,7 @@ export default function App() {
         )}
       </div>
 
-      {view !== "calendar" && view !== "history" && (
+      {view !== "calendar" && view !== "history" && view !== "stats" && (
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 20 }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted)" }}>Sort by:</span>
           <select
@@ -1311,7 +1319,7 @@ export default function App() {
         >
           + Add task
         </button>
-        {view !== "calendar" && view !== "history" && (
+        {view !== "calendar" && view !== "history" && view !== "stats" && (
           <button
             type="button"
             onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
@@ -1467,6 +1475,8 @@ export default function App() {
           onPostpone={handlePostpone}
           onTogglePin={handleTogglePin}
         />
+      ) : view === "stats" ? (
+        <StatsView tasks={searchFilteredTasks} />
       ) : (
         <>
           {overdueTopLevel.length > 0 && (
