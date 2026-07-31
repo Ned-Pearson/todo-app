@@ -77,6 +77,21 @@ function getInitialTheme(): Theme {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
+const SNOOZE_OPTIONS_MINUTES = [15, 30, 60, 120, 240];
+
+const SNOOZE_LABELS: Record<number, string> = {
+  15: "15 minutes",
+  30: "30 minutes",
+  60: "1 hour",
+  120: "2 hours",
+  240: "4 hours",
+};
+
+function getInitialSnoozeMinutes(): number {
+  const stored = Number(localStorage.getItem("notifySnoozeMinutes"));
+  return SNOOZE_OPTIONS_MINUTES.includes(stored) ? stored : 60;
+}
+
 export default function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
@@ -94,12 +109,14 @@ export default function App() {
   const [view, setView] = useState<View>("all");
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [notifySnoozeMinutes, setNotifySnoozeMinutes] = useState<number>(getInitialSnoozeMinutes);
+  const [showNotifySettings, setShowNotifySettings] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<{ rootIds: number[]; allIds: number[]; label: string } | null>(
     null
   );
   const pendingDeleteTimeout = useRef<number | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const notifiedOverdueIds = useRef<Set<number>>(new Set());
+  const lastNotifiedAt = useRef<Map<number, number>>(new Map());
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [showBulkTagPicker, setShowBulkTagPicker] = useState(false);
@@ -108,6 +125,10 @@ export default function App() {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    localStorage.setItem("notifySnoozeMinutes", String(notifySnoozeMinutes));
+  }, [notifySnoozeMinutes]);
 
   useEffect(() => {
     return () => {
@@ -210,11 +231,14 @@ export default function App() {
   // check the rest of the app already relies on — a task becomes "due" the
   // instant it turns overdue (right at its due time for a timed task, or at
   // midnight for a plain due-date one), so there's one unified moment to
-  // notify at rather than two separate "due" vs "overdue" concepts. Each
-  // task only fires once per session: notifiedOverdueIds tracks which ones
-  // have already been notified, and a task is removed from that set the
-  // moment it's no longer overdue (completed, or its due date/time pushed
-  // out), so it can notify again if it becomes overdue a second time.
+  // notify at rather than two separate "due" vs "overdue" concepts. Rather
+  // than firing once and going silent forever, an overdue task keeps
+  // re-notifying every `notifySnoozeMinutes` for as long as it stays
+  // overdue and incomplete — effectively an automatic "snooze" instead of a
+  // one-shot alert. lastNotifiedAt tracks when each task last fired; a task
+  // drops out of it the moment it's no longer overdue (completed, or its
+  // due date/time pushed out), so the snooze clock restarts if it becomes
+  // overdue again later.
   useEffect(() => {
     (async () => {
       let granted = await isPermissionGranted();
@@ -229,16 +253,23 @@ export default function App() {
     async function checkOverdue() {
       const granted = await isPermissionGranted().catch(() => false);
       if (!granted) return;
+      const now = Date.now();
+      const snoozeMs = notifySnoozeMinutes * 60_000;
       for (const task of tasks) {
         const overdue = isOverdue(task.dueDate, task.dueTime, task.completed);
-        if (overdue && !notifiedOverdueIds.current.has(task.id)) {
-          notifiedOverdueIds.current.add(task.id);
-          sendNotification({
-            title: "Task overdue",
-            body: task.dueTime ? `${task.title} — was due ${task.dueDate} ${task.dueTime}` : `${task.title} — was due ${task.dueDate}`,
-          });
-        } else if (!overdue && notifiedOverdueIds.current.has(task.id)) {
-          notifiedOverdueIds.current.delete(task.id);
+        if (overdue) {
+          const last = lastNotifiedAt.current.get(task.id);
+          if (last == null || now - last >= snoozeMs) {
+            lastNotifiedAt.current.set(task.id, now);
+            sendNotification({
+              title: "Task overdue",
+              body: task.dueTime
+                ? `${task.title} — was due ${task.dueDate} ${task.dueTime}`
+                : `${task.title} — was due ${task.dueDate}`,
+            });
+          }
+        } else if (lastNotifiedAt.current.has(task.id)) {
+          lastNotifiedAt.current.delete(task.id);
         }
       }
     }
@@ -246,7 +277,7 @@ export default function App() {
     checkOverdue();
     const interval = window.setInterval(checkOverdue, OVERDUE_CHECK_INTERVAL_MS);
     return () => window.clearInterval(interval);
-  }, [tasks]);
+  }, [tasks, notifySnoozeMinutes]);
 
   useEffect(() => {
     if (view === "today") setDueDate(todayStr());
@@ -853,6 +884,72 @@ export default function App() {
           >
             Import
           </button>
+          <div style={{ position: "relative", display: "flex" }}>
+            <button
+              type="button"
+              onClick={() => setShowNotifySettings((v) => !v)}
+              title="Overdue notification repeat interval"
+              style={{
+                width: 28,
+                height: 28,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: 0,
+                border: "1px solid var(--color-border)",
+                borderRadius: "50%",
+                background: "var(--color-surface)",
+                color: "var(--color-text-muted)",
+                fontSize: 13,
+              }}
+            >
+              🔔
+            </button>
+            {showNotifySettings && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "calc(100% + 6px)",
+                  right: 0,
+                  zIndex: 30,
+                  width: 200,
+                  padding: "10px 12px",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-sm)",
+                  background: "var(--color-surface)",
+                  boxShadow: "var(--shadow-card)",
+                  fontSize: 12,
+                  color: "var(--color-text-muted)",
+                }}
+              >
+                <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 6 }}>
+                  Remind me again every
+                </div>
+                <select
+                  value={notifySnoozeMinutes}
+                  onChange={(e) => setNotifySnoozeMinutes(Number(e.target.value))}
+                  style={{
+                    width: "100%",
+                    padding: "6px 8px",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "var(--radius-sm)",
+                    background: "var(--color-surface)",
+                    color: "var(--color-text)",
+                    fontSize: 13,
+                  }}
+                >
+                  {SNOOZE_OPTIONS_MINUTES.map((minutes) => (
+                    <option key={minutes} value={minutes}>
+                      {SNOOZE_LABELS[minutes]}
+                    </option>
+                  ))}
+                </select>
+                <div style={{ marginTop: 6, color: "var(--color-text-faint)" }}>
+                  for as long as a task stays overdue
+                </div>
+              </div>
+            )}
+          </div>
           <button
             onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
             title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
