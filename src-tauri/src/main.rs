@@ -104,6 +104,12 @@ fn main() {
             sql: include_str!("../migrations/017_task_dependencies.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 18,
+            description: "add recurrence occurrences_remaining",
+            sql: include_str!("../migrations/018_recurrence_occurrences.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

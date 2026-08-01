@@ -7,6 +7,10 @@ export interface Recurrence {
   frequency: RecurrenceFrequency;
   interval: number;
   endDate: string | null;
+  // How many occurrences remain, *including* the current pending one — e.g.
+  // 1 means this is the last instance the series will ever produce. Null
+  // means no occurrence limit (only endDate, if set, bounds the series).
+  occurrencesLeft: number | null;
 }
 
 export interface Tag {

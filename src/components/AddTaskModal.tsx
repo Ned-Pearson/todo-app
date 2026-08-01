@@ -1,7 +1,7 @@
 import { useState, FormEvent } from "react";
-import type { Priority, RecurrenceFrequency } from "../types";
+import type { Priority } from "../types";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "../lib/priority";
-import { REPEAT_LABELS, type RepeatOption } from "../lib/recurrence";
+import { REPEAT_LABELS, type RepeatOption, type RecurrenceInput } from "../lib/recurrence";
 import { parseNaturalDate } from "../lib/naturalDate";
 
 interface Props {
@@ -12,7 +12,7 @@ interface Props {
     dueDate: string,
     dueTime: string,
     priority: Priority | null,
-    recurrence: { frequency: RecurrenceFrequency; interval: number; endDate: string } | null
+    recurrence: RecurrenceInput | null
   ) => Promise<unknown>;
 }
 
@@ -24,6 +24,7 @@ export default function AddTaskModal({ defaultDueDate, onClose, onAdd }: Props) 
   const [repeat, setRepeat] = useState<RepeatOption>("none");
   const [repeatInterval, setRepeatInterval] = useState(1);
   const [repeatEndDate, setRepeatEndDate] = useState("");
+  const [repeatOccurrences, setRepeatOccurrences] = useState("");
   const [saving, setSaving] = useState(false);
 
   // Only offer to fill in a date from the title text while no due date has
@@ -51,7 +52,15 @@ export default function AddTaskModal({ defaultDueDate, onClose, onAdd }: Props) 
       const finalTitle = strippedTitle || trimmed;
       const finalDueDate = detected ? detected.date : dueDate;
       const finalDueTime = detected?.time && !dueTime ? detected.time : dueTime;
-      const recurrence = repeat === "none" ? null : { frequency: repeat, interval: repeatInterval, endDate: repeatEndDate };
+      const recurrence: RecurrenceInput | null =
+        repeat === "none"
+          ? null
+          : {
+              frequency: repeat,
+              interval: repeatInterval,
+              endDate: repeatEndDate,
+              occurrences: repeatOccurrences ? Number(repeatOccurrences) : null,
+            };
       await onAdd(finalTitle, finalDueDate, finalDueTime, priority, recurrence);
     } finally {
       setSaving(false);
@@ -234,6 +243,25 @@ export default function AddTaskModal({ defaultDueDate, onClose, onAdd }: Props) 
                   fontSize: 13,
                 }}
               />
+              <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>or after</span>
+              <input
+                type="number"
+                min={1}
+                value={repeatOccurrences}
+                onChange={(e) => setRepeatOccurrences(e.target.value)}
+                placeholder="∞"
+                title="Stop after this many occurrences (optional)"
+                style={{
+                  width: 50,
+                  padding: "6px 8px",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-sm)",
+                  background: "var(--color-surface)",
+                  color: "var(--color-text)",
+                  fontSize: 13,
+                }}
+              />
+              <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>time(s)</span>
             </>
           )}
         </div>

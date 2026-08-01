@@ -45,6 +45,7 @@ function rowToTask(
             frequency: row.recurrence_frequency,
             interval: row.recurrence_interval,
             endDate: row.recurrence_end_date,
+            occurrencesLeft: row.recurrence_occurrences_remaining,
           }
         : null,
     tags,
@@ -83,7 +84,8 @@ const TASKS_WITH_RECURRENCE_SELECT = `
   SELECT tasks.*,
          recurrence_rules.frequency AS recurrence_frequency,
          recurrence_rules.interval AS recurrence_interval,
-         recurrence_rules.end_date AS recurrence_end_date
+         recurrence_rules.end_date AS recurrence_end_date,
+         recurrence_rules.occurrences_remaining AS recurrence_occurrences_remaining
   FROM tasks
   LEFT JOIN recurrence_rules ON tasks.recurrence_id = recurrence_rules.id
 `;
@@ -257,14 +259,14 @@ export async function removeTagFromTask(taskId: number, tagId: number): Promise<
 export async function createRecurrenceRule(
   frequency: RecurrenceFrequency,
   interval: number,
-  endDate?: string
+  endDate?: string,
+  occurrencesLeft?: number | null
 ): Promise<number> {
   const db = await getDb();
-  const result = await db.execute("INSERT INTO recurrence_rules (frequency, interval, end_date) VALUES (?, ?, ?)", [
-    frequency,
-    interval,
-    endDate || null,
-  ]);
+  const result = await db.execute(
+    "INSERT INTO recurrence_rules (frequency, interval, end_date, occurrences_remaining) VALUES (?, ?, ?, ?)",
+    [frequency, interval, endDate || null, occurrencesLeft ?? null]
+  );
   return result.lastInsertId as number;
 }
 
@@ -272,15 +274,25 @@ export async function updateRecurrenceRule(
   id: number,
   frequency: RecurrenceFrequency,
   interval: number,
-  endDate?: string
+  endDate?: string,
+  occurrencesLeft?: number | null
 ): Promise<void> {
   const db = await getDb();
-  await db.execute("UPDATE recurrence_rules SET frequency = ?, interval = ?, end_date = ? WHERE id = ?", [
-    frequency,
-    interval,
-    endDate || null,
-    id,
-  ]);
+  await db.execute(
+    "UPDATE recurrence_rules SET frequency = ?, interval = ?, end_date = ?, occurrences_remaining = ? WHERE id = ?",
+    [frequency, interval, endDate || null, occurrencesLeft ?? null, id]
+  );
+}
+
+// Called each time a recurring task advances (completes and spawns the next
+// instance, or is skipped in place) so the shared rule row reflects one
+// fewer occurrence remaining for whichever instance reads it next.
+export async function decrementRecurrenceOccurrences(recurrenceId: number): Promise<void> {
+  const db = await getDb();
+  await db.execute(
+    "UPDATE recurrence_rules SET occurrences_remaining = occurrences_remaining - 1 WHERE id = ? AND occurrences_remaining IS NOT NULL",
+    [recurrenceId]
+  );
 }
 
 export async function setTaskRecurrenceId(id: number, recurrenceId: number): Promise<void> {

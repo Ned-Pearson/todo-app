@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { convertFileSrc } from "@tauri-apps/api/core";
-import type { Priority, RecurrenceFrequency, Tag, Task } from "../types";
+import type { Priority, Tag, Task } from "../types";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "../lib/priority";
 import { fileNameFromPath, isImagePath } from "../lib/attachments";
-import { REPEAT_LABELS, type RepeatOption } from "../lib/recurrence";
+import { REPEAT_LABELS, type RepeatOption, type RecurrenceInput } from "../lib/recurrence";
 import { pickUnusedColor } from "../lib/tagColor";
 import { renderMarkdown } from "../lib/markdown";
 
@@ -20,7 +20,7 @@ interface Props {
     dueDate: string,
     dueTime: string,
     priority: Priority | null,
-    recurrence: { frequency: RecurrenceFrequency; interval: number; endDate: string } | null
+    recurrence: RecurrenceInput | null
   ) => Promise<unknown>;
   onToggleTag: (tagId: number, assign: boolean) => void;
   onCreateTag: (name: string, color: string) => void;
@@ -51,6 +51,9 @@ export default function TaskDetailModal({
   const [repeat, setRepeat] = useState<RepeatOption>(task.recurrence?.frequency ?? "none");
   const [repeatInterval, setRepeatInterval] = useState(task.recurrence?.interval ?? 1);
   const [repeatEndDate, setRepeatEndDate] = useState(task.recurrence?.endDate ?? "");
+  const [repeatOccurrences, setRepeatOccurrences] = useState(
+    task.recurrence?.occurrencesLeft != null ? String(task.recurrence.occurrencesLeft) : ""
+  );
   const [saving, setSaving] = useState(false);
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState(() => pickUnusedColor(allTags.map((t) => t.color)));
@@ -76,7 +79,15 @@ export default function TaskDetailModal({
     if (!trimmedTitle) return;
     setSaving(true);
     try {
-      const recurrence = repeat === "none" ? null : { frequency: repeat, interval: repeatInterval, endDate: repeatEndDate };
+      const recurrence: RecurrenceInput | null =
+        repeat === "none"
+          ? null
+          : {
+              frequency: repeat,
+              interval: repeatInterval,
+              endDate: repeatEndDate,
+              occurrences: repeatOccurrences ? Number(repeatOccurrences) : null,
+            };
       await onSave(trimmedTitle, description, dueDate, dueTime, priority, recurrence);
       onClose();
     } finally {
@@ -276,6 +287,25 @@ export default function TaskDetailModal({
                   fontSize: 13,
                 }}
               />
+              <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>or after</span>
+              <input
+                type="number"
+                min={1}
+                value={repeatOccurrences}
+                onChange={(e) => setRepeatOccurrences(e.target.value)}
+                placeholder="∞"
+                title="Stop after this many occurrences from now (optional)"
+                style={{
+                  width: 50,
+                  padding: "6px 8px",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-sm)",
+                  background: "var(--color-surface)",
+                  color: "var(--color-text)",
+                  fontSize: 13,
+                }}
+              />
+              <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>time(s)</span>
             </>
           )}
         </div>
