@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { Priority, Task } from "../types";
-import { addInterval, formatDate, todayStr } from "../lib/date";
+import { formatDate, todayStr } from "../lib/date";
+import { nextRecurrenceDate } from "../lib/recurrence";
 import { PRIORITY_COLORS } from "../lib/priority";
 import TaskRow from "./TaskRow";
 
@@ -122,8 +123,13 @@ export default function CalendarView({
     if (!task.recurrence || !task.dueDate) return [];
     const dates: string[] = [];
     let current = task.dueDate;
+    let occurrencesLeft = task.recurrence.occurrencesLeft;
     for (let i = 0; i < 500; i++) {
-      current = addInterval(current, task.recurrence.frequency, task.recurrence.interval);
+      // occurrencesLeft counts the current pending instance too, so once
+      // it's down to 1 there's nothing left to project beyond it.
+      if (occurrencesLeft != null && occurrencesLeft <= 1) break;
+      current = nextRecurrenceDate(current, task.recurrence);
+      if (occurrencesLeft != null) occurrencesLeft -= 1;
       if (task.recurrence.endDate && current > task.recurrence.endDate) break;
       if (current > gridEndStr) break;
       if (current >= gridStartStr) dates.push(current);

@@ -45,6 +45,21 @@ export function getWeekRange(): [string, string] {
   return [formatDate(start), formatDate(end)];
 }
 
+// The next date strictly after `dateStr` whose day-of-week (0=Sun..6=Sat,
+// matching Date#getDay) is in `weekdays` — used for "every Mon/Wed/Fri"
+// style weekly recurrence instead of the plain every-N-weeks interval.
+// Bounded to 7 lookahead days since weekdays is assumed non-empty, so a
+// match always exists within one week.
+export function nextWeekdayOccurrence(dateStr: string, weekdays: number[]): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  for (let i = 0; i < 7; i++) {
+    date.setDate(date.getDate() + 1);
+    if (weekdays.includes(date.getDay())) return formatDate(date);
+  }
+  return formatDate(date);
+}
+
 export function addInterval(dateStr: string, frequency: RecurrenceFrequency, interval: number): string {
   const [y, m, d] = dateStr.split("-").map(Number);
   const date = new Date(y, m - 1, d);

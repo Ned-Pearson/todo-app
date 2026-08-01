@@ -51,7 +51,7 @@ import { addInterval, getWeekRange, isOverdue, nowTimestamp, todayStr } from "./
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "./lib/priority";
 import { buildTaskTree } from "./lib/tree";
 import { exportToFile, importFromFile } from "./lib/backup";
-import type { RecurrenceInput } from "./lib/recurrence";
+import { nextRecurrenceDate, type RecurrenceInput } from "./lib/recurrence";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { register, unregisterAll } from "@tauri-apps/plugin-global-shortcut";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
@@ -375,7 +375,13 @@ export default function App() {
   ) {
     try {
       const recurrenceId = recurrence
-        ? await createRecurrenceRule(recurrence.frequency, recurrence.interval, recurrence.endDate, recurrence.occurrences)
+        ? await createRecurrenceRule(
+            recurrence.frequency,
+            recurrence.interval,
+            recurrence.endDate,
+            recurrence.occurrences,
+            recurrence.weekdays
+          )
         : undefined;
       await createTask(title, taskDueDate, undefined, recurrenceId, priority ?? undefined, taskDueDate ? dueTime : undefined);
       // Today keeps defaulting to today's date, Calendar keeps whatever day is
@@ -423,7 +429,7 @@ export default function App() {
         const task = tasks.find((t) => t.id === taskId);
         if (!task?.recurrence) continue;
         const baseDate = task.dueDate ?? todayStr();
-        const nextDue = addInterval(baseDate, task.recurrence.frequency, task.recurrence.interval);
+        const nextDue = nextRecurrenceDate(baseDate, task.recurrence);
         const withinEnd = !task.recurrence.endDate || nextDue <= task.recurrence.endDate;
         const withinCount = task.recurrence.occurrencesLeft == null || task.recurrence.occurrencesLeft > 1;
         if (withinEnd && withinCount) {
@@ -556,7 +562,7 @@ export default function App() {
     const task = tasks.find((t) => t.id === id);
     if (!task?.recurrence) return;
     const baseDate = task.dueDate ?? todayStr();
-    const nextDue = addInterval(baseDate, task.recurrence.frequency, task.recurrence.interval);
+    const nextDue = nextRecurrenceDate(baseDate, task.recurrence);
     const withinEnd = !task.recurrence.endDate || nextDue <= task.recurrence.endDate;
     const withinCount = task.recurrence.occurrencesLeft == null || task.recurrence.occurrencesLeft > 1;
     if (withinEnd && withinCount) {
@@ -657,14 +663,16 @@ export default function App() {
         recurrence.frequency,
         recurrence.interval,
         recurrence.endDate,
-        recurrence.occurrences
+        recurrence.occurrences,
+        recurrence.weekdays
       );
     } else {
       const recurrenceId = await createRecurrenceRule(
         recurrence.frequency,
         recurrence.interval,
         recurrence.endDate,
-        recurrence.occurrences
+        recurrence.occurrences,
+        recurrence.weekdays
       );
       await setTaskRecurrenceId(id, recurrenceId);
     }

@@ -11,6 +11,12 @@ export interface Recurrence {
   // 1 means this is the last instance the series will ever produce. Null
   // means no occurrence limit (only endDate, if set, bounds the series).
   occurrencesLeft: number | null;
+  // Only meaningful for frequency "weekly": which days of the week (0=Sun..
+  // 6=Sat, matching JS Date#getDay) this repeats on, e.g. [1, 3, 5] for Mon/
+  // Wed/Fri. Null means the plain interval-based behavior (every N weeks on
+  // the same weekday as the anchor due date) — the two modes are mutually
+  // exclusive, not combined.
+  weekdays: number[] | null;
 }
 
 export interface Tag {

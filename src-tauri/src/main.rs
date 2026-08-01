@@ -110,6 +110,12 @@ fn main() {
             sql: include_str!("../migrations/018_recurrence_occurrences.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 19,
+            description: "add recurrence weekdays",
+            sql: include_str!("../migrations/019_recurrence_weekdays.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

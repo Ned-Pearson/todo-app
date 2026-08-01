@@ -5,7 +5,7 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import type { Priority, Tag, Task } from "../types";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "../lib/priority";
 import { fileNameFromPath, isImagePath } from "../lib/attachments";
-import { REPEAT_LABELS, type RepeatOption, type RecurrenceInput } from "../lib/recurrence";
+import { REPEAT_LABELS, WEEKDAY_LABELS, type RepeatOption, type RecurrenceInput } from "../lib/recurrence";
 import { pickUnusedColor } from "../lib/tagColor";
 import { renderMarkdown } from "../lib/markdown";
 
@@ -54,6 +54,7 @@ export default function TaskDetailModal({
   const [repeatOccurrences, setRepeatOccurrences] = useState(
     task.recurrence?.occurrencesLeft != null ? String(task.recurrence.occurrencesLeft) : ""
   );
+  const [repeatWeekdays, setRepeatWeekdays] = useState<number[]>(task.recurrence?.weekdays ?? []);
   const [saving, setSaving] = useState(false);
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState(() => pickUnusedColor(allTags.map((t) => t.color)));
@@ -87,6 +88,7 @@ export default function TaskDetailModal({
               interval: repeatInterval,
               endDate: repeatEndDate,
               occurrences: repeatOccurrences ? Number(repeatOccurrences) : null,
+              weekdays: repeat === "weekly" && repeatWeekdays.length > 0 ? repeatWeekdays : null,
             };
       await onSave(trimmedTitle, description, dueDate, dueTime, priority, recurrence);
       onClose();
@@ -249,7 +251,7 @@ export default function TaskDetailModal({
             ))}
           </select>
 
-          {repeat !== "none" && (
+          {repeat !== "none" && !(repeat === "weekly" && repeatWeekdays.length > 0) && (
             <>
               <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>every</span>
               <input
@@ -273,6 +275,10 @@ export default function TaskDetailModal({
                 {repeat === "monthly" && "month(s)"}
                 {repeat === "yearly" && "year(s)"}
               </span>
+            </>
+          )}
+          {repeat !== "none" && (
+            <>
               <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>until</span>
               <input
                 type="date"
@@ -309,6 +315,43 @@ export default function TaskDetailModal({
             </>
           )}
         </div>
+
+        {repeat === "weekly" && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center", marginBottom: 16 }}>
+            <span style={{ fontSize: 12, color: "var(--color-text-muted)", marginRight: 4 }}>On:</span>
+            {WEEKDAY_LABELS.map((label, day) => {
+              const selected = repeatWeekdays.includes(day);
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() =>
+                    setRepeatWeekdays((prev) =>
+                      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort()
+                    )
+                  }
+                  title={selected ? `Don't repeat on ${label}` : `Also repeat on ${label}`}
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 500,
+                    padding: "4px 8px",
+                    borderRadius: "var(--radius-sm)",
+                    border: selected ? "1px solid transparent" : "1px solid var(--color-border)",
+                    background: selected ? "var(--color-accent)" : "none",
+                    color: selected ? "#fff" : "var(--color-text-muted)",
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+            {repeatWeekdays.length === 0 && (
+              <span style={{ fontSize: 11, color: "var(--color-text-faint)" }}>
+                (none selected — uses "every N week(s)" above instead)
+              </span>
+            )}
+          </div>
+        )}
 
         <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
           Depends on

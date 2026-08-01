@@ -1,7 +1,7 @@
 import { useState, FormEvent } from "react";
 import type { Priority } from "../types";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "../lib/priority";
-import { REPEAT_LABELS, type RepeatOption, type RecurrenceInput } from "../lib/recurrence";
+import { REPEAT_LABELS, WEEKDAY_LABELS, type RepeatOption, type RecurrenceInput } from "../lib/recurrence";
 import { parseNaturalDate } from "../lib/naturalDate";
 
 interface Props {
@@ -25,6 +25,7 @@ export default function AddTaskModal({ defaultDueDate, onClose, onAdd }: Props) 
   const [repeatInterval, setRepeatInterval] = useState(1);
   const [repeatEndDate, setRepeatEndDate] = useState("");
   const [repeatOccurrences, setRepeatOccurrences] = useState("");
+  const [repeatWeekdays, setRepeatWeekdays] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
 
   // Only offer to fill in a date from the title text while no due date has
@@ -60,6 +61,7 @@ export default function AddTaskModal({ defaultDueDate, onClose, onAdd }: Props) 
               interval: repeatInterval,
               endDate: repeatEndDate,
               occurrences: repeatOccurrences ? Number(repeatOccurrences) : null,
+              weekdays: repeat === "weekly" && repeatWeekdays.length > 0 ? repeatWeekdays : null,
             };
       await onAdd(finalTitle, finalDueDate, finalDueTime, priority, recurrence);
     } finally {
@@ -205,7 +207,7 @@ export default function AddTaskModal({ defaultDueDate, onClose, onAdd }: Props) 
             ))}
           </select>
 
-          {repeat !== "none" && (
+          {repeat !== "none" && !(repeat === "weekly" && repeatWeekdays.length > 0) && (
             <>
               <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>every</span>
               <input
@@ -229,6 +231,10 @@ export default function AddTaskModal({ defaultDueDate, onClose, onAdd }: Props) 
                 {repeat === "monthly" && "month(s)"}
                 {repeat === "yearly" && "year(s)"}
               </span>
+            </>
+          )}
+          {repeat !== "none" && (
+            <>
               <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>until</span>
               <input
                 type="date"
@@ -265,6 +271,43 @@ export default function AddTaskModal({ defaultDueDate, onClose, onAdd }: Props) 
             </>
           )}
         </div>
+
+        {repeat === "weekly" && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center", marginBottom: 20 }}>
+            <span style={{ fontSize: 12, color: "var(--color-text-muted)", marginRight: 4 }}>On:</span>
+            {WEEKDAY_LABELS.map((label, day) => {
+              const selected = repeatWeekdays.includes(day);
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() =>
+                    setRepeatWeekdays((prev) =>
+                      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort()
+                    )
+                  }
+                  title={selected ? `Don't repeat on ${label}` : `Also repeat on ${label}`}
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 500,
+                    padding: "4px 8px",
+                    borderRadius: "var(--radius-sm)",
+                    border: selected ? "1px solid transparent" : "1px solid var(--color-border)",
+                    background: selected ? "var(--color-accent)" : "none",
+                    color: selected ? "#fff" : "var(--color-text-muted)",
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+            {repeatWeekdays.length === 0 && (
+              <span style={{ fontSize: 11, color: "var(--color-text-faint)" }}>
+                (none selected — uses "every N week(s)" above instead)
+              </span>
+            )}
+          </div>
+        )}
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
           <button

@@ -46,6 +46,9 @@ function rowToTask(
             interval: row.recurrence_interval,
             endDate: row.recurrence_end_date,
             occurrencesLeft: row.recurrence_occurrences_remaining,
+            weekdays: row.recurrence_weekdays
+              ? (row.recurrence_weekdays as string).split(",").map(Number)
+              : null,
           }
         : null,
     tags,
@@ -85,7 +88,8 @@ const TASKS_WITH_RECURRENCE_SELECT = `
          recurrence_rules.frequency AS recurrence_frequency,
          recurrence_rules.interval AS recurrence_interval,
          recurrence_rules.end_date AS recurrence_end_date,
-         recurrence_rules.occurrences_remaining AS recurrence_occurrences_remaining
+         recurrence_rules.occurrences_remaining AS recurrence_occurrences_remaining,
+         recurrence_rules.weekdays AS recurrence_weekdays
   FROM tasks
   LEFT JOIN recurrence_rules ON tasks.recurrence_id = recurrence_rules.id
 `;
@@ -260,12 +264,13 @@ export async function createRecurrenceRule(
   frequency: RecurrenceFrequency,
   interval: number,
   endDate?: string,
-  occurrencesLeft?: number | null
+  occurrencesLeft?: number | null,
+  weekdays?: number[] | null
 ): Promise<number> {
   const db = await getDb();
   const result = await db.execute(
-    "INSERT INTO recurrence_rules (frequency, interval, end_date, occurrences_remaining) VALUES (?, ?, ?, ?)",
-    [frequency, interval, endDate || null, occurrencesLeft ?? null]
+    "INSERT INTO recurrence_rules (frequency, interval, end_date, occurrences_remaining, weekdays) VALUES (?, ?, ?, ?, ?)",
+    [frequency, interval, endDate || null, occurrencesLeft ?? null, weekdays && weekdays.length > 0 ? weekdays.join(",") : null]
   );
   return result.lastInsertId as number;
 }
@@ -275,12 +280,20 @@ export async function updateRecurrenceRule(
   frequency: RecurrenceFrequency,
   interval: number,
   endDate?: string,
-  occurrencesLeft?: number | null
+  occurrencesLeft?: number | null,
+  weekdays?: number[] | null
 ): Promise<void> {
   const db = await getDb();
   await db.execute(
-    "UPDATE recurrence_rules SET frequency = ?, interval = ?, end_date = ?, occurrences_remaining = ? WHERE id = ?",
-    [frequency, interval, endDate || null, occurrencesLeft ?? null, id]
+    "UPDATE recurrence_rules SET frequency = ?, interval = ?, end_date = ?, occurrences_remaining = ?, weekdays = ? WHERE id = ?",
+    [
+      frequency,
+      interval,
+      endDate || null,
+      occurrencesLeft ?? null,
+      weekdays && weekdays.length > 0 ? weekdays.join(",") : null,
+      id,
+    ]
   );
 }
 
