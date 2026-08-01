@@ -18,6 +18,7 @@ interface Props {
   onPostpone: (id: number) => void;
   onTogglePin: (id: number) => void;
   onSaveAsTemplate: (id: number) => void;
+  onArchive: (id: number) => void;
 }
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -58,6 +59,7 @@ export default function CalendarView({
   onPostpone,
   onTogglePin,
   onSaveAsTemplate,
+  onArchive,
 }: Props) {
   const today = todayStr();
   const [cursor, setCursor] = useState(() => {
@@ -290,6 +292,7 @@ export default function CalendarView({
             onPostpone={onPostpone}
             onTogglePin={onTogglePin}
             onSaveAsTemplate={onSaveAsTemplate}
+            onArchive={onArchive}
           />
         ))}
         {virtualSelectedTasks.length > 0 && (

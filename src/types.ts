@@ -87,4 +87,5 @@ export interface Task {
   attachments: Attachment[];
   pinned: boolean;
   dependsOn: TaskDependency[];
+  archived: boolean;
 }

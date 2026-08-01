@@ -57,6 +57,7 @@ function rowToTask(
     attachments,
     pinned: !!row.pinned,
     dependsOn,
+    archived: !!row.archived,
   };
 }
 
@@ -94,10 +95,13 @@ const TASKS_WITH_RECURRENCE_SELECT = `
   LEFT JOIN recurrence_rules ON tasks.recurrence_id = recurrence_rules.id
 `;
 
-export async function getAllTasks(): Promise<Task[]> {
-  const db = await getDb();
-  const rows = await db.select<any[]>(`${TASKS_WITH_RECURRENCE_SELECT} ORDER BY tasks.sort_order ASC, tasks.id DESC`);
-
+// Shared by getAllTasks/getArchivedTasks: given a set of already-fetched
+// task rows, attaches tags/inherited tags/attachments/dependencies. These
+// side-queries deliberately aren't filtered by archived status — they're
+// keyed by task id and only ever looked up for ids actually present in
+// `rows`, so fetching them unfiltered is simpler than threading the same
+// WHERE clause through four more queries for no behavioral difference.
+async function attachRelations(db: Database, rows: any[]): Promise<Task[]> {
   const tagRows = await db.select<any[]>(`
     SELECT task_tags.task_id AS task_id, tags.id AS tag_id, tags.name AS name, tags.color AS color
     FROM task_tags
@@ -152,6 +156,30 @@ export async function getAllTasks(): Promise<Task[]> {
       dependsOnByTask.get(row.id) ?? []
     )
   );
+}
+
+// Excludes archived tasks — the point of archiving is to move old completed
+// tasks out of the everyday working set (including History, which is built
+// from this same list), into the separate Archive view instead.
+export async function getAllTasks(): Promise<Task[]> {
+  const db = await getDb();
+  const rows = await db.select<any[]>(
+    `${TASKS_WITH_RECURRENCE_SELECT} WHERE tasks.archived = 0 ORDER BY tasks.sort_order ASC, tasks.id DESC`
+  );
+  return attachRelations(db, rows);
+}
+
+export async function getArchivedTasks(): Promise<Task[]> {
+  const db = await getDb();
+  const rows = await db.select<any[]>(
+    `${TASKS_WITH_RECURRENCE_SELECT} WHERE tasks.archived = 1 ORDER BY tasks.completed_at DESC, tasks.id DESC`
+  );
+  return attachRelations(db, rows);
+}
+
+export async function updateTaskArchived(id: number, archived: boolean): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE tasks SET archived = ? WHERE id = ?", [archived ? 1 : 0, id]);
 }
 
 export async function getAllTags(): Promise<Tag[]> {

@@ -38,6 +38,8 @@ import {
   deleteTaskTemplate,
   addTaskDependency,
   removeTaskDependency,
+  getArchivedTasks,
+  updateTaskArchived,
 } from "./lib/db";
 import TaskDetailModal from "./components/TaskDetailModal";
 import AddTaskModal from "./components/AddTaskModal";
@@ -45,6 +47,7 @@ import AddCustomTabModal from "./components/AddCustomTabModal";
 import TaskRow from "./components/TaskRow";
 import CalendarView from "./components/CalendarView";
 import HistoryView from "./components/HistoryView";
+import ArchiveView from "./components/ArchiveView";
 import StatsView from "./components/StatsView";
 import ManageTagsModal from "./components/ManageTagsModal";
 import { addInterval, getWeekRange, isOverdue, nowTimestamp, todayStr } from "./lib/date";
@@ -59,7 +62,7 @@ import { isPermissionGranted, requestPermission, sendNotification } from "@tauri
 const GLOBAL_QUICK_ADD_SHORTCUT = "CommandOrControl+Shift+N";
 const OVERDUE_CHECK_INTERVAL_MS = 60_000;
 
-type View = "all" | "today" | "this-week" | "no-date" | "calendar" | "history" | "stats";
+type View = "all" | "today" | "this-week" | "no-date" | "calendar" | "history" | "stats" | "archive";
 
 const VIEW_LABELS: Record<View, string> = {
   all: "All",
@@ -69,6 +72,7 @@ const VIEW_LABELS: Record<View, string> = {
   calendar: "Calendar",
   history: "History",
   stats: "Stats",
+  archive: "Archive",
 };
 
 type SortOption = "manual" | "dueDate" | "priority" | "title";
@@ -122,6 +126,7 @@ function getInitialSnoozeMinutes(): number {
 
 export default function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [archivedTasks, setArchivedTasks] = useState<Task[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [savedViews, setSavedViews] = useState<SavedView[]>([]);
   const [customTabs, setCustomTabs] = useState<CustomTab[]>([]);
@@ -342,19 +347,22 @@ export default function App() {
 
   useEffect(() => {
     if (view === "today") setDueDate(todayStr());
-    // Bulk select only applies to the list views, not Calendar/History/Stats.
-    if (view === "calendar" || view === "history" || view === "stats") exitSelectMode();
+    // Bulk select only applies to the list views, not Calendar/History/Stats/Archive.
+    if (view === "calendar" || view === "history" || view === "stats" || view === "archive") exitSelectMode();
   }, [view]);
 
   async function reload() {
-    const [updatedTasks, updatedTags, updatedSavedViews, updatedCustomTabs, updatedTemplates] = await Promise.all([
-      getAllTasks(),
-      getAllTags(),
-      getAllSavedViews(),
-      getAllCustomTabs(),
-      getAllTaskTemplates(),
-    ]);
+    const [updatedTasks, updatedArchivedTasks, updatedTags, updatedSavedViews, updatedCustomTabs, updatedTemplates] =
+      await Promise.all([
+        getAllTasks(),
+        getArchivedTasks(),
+        getAllTags(),
+        getAllSavedViews(),
+        getAllCustomTabs(),
+        getAllTaskTemplates(),
+      ]);
     setTasks(updatedTasks);
+    setArchivedTasks(updatedArchivedTasks);
     setTags(updatedTags);
     setSavedViews(updatedSavedViews);
     setCustomTabs(updatedCustomTabs);
@@ -589,6 +597,16 @@ export default function App() {
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
     await updateTaskPinned(id, !task.pinned);
+    await reload();
+  }
+
+  async function handleArchive(id: number) {
+    await updateTaskArchived(id, true);
+    await reload();
+  }
+
+  async function handleUnarchive(id: number) {
+    await updateTaskArchived(id, false);
     await reload();
   }
 
@@ -1236,6 +1254,7 @@ export default function App() {
                 onPostpone={handlePostpone}
                 onTogglePin={handleTogglePin}
                 onSaveAsTemplate={handleSaveAsTemplate}
+                onArchive={handleArchive}
               />
             ))}
           </div>
@@ -1243,7 +1262,7 @@ export default function App() {
       )}
 
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4, marginBottom: 20 }}>
-        {(["all", "today", "this-week", "no-date", "calendar", "history", "stats"] as View[]).map((v) => (
+        {(["all", "today", "this-week", "no-date", "calendar", "history", "stats", "archive"] as View[]).map((v) => (
           <button
             key={v}
             onClick={() => setView(v)}
@@ -1360,7 +1379,7 @@ export default function App() {
         )}
       </div>
 
-      {view !== "calendar" && view !== "history" && view !== "stats" && (
+      {view !== "calendar" && view !== "history" && view !== "stats" && view !== "archive" && (
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 20 }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted)" }}>Sort by:</span>
           <select
@@ -1609,7 +1628,7 @@ export default function App() {
             </div>
           )}
         </div>
-        {view !== "calendar" && view !== "history" && view !== "stats" && (
+        {view !== "calendar" && view !== "history" && view !== "stats" && view !== "archive" && (
           <button
             type="button"
             onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
@@ -1752,6 +1771,7 @@ export default function App() {
           onPostpone={handlePostpone}
           onTogglePin={handleTogglePin}
           onSaveAsTemplate={handleSaveAsTemplate}
+          onArchive={handleArchive}
         />
       ) : view === "history" ? (
         <HistoryView
@@ -1766,9 +1786,23 @@ export default function App() {
           onPostpone={handlePostpone}
           onTogglePin={handleTogglePin}
           onSaveAsTemplate={handleSaveAsTemplate}
+          onArchive={handleArchive}
         />
       ) : view === "stats" ? (
         <StatsView tasks={searchFilteredTasks} />
+      ) : view === "archive" ? (
+        <ArchiveView
+          tasks={archivedTasks}
+          priorityFilter={priorityFilter}
+          onToggle={handleToggle}
+          onDelete={handleDelete}
+          onSelectTask={setSelectedTask}
+          onAddSubtask={handleAddSubtask}
+          onDuplicate={handleDuplicateTask}
+          onTogglePin={handleTogglePin}
+          onSaveAsTemplate={handleSaveAsTemplate}
+          onUnarchive={handleUnarchive}
+        />
       ) : (
         <>
           {overdueTopLevel.length > 0 && (
@@ -1802,6 +1836,7 @@ export default function App() {
                     onPostpone={handlePostpone}
                     onTogglePin={handleTogglePin}
                     onSaveAsTemplate={handleSaveAsTemplate}
+                    onArchive={handleArchive}
                   />
                 ))}
               </div>
@@ -1851,6 +1886,7 @@ export default function App() {
                 onPostpone={handlePostpone}
                 onTogglePin={handleTogglePin}
                 onSaveAsTemplate={handleSaveAsTemplate}
+                onArchive={handleArchive}
               />
             ))}
           </div>

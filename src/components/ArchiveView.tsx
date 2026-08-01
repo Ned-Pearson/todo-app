@@ -11,16 +11,19 @@ interface Props {
   onSelectTask: (task: Task) => void;
   onAddSubtask: (parentId: number, title: string) => void;
   onDuplicate: (id: number) => void;
-  onSkipOccurrence: (id: number) => void;
-  onPostpone: (id: number) => void;
   onTogglePin: (id: number) => void;
   onSaveAsTemplate: (id: number) => void;
-  onArchive: (id: number) => void;
+  onUnarchive: (id: number) => void;
 }
 
 const UNKNOWN_DATE = "Unknown date";
 
-export default function HistoryView({
+// The archive is old, already-completed tasks moved out of the everyday
+// working set (including History) to keep both lean over time — reachable
+// only by "Archive" on a completed task, and reversible via "Unarchive"
+// here. Grouped by completion day, same as History, since that's still the
+// most useful way to browse a pile of old finished tasks.
+export default function ArchiveView({
   tasks,
   priorityFilter,
   onToggle,
@@ -28,16 +31,12 @@ export default function HistoryView({
   onSelectTask,
   onAddSubtask,
   onDuplicate,
-  onSkipOccurrence,
-  onPostpone,
   onTogglePin,
   onSaveAsTemplate,
-  onArchive,
+  onUnarchive,
 }: Props) {
-  const completed = tasks.filter((t) => t.completed);
-
   const byDate = new Map<string, Task[]>();
-  for (const t of completed) {
+  for (const t of tasks) {
     const key = t.completedAt ? datePartOf(t.completedAt) : UNKNOWN_DATE;
     const list = byDate.get(key) ?? [];
     list.push(t);
@@ -62,7 +61,7 @@ export default function HistoryView({
           fontSize: 13,
         }}
       >
-        No completed tasks yet.
+        Nothing archived yet — "Archive" on a completed task moves it here.
       </div>
     );
   }
@@ -96,11 +95,9 @@ export default function HistoryView({
                   onSelect={onSelectTask}
                   onAddSubtask={onAddSubtask}
                   onDuplicate={onDuplicate}
-                  onSkipOccurrence={onSkipOccurrence}
-                  onPostpone={onPostpone}
                   onTogglePin={onTogglePin}
                   onSaveAsTemplate={onSaveAsTemplate}
-                  onArchive={onArchive}
+                  onUnarchive={onUnarchive}
                   readOnly
                   showCompletedDate
                 />

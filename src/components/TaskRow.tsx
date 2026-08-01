@@ -27,6 +27,8 @@ interface Props {
   onPostpone?: (id: number) => void;
   onTogglePin?: (id: number) => void;
   onSaveAsTemplate?: (id: number) => void;
+  onArchive?: (id: number) => void;
+  onUnarchive?: (id: number) => void;
 }
 
 export default function TaskRow({
@@ -49,6 +51,8 @@ export default function TaskRow({
   onPostpone,
   onTogglePin,
   onSaveAsTemplate,
+  onArchive,
+  onUnarchive,
 }: Props) {
   const selected = selectable && (selectedIds?.has(task.id) ?? false);
   const [addingSubtask, setAddingSubtask] = useState(false);
@@ -417,6 +421,30 @@ export default function TaskRow({
             Save as template
           </button>
         )}
+        {task.completed && onArchive && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onArchive(task.id);
+            }}
+            title="Move this task to the archive, out of History and the main list"
+            style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 13 }}
+          >
+            Archive
+          </button>
+        )}
+        {onUnarchive && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onUnarchive(task.id);
+            }}
+            title="Restore this task out of the archive"
+            style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 13 }}
+          >
+            Unarchive
+          </button>
+        )}
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -582,6 +610,8 @@ export default function TaskRow({
             onPostpone={onPostpone}
             onTogglePin={onTogglePin}
             onSaveAsTemplate={onSaveAsTemplate}
+            onArchive={onArchive}
+            onUnarchive={onUnarchive}
           />
         ))}
     </>

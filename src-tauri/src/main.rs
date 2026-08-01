@@ -116,6 +116,12 @@ fn main() {
             sql: include_str!("../migrations/019_recurrence_weekdays.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 20,
+            description: "add task archived",
+            sql: include_str!("../migrations/020_archived.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()
