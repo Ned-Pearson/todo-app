@@ -36,3 +36,28 @@ export function nextRecurrenceDate(baseDate: string, recurrence: Recurrence): st
   }
   return addInterval(baseDate, recurrence.frequency, recurrence.interval);
 }
+
+// Previews the next `count` occurrences a not-yet-committed rule would
+// produce, anchored off the due date currently being set up — the same
+// projection logic (and occurrences/end-date bounds) the Calendar view's
+// ghost-occurrence projection uses for an already-live recurrence, just
+// starting from an input still being edited rather than a stored Recurrence
+// row. `occurrences` counts the anchor date itself, so once it's down to 1
+// there's nothing left to project beyond it.
+export function previewOccurrences(anchorDate: string, input: RecurrenceInput, count: number): string[] {
+  if (!anchorDate) return [];
+  const dates: string[] = [];
+  let current = anchorDate;
+  let occurrencesLeft = input.occurrences;
+  for (let i = 0; i < count; i++) {
+    if (occurrencesLeft != null && occurrencesLeft <= 1) break;
+    current =
+      input.frequency === "weekly" && input.weekdays && input.weekdays.length > 0
+        ? nextWeekdayOccurrence(current, input.weekdays)
+        : addInterval(current, input.frequency, input.interval);
+    if (occurrencesLeft != null) occurrencesLeft -= 1;
+    if (input.endDate && current > input.endDate) break;
+    dates.push(current);
+  }
+  return dates;
+}

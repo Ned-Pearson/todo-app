@@ -5,7 +5,13 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import type { Priority, Tag, Task } from "../types";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "../lib/priority";
 import { fileNameFromPath, isImagePath } from "../lib/attachments";
-import { REPEAT_LABELS, WEEKDAY_LABELS, type RepeatOption, type RecurrenceInput } from "../lib/recurrence";
+import {
+  REPEAT_LABELS,
+  WEEKDAY_LABELS,
+  previewOccurrences,
+  type RepeatOption,
+  type RecurrenceInput,
+} from "../lib/recurrence";
 import { pickUnusedColor } from "../lib/tagColor";
 import { renderMarkdown } from "../lib/markdown";
 
@@ -80,25 +86,39 @@ export default function TaskDetailModal({
     }
   }, [task.dependsOn]);
 
+  function buildRecurrenceInput(): RecurrenceInput | null {
+    return repeat === "none"
+      ? null
+      : {
+          frequency: repeat,
+          interval: repeatInterval,
+          endDate: repeatEndDate,
+          occurrences: repeatOccurrences ? Number(repeatOccurrences) : null,
+          weekdays: repeat === "weekly" && repeatWeekdays.length > 0 ? repeatWeekdays : null,
+        };
+  }
+
+  const recurrenceInput = buildRecurrenceInput();
+  const occurrencePreview = recurrenceInput ? previewOccurrences(dueDate, recurrenceInput, 5) : [];
+
   async function handleSave() {
     const trimmedTitle = title.trim();
     if (!trimmedTitle) return;
     setSaving(true);
     try {
-      const recurrence: RecurrenceInput | null =
-        repeat === "none"
-          ? null
-          : {
-              frequency: repeat,
-              interval: repeatInterval,
-              endDate: repeatEndDate,
-              occurrences: repeatOccurrences ? Number(repeatOccurrences) : null,
-              weekdays: repeat === "weekly" && repeatWeekdays.length > 0 ? repeatWeekdays : null,
-            };
       // A reminder date with no time picked defaults to 9am, so a date alone
       // is enough to set one without forcing an extra pick every time.
       const reminderAt = reminderDate ? `${reminderDate} ${reminderTime || "09:00"}` : null;
-      await onSave(trimmedTitle, description, dueDate, dueTime, priority, recurrence, reminderAt, highlightColor || null);
+      await onSave(
+        trimmedTitle,
+        description,
+        dueDate,
+        dueTime,
+        priority,
+        buildRecurrenceInput(),
+        reminderAt,
+        highlightColor || null
+      );
       onClose();
     } finally {
       setSaving(false);
@@ -441,6 +461,40 @@ export default function TaskDetailModal({
               <span style={{ fontSize: 11, color: "var(--color-text-faint)" }}>
                 (none selected — uses "every N week(s)" above instead)
               </span>
+            )}
+          </div>
+        )}
+
+        {repeat !== "none" && (
+          <div style={{ marginBottom: 16 }}>
+            {!dueDate ? (
+              <div style={{ fontSize: 11, color: "var(--color-text-faint)" }}>
+                Pick a due date above to preview upcoming occurrences.
+              </div>
+            ) : occurrencePreview.length > 0 ? (
+              <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 11, color: "var(--color-text-faint)" }}>Next:</span>
+                {occurrencePreview.map((d) => (
+                  <span
+                    key={d}
+                    style={{
+                      fontSize: 11,
+                      color: "var(--color-text-muted)",
+                      background: "var(--color-surface-sunken)",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: "var(--radius-sm)",
+                      padding: "2px 6px",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {d}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <div style={{ fontSize: 11, color: "var(--color-text-faint)" }}>
+                No further occurrences — this would be the only one.
+              </div>
             )}
           </div>
         )}

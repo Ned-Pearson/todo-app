@@ -1,7 +1,13 @@
 import { useState, FormEvent } from "react";
 import type { Priority } from "../types";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "../lib/priority";
-import { REPEAT_LABELS, WEEKDAY_LABELS, type RepeatOption, type RecurrenceInput } from "../lib/recurrence";
+import {
+  REPEAT_LABELS,
+  WEEKDAY_LABELS,
+  previewOccurrences,
+  type RepeatOption,
+  type RecurrenceInput,
+} from "../lib/recurrence";
 import { parseNaturalDate } from "../lib/naturalDate";
 
 interface Props {
@@ -33,6 +39,21 @@ export default function AddTaskModal({ defaultDueDate, onClose, onAdd }: Props) 
   // the moment one exists so it doesn't look like it might override it.
   const detectedDate = !dueDate && title.trim() ? parseNaturalDate(title) : null;
 
+  function buildRecurrenceInput(): RecurrenceInput | null {
+    return repeat === "none"
+      ? null
+      : {
+          frequency: repeat,
+          interval: repeatInterval,
+          endDate: repeatEndDate,
+          occurrences: repeatOccurrences ? Number(repeatOccurrences) : null,
+          weekdays: repeat === "weekly" && repeatWeekdays.length > 0 ? repeatWeekdays : null,
+        };
+  }
+
+  const recurrenceInput = buildRecurrenceInput();
+  const occurrencePreview = recurrenceInput ? previewOccurrences(dueDate, recurrenceInput, 5) : [];
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     const trimmed = title.trim();
@@ -53,17 +74,7 @@ export default function AddTaskModal({ defaultDueDate, onClose, onAdd }: Props) 
       const finalTitle = strippedTitle || trimmed;
       const finalDueDate = detected ? detected.date : dueDate;
       const finalDueTime = detected?.time && !dueTime ? detected.time : dueTime;
-      const recurrence: RecurrenceInput | null =
-        repeat === "none"
-          ? null
-          : {
-              frequency: repeat,
-              interval: repeatInterval,
-              endDate: repeatEndDate,
-              occurrences: repeatOccurrences ? Number(repeatOccurrences) : null,
-              weekdays: repeat === "weekly" && repeatWeekdays.length > 0 ? repeatWeekdays : null,
-            };
-      await onAdd(finalTitle, finalDueDate, finalDueTime, priority, recurrence);
+      await onAdd(finalTitle, finalDueDate, finalDueTime, priority, buildRecurrenceInput());
     } finally {
       setSaving(false);
     }
@@ -305,6 +316,40 @@ export default function AddTaskModal({ defaultDueDate, onClose, onAdd }: Props) 
               <span style={{ fontSize: 11, color: "var(--color-text-faint)" }}>
                 (none selected — uses "every N week(s)" above instead)
               </span>
+            )}
+          </div>
+        )}
+
+        {repeat !== "none" && (
+          <div style={{ marginBottom: 20 }}>
+            {!dueDate ? (
+              <div style={{ fontSize: 11, color: "var(--color-text-faint)" }}>
+                Pick a due date above to preview upcoming occurrences.
+              </div>
+            ) : occurrencePreview.length > 0 ? (
+              <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 11, color: "var(--color-text-faint)" }}>Next:</span>
+                {occurrencePreview.map((d) => (
+                  <span
+                    key={d}
+                    style={{
+                      fontSize: 11,
+                      color: "var(--color-text-muted)",
+                      background: "var(--color-surface-sunken)",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: "var(--radius-sm)",
+                      padding: "2px 6px",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {d}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <div style={{ fontSize: 11, color: "var(--color-text-faint)" }}>
+                No further occurrences — this would be the only one.
+              </div>
             )}
           </div>
         )}
