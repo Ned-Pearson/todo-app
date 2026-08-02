@@ -88,4 +88,9 @@ export interface Task {
   pinned: boolean;
   dependsOn: TaskDependency[];
   archived: boolean;
+  // A standalone time-based nudge, independent of dueDate/dueTime — doesn't
+  // imply the task is "due", just that a notification should fire at this
+  // moment. Same "<date> <time>" format as completedAt.
+  reminderAt: string | null;
+  reminderNotified: boolean;
 }

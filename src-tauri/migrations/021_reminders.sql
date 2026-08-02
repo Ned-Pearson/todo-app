@@ -1,0 +1,2 @@
+ALTER TABLE tasks ADD COLUMN reminder_at TEXT;
+ALTER TABLE tasks ADD COLUMN reminder_notified INTEGER NOT NULL DEFAULT 0;

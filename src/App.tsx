@@ -40,6 +40,8 @@ import {
   removeTaskDependency,
   getArchivedTasks,
   updateTaskArchived,
+  updateTaskReminder,
+  markReminderNotified,
 } from "./lib/db";
 import TaskDetailModal from "./components/TaskDetailModal";
 import AddTaskModal from "./components/AddTaskModal";
@@ -344,6 +346,33 @@ export default function App() {
     const interval = window.setInterval(checkOverdue, OVERDUE_CHECK_INTERVAL_MS);
     return () => window.clearInterval(interval);
   }, [tasks, notifySnoozeMinutes, dndEnabled]);
+
+  // Standalone reminders: a one-shot nudge at reminderAt, independent of the
+  // due-date/overdue machinery above — it never implies the task is "due",
+  // so it doesn't touch lastNotifiedAt or the snooze loop. Once fired it's
+  // marked reminder_notified so it never re-fires; changing the reminder
+  // time (via updateTaskReminder) resets that flag to schedule a fresh one.
+  useEffect(() => {
+    async function checkReminders() {
+      if (dndEnabled) return;
+      const granted = await isPermissionGranted().catch(() => false);
+      if (!granted) return;
+      const now = nowTimestamp();
+      const due = tasks.filter(
+        (t) => t.reminderAt && !t.reminderNotified && !t.completed && t.reminderAt <= now
+      );
+      if (due.length === 0) return;
+      for (const task of due) {
+        sendNotification({ title: "Reminder", body: task.title });
+      }
+      await Promise.all(due.map((t) => markReminderNotified(t.id)));
+      await reload();
+    }
+
+    checkReminders();
+    const interval = window.setInterval(checkReminders, OVERDUE_CHECK_INTERVAL_MS);
+    return () => window.clearInterval(interval);
+  }, [tasks, dndEnabled]);
 
   useEffect(() => {
     if (view === "today") setDueDate(todayStr());
@@ -668,6 +697,11 @@ export default function App() {
 
   async function handleSavePriority(id: number, priority: Priority | null) {
     await updateTaskPriority(id, priority);
+    await reload();
+  }
+
+  async function handleSaveReminder(id: number, reminderAt: string | null) {
+    await updateTaskReminder(id, reminderAt);
     await reload();
   }
 
@@ -1903,13 +1937,14 @@ export default function App() {
           allTags={tags}
           allTasks={tasks}
           onClose={() => setSelectedTask(null)}
-          onSave={(title, description, dueDate, dueTime, priority, recurrence) =>
+          onSave={(title, description, dueDate, dueTime, priority, recurrence, reminderAt) =>
             Promise.all([
               handleSaveTitle(selectedTask.id, title),
               handleSaveDescription(selectedTask.id, description),
               handleSaveDueDate(selectedTask.id, dueDate, dueTime),
               handleSavePriority(selectedTask.id, priority),
               handleSaveRecurrence(selectedTask.id, recurrence),
+              handleSaveReminder(selectedTask.id, reminderAt),
             ])
           }
           onToggleTag={(tagId, assign) => handleToggleTag(selectedTask.id, tagId, assign)}

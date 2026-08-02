@@ -122,6 +122,12 @@ fn main() {
             sql: include_str!("../migrations/020_archived.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 21,
+            description: "add task reminders",
+            sql: include_str!("../migrations/021_reminders.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

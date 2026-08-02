@@ -325,6 +325,23 @@ export default function TaskRow({
             {task.dueTime ? ` ${task.dueTime}` : ""}
           </span>
         )}
+        {task.reminderAt && (
+          <span
+            title={task.reminderNotified ? "Reminder already sent" : "Reminder set — independent of the due date"}
+            style={{
+              fontSize: 12,
+              color: "var(--color-text-muted)",
+              background: "var(--color-surface-sunken)",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              padding: "2px 6px",
+              whiteSpace: "nowrap",
+              opacity: task.reminderNotified ? 0.55 : 1,
+            }}
+          >
+            🔔 {task.reminderAt}
+          </span>
+        )}
         {showCompletedDate && task.completedAt && (
           <span
             style={{

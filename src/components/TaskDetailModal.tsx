@@ -20,7 +20,8 @@ interface Props {
     dueDate: string,
     dueTime: string,
     priority: Priority | null,
-    recurrence: RecurrenceInput | null
+    recurrence: RecurrenceInput | null,
+    reminderAt: string | null
   ) => Promise<unknown>;
   onToggleTag: (tagId: number, assign: boolean) => void;
   onCreateTag: (name: string, color: string) => void;
@@ -55,6 +56,8 @@ export default function TaskDetailModal({
     task.recurrence?.occurrencesLeft != null ? String(task.recurrence.occurrencesLeft) : ""
   );
   const [repeatWeekdays, setRepeatWeekdays] = useState<number[]>(task.recurrence?.weekdays ?? []);
+  const [reminderDate, setReminderDate] = useState(task.reminderAt?.split(" ")[0] ?? "");
+  const [reminderTime, setReminderTime] = useState(task.reminderAt?.split(" ")[1] ?? "");
   const [saving, setSaving] = useState(false);
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState(() => pickUnusedColor(allTags.map((t) => t.color)));
@@ -90,7 +93,10 @@ export default function TaskDetailModal({
               occurrences: repeatOccurrences ? Number(repeatOccurrences) : null,
               weekdays: repeat === "weekly" && repeatWeekdays.length > 0 ? repeatWeekdays : null,
             };
-      await onSave(trimmedTitle, description, dueDate, dueTime, priority, recurrence);
+      // A reminder date with no time picked defaults to 9am, so a date alone
+      // is enough to set one without forcing an extra pick every time.
+      const reminderAt = reminderDate ? `${reminderDate} ${reminderTime || "09:00"}` : null;
+      await onSave(trimmedTitle, description, dueDate, dueTime, priority, recurrence, reminderAt);
       onClose();
     } finally {
       setSaving(false);
@@ -199,6 +205,57 @@ export default function TaskDetailModal({
               opacity: dueDate ? 1 : 0.5,
             }}
           />
+        </div>
+
+        <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
+          Reminder
+        </label>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
+          <input
+            type="date"
+            value={reminderDate}
+            onChange={(e) => setReminderDate(e.target.value)}
+            style={{
+              padding: "8px 10px",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              background: "var(--color-surface)",
+              color: "var(--color-text)",
+              fontSize: 14,
+            }}
+          />
+          <input
+            type="time"
+            value={reminderTime}
+            onChange={(e) => setReminderTime(e.target.value)}
+            disabled={!reminderDate}
+            title={!reminderDate ? "Set a reminder date first" : undefined}
+            style={{
+              padding: "8px 10px",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              background: "var(--color-surface)",
+              color: "var(--color-text)",
+              fontSize: 14,
+              opacity: reminderDate ? 1 : 0.5,
+            }}
+          />
+          {reminderDate && (
+            <button
+              type="button"
+              onClick={() => {
+                setReminderDate("");
+                setReminderTime("");
+              }}
+              title="Clear reminder"
+              style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 12 }}
+            >
+              ✕
+            </button>
+          )}
+        </div>
+        <div style={{ fontSize: 11, color: "var(--color-text-faint)", marginBottom: 16 }}>
+          A plain time-based nudge — independent of the due date above, and doesn't mark the task as "due".
         </div>
 
         <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>

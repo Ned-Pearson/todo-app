@@ -58,6 +58,8 @@ function rowToTask(
     pinned: !!row.pinned,
     dependsOn,
     archived: !!row.archived,
+    reminderAt: row.reminder_at,
+    reminderNotified: !!row.reminder_notified,
   };
 }
 
@@ -180,6 +182,19 @@ export async function getArchivedTasks(): Promise<Task[]> {
 export async function updateTaskArchived(id: number, archived: boolean): Promise<void> {
   const db = await getDb();
   await db.execute("UPDATE tasks SET archived = ? WHERE id = ?", [archived ? 1 : 0, id]);
+}
+
+// Setting/changing/clearing a reminder always resets reminder_notified back
+// to 0, so a re-scheduled reminder fires again rather than staying silenced
+// by a notification sent for its previous time.
+export async function updateTaskReminder(id: number, reminderAt: string | null): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE tasks SET reminder_at = ?, reminder_notified = 0 WHERE id = ?", [reminderAt, id]);
+}
+
+export async function markReminderNotified(id: number): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE tasks SET reminder_notified = 1 WHERE id = ?", [id]);
 }
 
 export async function getAllTags(): Promise<Tag[]> {
