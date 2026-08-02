@@ -93,4 +93,7 @@ export interface Task {
   // moment. Same "<date> <time>" format as completedAt.
   reminderAt: string | null;
   reminderNotified: boolean;
+  // A per-task row tint, independent of tags/priority — purely a personal
+  // visual marker, not tied to any filtering/grouping logic.
+  highlightColor: string | null;
 }

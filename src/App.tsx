@@ -42,6 +42,7 @@ import {
   updateTaskArchived,
   updateTaskReminder,
   markReminderNotified,
+  updateTaskHighlightColor,
 } from "./lib/db";
 import TaskDetailModal from "./components/TaskDetailModal";
 import AddTaskModal from "./components/AddTaskModal";
@@ -55,6 +56,7 @@ import ManageTagsModal from "./components/ManageTagsModal";
 import { addInterval, getWeekRange, isOverdue, nowTimestamp, todayStr } from "./lib/date";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "./lib/priority";
 import { buildTaskTree } from "./lib/tree";
+import { hexToRgba } from "./lib/color";
 import { exportToFile, importFromFile } from "./lib/backup";
 import { nextRecurrenceDate, type RecurrenceInput } from "./lib/recurrence";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -78,6 +80,7 @@ interface EditSnapshot {
   priority: Priority | null;
   recurrence: RecurrenceInput | null;
   reminderAt: string | null;
+  highlightColor: string | null;
 }
 
 interface EditHistoryEntry {
@@ -117,18 +120,6 @@ function getInitialTheme(): Theme {
 // picker's starting value while no custom accent is set, so it opens on
 // something sensible instead of an arbitrary color.
 const DEFAULT_ACCENT: Record<Theme, string> = { light: "#3d4f3a", dark: "#7fa374" };
-
-function hexToRgba(hex: string, alpha: number): string {
-  const clean = hex.replace("#", "");
-  const full = clean.length === 3
-    ? clean.split("").map((c) => c + c).join("")
-    : clean;
-  const num = parseInt(full, 16);
-  const r = (num >> 16) & 255;
-  const g = (num >> 8) & 255;
-  const b = num & 255;
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
 
 const SNOOZE_OPTIONS_MINUTES = [15, 30, 60, 120, 240];
 
@@ -744,6 +735,11 @@ export default function App() {
     await reload();
   }
 
+  async function handleSaveHighlightColor(id: number, color: string | null) {
+    await updateTaskHighlightColor(id, color);
+    await reload();
+  }
+
   function toEditSnapshot(task: Task): EditSnapshot {
     return {
       title: task.title,
@@ -761,6 +757,7 @@ export default function App() {
           }
         : null,
       reminderAt: task.reminderAt,
+      highlightColor: task.highlightColor,
     };
   }
 
@@ -772,6 +769,7 @@ export default function App() {
       handleSavePriority(id, snap.priority),
       handleSaveRecurrence(id, snap.recurrence),
       handleSaveReminder(id, snap.reminderAt),
+      handleSaveHighlightColor(id, snap.highlightColor),
     ]);
   }
 
@@ -2073,10 +2071,19 @@ export default function App() {
           allTags={tags}
           allTasks={tasks}
           onClose={() => setSelectedTask(null)}
-          onSave={(title, description, dueDate, dueTime, priority, recurrence, reminderAt) => {
+          onSave={(title, description, dueDate, dueTime, priority, recurrence, reminderAt, highlightColor) => {
             const id = selectedTask.id;
             const before = toEditSnapshot(selectedTask);
-            const after: EditSnapshot = { title, description, dueDate, dueTime, priority, recurrence, reminderAt };
+            const after: EditSnapshot = {
+              title,
+              description,
+              dueDate,
+              dueTime,
+              priority,
+              recurrence,
+              reminderAt,
+              highlightColor,
+            };
             return applyEditSnapshot(id, after).then(() => {
               if (JSON.stringify(before) !== JSON.stringify(after)) {
                 pushEditHistory({

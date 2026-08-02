@@ -4,6 +4,7 @@ import { PRIORITY_COLORS, PRIORITY_LABELS } from "../lib/priority";
 import { isOverdue } from "../lib/date";
 import { fileNameFromPath } from "../lib/attachments";
 import { renderInlineMarkdown } from "../lib/markdown";
+import { hexToRgba } from "../lib/color";
 
 const OVERDUE_COLOR = "#c9184a";
 
@@ -120,6 +121,10 @@ export default function TaskRow({
   const tagsRowIsLast = hasTags && !hasDescription;
   const overdue = isOverdue(task.dueDate, task.dueTime, task.completed);
   const overdueBorder = `3px solid ${overdue ? OVERDUE_COLOR : "transparent"}`;
+  // A subtle background wash, not a border/badge — it's a purely personal
+  // marker independent of tags/priority, so it shouldn't compete visually
+  // with anything that actually carries meaning elsewhere in the row.
+  const highlightBg = task.highlightColor ? hexToRgba(task.highlightColor, 0.14) : undefined;
 
   return (
     <>
@@ -160,6 +165,7 @@ export default function TaskRow({
           borderBottom: mainRowIsLast ? "1px solid var(--color-border)" : "none",
           borderLeft: overdueBorder,
           borderTop: dragOver ? "2px solid var(--color-accent)" : "2px solid transparent",
+          background: highlightBg,
           cursor: "pointer",
         }}
       >
@@ -484,6 +490,7 @@ export default function TaskRow({
             paddingLeft: 14 + depth * 24 + 52,
             borderBottom: tagsRowIsLast ? "1px solid var(--color-border)" : "none",
             borderLeft: overdueBorder,
+            background: highlightBg,
             cursor: "pointer",
           }}
         >
@@ -538,6 +545,7 @@ export default function TaskRow({
             textOverflow: "ellipsis",
             borderBottom: "1px solid var(--color-border)",
             borderLeft: overdueBorder,
+            background: highlightBg,
             cursor: "pointer",
           }}
         >

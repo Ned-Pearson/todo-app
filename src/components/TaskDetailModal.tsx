@@ -21,7 +21,8 @@ interface Props {
     dueTime: string,
     priority: Priority | null,
     recurrence: RecurrenceInput | null,
-    reminderAt: string | null
+    reminderAt: string | null,
+    highlightColor: string | null
   ) => Promise<unknown>;
   onToggleTag: (tagId: number, assign: boolean) => void;
   onCreateTag: (name: string, color: string) => void;
@@ -58,6 +59,7 @@ export default function TaskDetailModal({
   const [repeatWeekdays, setRepeatWeekdays] = useState<number[]>(task.recurrence?.weekdays ?? []);
   const [reminderDate, setReminderDate] = useState(task.reminderAt?.split(" ")[0] ?? "");
   const [reminderTime, setReminderTime] = useState(task.reminderAt?.split(" ")[1] ?? "");
+  const [highlightColor, setHighlightColor] = useState(task.highlightColor ?? "");
   const [saving, setSaving] = useState(false);
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState(() => pickUnusedColor(allTags.map((t) => t.color)));
@@ -96,7 +98,7 @@ export default function TaskDetailModal({
       // A reminder date with no time picked defaults to 9am, so a date alone
       // is enough to set one without forcing an extra pick every time.
       const reminderAt = reminderDate ? `${reminderDate} ${reminderTime || "09:00"}` : null;
-      await onSave(trimmedTitle, description, dueDate, dueTime, priority, recurrence, reminderAt);
+      await onSave(trimmedTitle, description, dueDate, dueTime, priority, recurrence, reminderAt, highlightColor || null);
       onClose();
     } finally {
       setSaving(false);
@@ -283,6 +285,39 @@ export default function TaskDetailModal({
               </button>
             );
           })}
+        </div>
+
+        <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
+          Highlight color
+        </label>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16 }}>
+          <input
+            type="color"
+            value={highlightColor || "#f2d95c"}
+            onChange={(e) => setHighlightColor(e.target.value)}
+            title="Row highlight color"
+            style={{
+              width: 36,
+              height: 28,
+              padding: 0,
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              background: "none",
+            }}
+          />
+          {highlightColor && (
+            <button
+              type="button"
+              onClick={() => setHighlightColor("")}
+              title="Clear highlight"
+              style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 12 }}
+            >
+              ✕
+            </button>
+          )}
+          <span style={{ fontSize: 11, color: "var(--color-text-faint)" }}>
+            A personal marker for this row — independent of tags/priority.
+          </span>
         </div>
 
         <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>

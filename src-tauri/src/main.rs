@@ -128,6 +128,12 @@ fn main() {
             sql: include_str!("../migrations/021_reminders.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 22,
+            description: "add task highlight color",
+            sql: include_str!("../migrations/022_highlight_color.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

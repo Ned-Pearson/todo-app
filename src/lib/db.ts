@@ -60,6 +60,7 @@ function rowToTask(
     archived: !!row.archived,
     reminderAt: row.reminder_at,
     reminderNotified: !!row.reminder_notified,
+    highlightColor: row.highlight_color,
   };
 }
 
@@ -195,6 +196,11 @@ export async function updateTaskReminder(id: number, reminderAt: string | null):
 export async function markReminderNotified(id: number): Promise<void> {
   const db = await getDb();
   await db.execute("UPDATE tasks SET reminder_notified = 1 WHERE id = ?", [id]);
+}
+
+export async function updateTaskHighlightColor(id: number, color: string | null): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE tasks SET highlight_color = ? WHERE id = ?", [color, id]);
 }
 
 export async function getAllTags(): Promise<Tag[]> {
