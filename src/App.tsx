@@ -66,6 +66,25 @@ const OVERDUE_CHECK_INTERVAL_MS = 60_000;
 
 type View = "all" | "today" | "this-week" | "no-date" | "calendar" | "history" | "stats" | "archive";
 
+// The full set of fields the task detail modal's Save button commits at
+// once — undo/redo for edits treats that whole click as a single step
+// (reverting/reapplying every field together) rather than one step per
+// field, since that's what the user actually did in one action.
+interface EditSnapshot {
+  title: string;
+  description: string;
+  dueDate: string;
+  dueTime: string;
+  priority: Priority | null;
+  recurrence: RecurrenceInput | null;
+  reminderAt: string | null;
+}
+
+interface EditHistoryEntry {
+  undo: () => Promise<void>;
+  redo: () => Promise<void>;
+}
+
 const VIEW_LABELS: Record<View, string> = {
   all: "All",
   today: "Today",
@@ -160,6 +179,8 @@ export default function App() {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [showBulkTagPicker, setShowBulkTagPicker] = useState(false);
+  const [undoStack, setUndoStack] = useState<EditHistoryEntry[]>([]);
+  const [redoStack, setRedoStack] = useState<EditHistoryEntry[]>([]);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -233,6 +254,24 @@ export default function App() {
         return;
       }
 
+      // Undo/redo works regardless of which modal (if any) is open, unlike
+      // the shortcuts below — closing the detail modal via Save is exactly
+      // when you'd want to undo it. It only backs off for a focused text
+      // field, so it doesn't steal a text field's own native undo/redo.
+      if ((e.ctrlKey || e.metaKey) && !isTextEntry(e.target)) {
+        const key = e.key.toLowerCase();
+        if (key === "z" && !e.shiftKey) {
+          e.preventDefault();
+          handleUndo();
+          return;
+        }
+        if ((key === "z" && e.shiftKey) || key === "y") {
+          e.preventDefault();
+          handleRedo();
+          return;
+        }
+      }
+
       if (selectedTask || showManageTags || showAddModal) return;
 
       if (e.key === "n" && !isTextEntry(e.target)) {
@@ -263,7 +302,7 @@ export default function App() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedTask, showManageTags, showAddModal, searchQuery]);
+  }, [selectedTask, showManageTags, showAddModal, searchQuery, undoStack, redoStack]);
 
   // A global (OS-level) shortcut so quick-add works even when the app isn't
   // focused — pressing it brings the window to the front and opens the Add
@@ -705,6 +744,61 @@ export default function App() {
     await reload();
   }
 
+  function toEditSnapshot(task: Task): EditSnapshot {
+    return {
+      title: task.title,
+      description: task.description ?? "",
+      dueDate: task.dueDate ?? "",
+      dueTime: task.dueTime ?? "",
+      priority: task.priority,
+      recurrence: task.recurrence
+        ? {
+            frequency: task.recurrence.frequency,
+            interval: task.recurrence.interval,
+            endDate: task.recurrence.endDate ?? "",
+            occurrences: task.recurrence.occurrencesLeft,
+            weekdays: task.recurrence.weekdays,
+          }
+        : null,
+      reminderAt: task.reminderAt,
+    };
+  }
+
+  async function applyEditSnapshot(id: number, snap: EditSnapshot) {
+    await Promise.all([
+      handleSaveTitle(id, snap.title),
+      handleSaveDescription(id, snap.description),
+      handleSaveDueDate(id, snap.dueDate, snap.dueTime),
+      handleSavePriority(id, snap.priority),
+      handleSaveRecurrence(id, snap.recurrence),
+      handleSaveReminder(id, snap.reminderAt),
+    ]);
+  }
+
+  // Committing a fresh edit invalidates whatever was in the redo stack, same
+  // as any standard undo/redo — there's no sensible "redo" once a new edit
+  // has branched off from that point in history.
+  function pushEditHistory(entry: EditHistoryEntry) {
+    setUndoStack((prev) => [...prev, entry]);
+    setRedoStack([]);
+  }
+
+  async function handleUndo() {
+    const entry = undoStack[undoStack.length - 1];
+    if (!entry) return;
+    setUndoStack((prev) => prev.slice(0, -1));
+    await entry.undo();
+    setRedoStack((prev) => [...prev, entry]);
+  }
+
+  async function handleRedo() {
+    const entry = redoStack[redoStack.length - 1];
+    if (!entry) return;
+    setRedoStack((prev) => prev.slice(0, -1));
+    await entry.redo();
+    setUndoStack((prev) => [...prev, entry]);
+  }
+
   async function handleSaveRecurrence(id: number, recurrence: RecurrenceInput | null) {
     const task = tasks.find((t) => t.id === id);
     if (!recurrence) {
@@ -1048,13 +1142,55 @@ export default function App() {
                   <span>Esc</span>
                   <span>Close modal / clear or unfocus search</span>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                   <span>Ctrl/⌘+Shift+N</span>
                   <span>New task (global)</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                  <span>Ctrl/⌘+Z</span>
+                  <span>Undo edit</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span>Ctrl/⌘+Shift+Z</span>
+                  <span>Redo edit</span>
                 </div>
               </div>
             )}
           </div>
+          <button
+            onClick={handleUndo}
+            disabled={undoStack.length === 0}
+            title="Undo the last edit (Ctrl/⌘+Z)"
+            style={{
+              padding: "6px 10px",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              background: "var(--color-surface)",
+              color: "var(--color-text-muted)",
+              fontSize: 14,
+              opacity: undoStack.length === 0 ? 0.4 : 1,
+              cursor: undoStack.length === 0 ? "default" : "pointer",
+            }}
+          >
+            ↶
+          </button>
+          <button
+            onClick={handleRedo}
+            disabled={redoStack.length === 0}
+            title="Redo the last undone edit (Ctrl/⌘+Shift+Z)"
+            style={{
+              padding: "6px 10px",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              background: "var(--color-surface)",
+              color: "var(--color-text-muted)",
+              fontSize: 14,
+              opacity: redoStack.length === 0 ? 0.4 : 1,
+              cursor: redoStack.length === 0 ? "default" : "pointer",
+            }}
+          >
+            ↷
+          </button>
           <button
             onClick={handleExport}
             title="Export a backup of everything to a JSON file"
@@ -1937,16 +2073,19 @@ export default function App() {
           allTags={tags}
           allTasks={tasks}
           onClose={() => setSelectedTask(null)}
-          onSave={(title, description, dueDate, dueTime, priority, recurrence, reminderAt) =>
-            Promise.all([
-              handleSaveTitle(selectedTask.id, title),
-              handleSaveDescription(selectedTask.id, description),
-              handleSaveDueDate(selectedTask.id, dueDate, dueTime),
-              handleSavePriority(selectedTask.id, priority),
-              handleSaveRecurrence(selectedTask.id, recurrence),
-              handleSaveReminder(selectedTask.id, reminderAt),
-            ])
-          }
+          onSave={(title, description, dueDate, dueTime, priority, recurrence, reminderAt) => {
+            const id = selectedTask.id;
+            const before = toEditSnapshot(selectedTask);
+            const after: EditSnapshot = { title, description, dueDate, dueTime, priority, recurrence, reminderAt };
+            return applyEditSnapshot(id, after).then(() => {
+              if (JSON.stringify(before) !== JSON.stringify(after)) {
+                pushEditHistory({
+                  undo: () => applyEditSnapshot(id, before),
+                  redo: () => applyEditSnapshot(id, after),
+                });
+              }
+            });
+          }}
           onToggleTag={(tagId, assign) => handleToggleTag(selectedTask.id, tagId, assign)}
           onCreateTag={handleCreateTag}
           onAddAttachment={(path) => handleAddAttachment(selectedTask.id, path)}
