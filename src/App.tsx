@@ -1000,8 +1000,14 @@ export default function App() {
 
   // Tasks pending a delete-undo window are filtered out here, upstream of
   // every other filter, so they disappear from every view immediately while
-  // still existing in the database until the undo window elapses.
+  // still existing in the database until the undo window elapses. Applies
+  // equally to the archived list — a pending-delete archived task should
+  // vanish from Archive just as promptly as a non-archived one does
+  // elsewhere.
   const activeTasks = pendingDelete ? tasks.filter((t) => !pendingDelete.allIds.includes(t.id)) : tasks;
+  const activeArchivedTasks = pendingDelete
+    ? archivedTasks.filter((t) => !pendingDelete.allIds.includes(t.id))
+    : archivedTasks;
 
   // The pinned shortlist is deliberately independent of whatever tag/
   // priority/search/view filters are currently active — it's meant to be an
@@ -1009,41 +1015,48 @@ export default function App() {
   // filter context.
   const pinnedTasks = activeTasks.filter((t) => t.pinned);
 
-  const tagFilteredTasks =
-    activeTagFilter == null
-      ? activeTasks
-      : activeTasks.filter(
-          (t) =>
-            t.tags.some((tag) => tag.id === activeTagFilter) ||
-            t.inheritedTags.some((tag) => tag.id === activeTagFilter)
-        );
+  // Shared by the main (non-archived) list and Archive, so the tag/priority/
+  // search filters reach both instead of Archive silently showing everything
+  // regardless of whatever filter is currently active.
+  function filterByTagPriorityAndSearch(list: Task[]): Task[] {
+    const tagFiltered =
+      activeTagFilter == null
+        ? list
+        : list.filter(
+            (t) =>
+              t.tags.some((tag) => tag.id === activeTagFilter) ||
+              t.inheritedTags.some((tag) => tag.id === activeTagFilter)
+          );
 
-  // Selecting a priority keeps only tasks flagged with it, plus every one of
-  // their descendants (regardless of the descendant's own priority) so a
-  // matching task's subtree stays intact. Tasks with no priority set (and no
-  // matching ancestor) are dropped entirely rather than just reordered.
-  const priorityFilteredTasks = (() => {
-    if (!priorityFilter) return tagFilteredTasks;
-    const visibleIdSet = new Set(tagFilteredTasks.filter((t) => t.priority === priorityFilter).map((t) => t.id));
-    function addDescendants(id: number) {
-      for (const t of tagFilteredTasks) {
-        if (t.parentId === id && !visibleIdSet.has(t.id)) {
-          visibleIdSet.add(t.id);
-          addDescendants(t.id);
+    // Selecting a priority keeps only tasks flagged with it, plus every one
+    // of their descendants (regardless of the descendant's own priority) so
+    // a matching task's subtree stays intact. Tasks with no priority set
+    // (and no matching ancestor) are dropped entirely rather than just
+    // reordered.
+    const priorityFiltered = (() => {
+      if (!priorityFilter) return tagFiltered;
+      const visibleIdSet = new Set(tagFiltered.filter((t) => t.priority === priorityFilter).map((t) => t.id));
+      function addDescendants(id: number) {
+        for (const t of tagFiltered) {
+          if (t.parentId === id && !visibleIdSet.has(t.id)) {
+            visibleIdSet.add(t.id);
+            addDescendants(t.id);
+          }
         }
       }
-    }
-    for (const id of [...visibleIdSet]) addDescendants(id);
-    return tagFilteredTasks.filter((t) => visibleIdSet.has(t.id));
-  })();
+      for (const id of [...visibleIdSet]) addDescendants(id);
+      return tagFiltered.filter((t) => visibleIdSet.has(t.id));
+    })();
 
-  const searchFilteredTasks = (() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return priorityFilteredTasks;
-    return priorityFilteredTasks.filter(
+    if (!q) return priorityFiltered;
+    return priorityFiltered.filter(
       (t) => t.title.toLowerCase().includes(q) || (t.description ?? "").toLowerCase().includes(q)
     );
-  })();
+  }
+
+  const searchFilteredTasks = filterByTagPriorityAndSearch(activeTasks);
+  const archivedSearchFilteredTasks = filterByTagPriorityAndSearch(activeArchivedTasks);
 
   // "Manual" preserves the order the query already came back in (driven by
   // sort_order, i.e. drag order); the other options re-sort every sibling
@@ -1993,7 +2006,7 @@ export default function App() {
         <StatsView tasks={searchFilteredTasks} />
       ) : view === "archive" ? (
         <ArchiveView
-          tasks={archivedTasks}
+          tasks={archivedSearchFilteredTasks}
           priorityFilter={priorityFilter}
           onToggle={handleToggle}
           onDelete={handleDelete}
