@@ -43,6 +43,7 @@ import {
   updateTaskReminder,
   markReminderNotified,
   updateTaskHighlightColor,
+  updateTaskInProgress,
 } from "./lib/db";
 import TaskDetailModal from "./components/TaskDetailModal";
 import AddTaskModal from "./components/AddTaskModal";
@@ -656,6 +657,13 @@ export default function App() {
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
     await updateTaskPinned(id, !task.pinned);
+    await reload();
+  }
+
+  async function handleToggleInProgress(id: number) {
+    const task = tasks.find((t) => t.id === id);
+    if (!task) return;
+    await updateTaskInProgress(id, !task.inProgress);
     await reload();
   }
 
@@ -1423,6 +1431,7 @@ export default function App() {
                 onTogglePin={handleTogglePin}
                 onSaveAsTemplate={handleSaveAsTemplate}
                 onArchive={handleArchive}
+                onToggleInProgress={handleToggleInProgress}
               />
             ))}
           </div>
@@ -1940,6 +1949,7 @@ export default function App() {
           onTogglePin={handleTogglePin}
           onSaveAsTemplate={handleSaveAsTemplate}
           onArchive={handleArchive}
+          onToggleInProgress={handleToggleInProgress}
         />
       ) : view === "history" ? (
         <HistoryView
@@ -1955,6 +1965,7 @@ export default function App() {
           onTogglePin={handleTogglePin}
           onSaveAsTemplate={handleSaveAsTemplate}
           onArchive={handleArchive}
+          onToggleInProgress={handleToggleInProgress}
         />
       ) : view === "stats" ? (
         <StatsView tasks={searchFilteredTasks} />
@@ -2005,6 +2016,7 @@ export default function App() {
                     onTogglePin={handleTogglePin}
                     onSaveAsTemplate={handleSaveAsTemplate}
                     onArchive={handleArchive}
+                    onToggleInProgress={handleToggleInProgress}
                   />
                 ))}
               </div>
@@ -2055,6 +2067,7 @@ export default function App() {
                 onTogglePin={handleTogglePin}
                 onSaveAsTemplate={handleSaveAsTemplate}
                 onArchive={handleArchive}
+                onToggleInProgress={handleToggleInProgress}
               />
             ))}
           </div>

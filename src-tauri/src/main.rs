@@ -134,6 +134,12 @@ fn main() {
             sql: include_str!("../migrations/022_highlight_color.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 23,
+            description: "add task in_progress",
+            sql: include_str!("../migrations/023_in_progress.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

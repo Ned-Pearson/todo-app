@@ -30,6 +30,7 @@ interface Props {
   onSaveAsTemplate?: (id: number) => void;
   onArchive?: (id: number) => void;
   onUnarchive?: (id: number) => void;
+  onToggleInProgress?: (id: number) => void;
 }
 
 export default function TaskRow({
@@ -54,6 +55,7 @@ export default function TaskRow({
   onSaveAsTemplate,
   onArchive,
   onUnarchive,
+  onToggleInProgress,
 }: Props) {
   const selected = selectable && (selectedIds?.has(task.id) ?? false);
   const [addingSubtask, setAddingSubtask] = useState(false);
@@ -276,6 +278,25 @@ export default function TaskRow({
             }}
           >
             {task.pinned ? "★" : "☆"}
+          </button>
+        )}
+        {!task.completed && onToggleInProgress && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleInProgress(task.id);
+            }}
+            title={task.inProgress ? "Mark as not started" : "Mark as in progress"}
+            style={{
+              border: "none",
+              background: "none",
+              color: task.inProgress ? "#3d7dd6" : "var(--color-text-faint)",
+              fontSize: 14,
+              padding: 0,
+              flexShrink: 0,
+            }}
+          >
+            {task.inProgress ? "◐" : "○"}
           </button>
         )}
         {task.priority && (
@@ -637,6 +658,7 @@ export default function TaskRow({
             onSaveAsTemplate={onSaveAsTemplate}
             onArchive={onArchive}
             onUnarchive={onUnarchive}
+            onToggleInProgress={onToggleInProgress}
           />
         ))}
     </>

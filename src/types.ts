@@ -96,4 +96,10 @@ export interface Task {
   // A per-task row tint, independent of tags/priority — purely a personal
   // visual marker, not tied to any filtering/grouping logic.
   highlightColor: string | null;
+  // Tri-state status beyond plain complete/incomplete: completed is still
+  // the one source of truth for "done" (drives dependencies, recurrence,
+  // notifications, History/Archive, etc., all unchanged) — this only
+  // distinguishes "not started" from "in progress" for an incomplete task,
+  // toggled independently of completing it.
+  inProgress: boolean;
 }
