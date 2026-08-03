@@ -3,6 +3,16 @@
 Tauri + React + TypeScript + SQLite
 
 TODO:
+- Search doesn't currently reach the Archive view — make it search archived tasks too
+- A "Someday/backlog" flag to hide not-yet-actionable tasks from All/Today/This Week without archiving or deleting them
+- Configurable week-start day (Sunday vs Monday) for Calendar and This Week
+- A command palette (Ctrl/⌘+K) to fuzzy-jump to any task or run common actions from one place
+- Per-tab custom accent color, so each project tab has its own visual identity instead of one shared global accent
+- A longer-retention trash/recycle bin for deleted tasks, independent of the 5-second Undo window, browsable and restorable
+- Export a single task (with its subtasks) as Markdown for sharing outside the app
+- A running per-task time log (start/stop timer) with a total shown on the row
+- A bulk "postpone all overdue by N days" action from Select mode
+- A lightweight "See also" link between tasks that doesn't block completion, distinct from dependencies
 
 ## Project structure~
 
