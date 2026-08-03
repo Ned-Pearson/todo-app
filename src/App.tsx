@@ -44,6 +44,7 @@ import {
   markReminderNotified,
   updateTaskHighlightColor,
   updateTaskInProgress,
+  updateTaskParent,
 } from "./lib/db";
 import TaskDetailModal from "./components/TaskDetailModal";
 import AddTaskModal from "./components/AddTaskModal";
@@ -703,18 +704,39 @@ export default function App() {
   // operates on the full sibling group rather than whatever subset the
   // current view/filter happens to show, so a hidden sibling's position
   // doesn't get scrambled by a drag made within a filtered view.
+  // Dropping onto a target always inserts the dragged task just before it
+  // among the target's real siblings — same as before when they already
+  // share a parent, but now also reparenting the dragged task to the
+  // target's parent when they don't. Dropping onto any top-level task's row
+  // is how a subtask gets promoted to top-level, since a top-level task's
+  // parentId is already null. Dropping onto anything inside the dragged
+  // task's own subtree is rejected — that would make it its own ancestor.
   async function handleReorder(draggedId: number, targetId: number) {
     if (draggedId === targetId) return;
     const dragged = tasks.find((t) => t.id === draggedId);
     const target = tasks.find((t) => t.id === targetId);
-    if (!dragged || !target || dragged.parentId !== target.parentId) return;
+    if (!dragged || !target) return;
+    if (getDescendantIds(draggedId).includes(targetId)) return;
 
-    const siblings = tasks.filter((t) => t.parentId === dragged.parentId);
-    const reordered = siblings.filter((t) => t.id !== draggedId);
-    const targetIndex = reordered.findIndex((t) => t.id === targetId);
-    reordered.splice(targetIndex, 0, dragged);
+    const newParentId = target.parentId;
+    if (dragged.parentId === newParentId) {
+      const siblings = tasks.filter((t) => t.parentId === dragged.parentId);
+      const reordered = siblings.filter((t) => t.id !== draggedId);
+      const targetIndex = reordered.findIndex((t) => t.id === targetId);
+      reordered.splice(targetIndex, 0, dragged);
+      await Promise.all(reordered.map((t, i) => updateTaskSortOrder(t.id, i)));
+    } else {
+      const oldSiblings = tasks.filter((t) => t.parentId === dragged.parentId && t.id !== draggedId);
+      const newSiblings = tasks.filter((t) => t.parentId === newParentId && t.id !== draggedId);
+      const targetIndex = newSiblings.findIndex((t) => t.id === targetId);
+      newSiblings.splice(targetIndex, 0, dragged);
 
-    await Promise.all(reordered.map((t, i) => updateTaskSortOrder(t.id, i)));
+      await updateTaskParent(draggedId, newParentId);
+      await Promise.all([
+        ...oldSiblings.map((t, i) => updateTaskSortOrder(t.id, i)),
+        ...newSiblings.map((t, i) => updateTaskSortOrder(t.id, i)),
+      ]);
+    }
     await reload();
   }
 

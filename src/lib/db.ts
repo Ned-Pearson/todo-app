@@ -523,6 +523,11 @@ export async function updateTaskSortOrder(id: number, sortOrder: number): Promis
   await db.execute("UPDATE tasks SET sort_order = ? WHERE id = ?", [sortOrder, id]);
 }
 
+export async function updateTaskParent(id: number, parentId: number | null): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE tasks SET parent_id = ? WHERE id = ?", [parentId, id]);
+}
+
 export async function updateTaskPriority(id: number, priority: Priority | null): Promise<void> {
   const db = await getDb();
   await db.execute("UPDATE tasks SET priority = ? WHERE id = ?", [priority, id]);
