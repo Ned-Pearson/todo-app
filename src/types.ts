@@ -42,6 +42,10 @@ export interface CustomTab {
   id: number;
   name: string;
   tagId: number;
+  // Overrides --color-accent/--color-accent-soft while this tab is active,
+  // taking precedence over the app-wide custom accent — gives each project
+  // tab its own visual identity instead of sharing one global accent.
+  color: string | null;
 }
 
 // The stored blueprint for a task template — a static tree (title/priority/

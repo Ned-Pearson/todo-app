@@ -146,6 +146,12 @@ fn main() {
             sql: include_str!("../migrations/024_backlog.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 25,
+            description: "add custom tab color",
+            sql: include_str!("../migrations/025_custom_tab_color.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

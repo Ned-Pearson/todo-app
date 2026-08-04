@@ -275,7 +275,7 @@ export async function deleteSavedView(id: number): Promise<void> {
 }
 
 function rowToCustomTab(row: any): CustomTab {
-  return { id: row.id, name: row.name, tagId: row.tag_id };
+  return { id: row.id, name: row.name, tagId: row.tag_id, color: row.color };
 }
 
 export async function getAllCustomTabs(): Promise<CustomTab[]> {
@@ -299,6 +299,11 @@ export async function createCustomTab(name: string, tagId: number): Promise<numb
 export async function deleteCustomTab(id: number): Promise<void> {
   const db = await getDb();
   await db.execute("DELETE FROM custom_tabs WHERE id = ?", [id]);
+}
+
+export async function updateCustomTabColor(id: number, color: string | null): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE custom_tabs SET color = ? WHERE id = ?", [color, id]);
 }
 
 export async function updateTagName(id: number, name: string): Promise<void> {

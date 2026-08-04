@@ -32,6 +32,7 @@ import {
   getAllCustomTabs,
   createCustomTab,
   deleteCustomTab,
+  updateCustomTabColor,
   getAllTaskTemplates,
   saveTaskAsTemplate,
   createTaskFromTemplate,
@@ -168,6 +169,7 @@ export default function App() {
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const [customAccent, setCustomAccent] = useState<string | null>(() => localStorage.getItem("accentColor"));
   const [showAccentPicker, setShowAccentPicker] = useState(false);
+  const [colorPickerTabId, setColorPickerTabId] = useState<number | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [notifySnoozeMinutes, setNotifySnoozeMinutes] = useState<number>(getInitialSnoozeMinutes);
   const [weekStartsOn, setWeekStartsOn] = useState<0 | 1>(getInitialWeekStartsOn);
@@ -190,23 +192,39 @@ export default function App() {
     localStorage.setItem("theme", theme);
   }, [theme]);
 
-  // A custom accent overrides --color-accent/--color-accent-soft as inline
-  // styles on the root element, which win over index.css's :root/[data-
-  // theme] rules regardless of which theme is active. Clearing it back to
-  // null removes the inline properties so the stylesheet's per-theme
-  // defaults take over again — no need to track what those defaults are.
+  // Persisted independently of whatever's currently applied to the DOM
+  // below — a per-tab color can temporarily override the visual accent
+  // without touching this saved app-wide preference.
+  useEffect(() => {
+    if (customAccent) localStorage.setItem("accentColor", customAccent);
+    else localStorage.removeItem("accentColor");
+  }, [customAccent]);
+
+  // The active custom tab's own color (if it has one) overrides the
+  // app-wide custom accent while that tab is active, using the same "active"
+  // check the tab row itself uses to highlight (view is All and the tag
+  // filter matches, regardless of whether that got set by clicking the tab
+  // or the plain tag filter row). Switching away restores the app-wide
+  // accent (or the theme default) automatically, since effectiveAccent is
+  // just derived state re-evaluated every render.
+  const activeCustomTab = customTabs.find((t) => view === "all" && activeTagFilter === t.tagId);
+  const effectiveAccent = activeCustomTab?.color ?? customAccent;
+
+  // Overrides --color-accent/--color-accent-soft as inline styles on the
+  // root element, which win over index.css's :root/[data-theme] rules
+  // regardless of which theme is active. Clearing it back to null removes
+  // the inline properties so the stylesheet's per-theme defaults take over
+  // again — no need to track what those defaults are.
   useEffect(() => {
     const root = document.documentElement;
-    if (customAccent) {
-      root.style.setProperty("--color-accent", customAccent);
-      root.style.setProperty("--color-accent-soft", hexToRgba(customAccent, 0.15));
-      localStorage.setItem("accentColor", customAccent);
+    if (effectiveAccent) {
+      root.style.setProperty("--color-accent", effectiveAccent);
+      root.style.setProperty("--color-accent-soft", hexToRgba(effectiveAccent, 0.15));
     } else {
       root.style.removeProperty("--color-accent");
       root.style.removeProperty("--color-accent-soft");
-      localStorage.removeItem("accentColor");
     }
-  }, [customAccent]);
+  }, [effectiveAccent]);
 
   useEffect(() => {
     localStorage.setItem("notifySnoozeMinutes", String(notifySnoozeMinutes));
@@ -1008,6 +1026,11 @@ export default function App() {
     await reload();
   }
 
+  async function handleUpdateCustomTabColor(id: number, color: string | null) {
+    await updateCustomTabColor(id, color);
+    await reload();
+  }
+
   async function handleExport() {
     try {
       const exported = await exportToFile();
@@ -1595,6 +1618,68 @@ export default function App() {
               >
                 {tab.name}
               </button>
+              <div style={{ position: "relative", display: "flex" }}>
+                <button
+                  type="button"
+                  onClick={() => setColorPickerTabId((id) => (id === tab.id ? null : tab.id))}
+                  title="This tab's accent color — overrides the app-wide accent while it's active"
+                  style={{
+                    width: 14,
+                    height: 14,
+                    padding: 0,
+                    border: `1px solid ${active ? "var(--color-accent)" : "var(--color-border)"}`,
+                    borderRadius: "50%",
+                    background: tab.color ?? "none",
+                  }}
+                />
+                {colorPickerTabId === tab.id && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "calc(100% + 6px)",
+                      left: 0,
+                      zIndex: 30,
+                      width: 180,
+                      padding: "10px 12px",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: "var(--radius-sm)",
+                      background: "var(--color-surface)",
+                      boxShadow: "var(--shadow-card)",
+                      fontSize: 12,
+                      color: "var(--color-text-muted)",
+                    }}
+                  >
+                    <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 6 }}>
+                      "{tab.name}" tab color
+                    </div>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: tab.color ? 6 : 0 }}>
+                      <input
+                        type="color"
+                        value={tab.color ?? DEFAULT_ACCENT[theme]}
+                        onChange={(e) => handleUpdateCustomTabColor(tab.id, e.target.value)}
+                        style={{
+                          width: 40,
+                          height: 28,
+                          padding: 0,
+                          border: "1px solid var(--color-border)",
+                          borderRadius: "var(--radius-sm)",
+                          background: "none",
+                        }}
+                      />
+                      <span style={{ fontSize: 12 }}>{tab.color ?? "App accent"}</span>
+                    </div>
+                    {tab.color && (
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateCustomTabColor(tab.id, null)}
+                        style={{ border: "none", background: "none", color: "var(--color-accent)", fontSize: 12 }}
+                      >
+                        Reset to app accent
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
               <button
                 type="button"
                 onClick={() => handleDeleteCustomTab(tab.id)}
