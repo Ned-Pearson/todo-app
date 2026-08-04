@@ -152,38 +152,29 @@ export default function TaskDetailModal({
 
   return (
     <div
-      onClick={onClose}
+      className="detail-panel"
       style={{
         position: "fixed",
-        inset: 0,
-        background: "rgba(28, 30, 27, 0.35)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 24,
+        top: 0,
+        right: 0,
+        bottom: 0,
+        width: "var(--panel-width)",
+        background: "var(--color-surface)",
+        borderLeft: "1px solid var(--color-border)",
+        boxShadow: "var(--shadow-card)",
+        padding: 20,
+        overflowY: "auto",
         zIndex: 10,
       }}
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: "100%",
-          maxWidth: 440,
-          background: "var(--color-surface)",
-          border: "1px solid var(--color-border)",
-          borderRadius: "var(--radius-md)",
-          boxShadow: "var(--shadow-card)",
-          padding: 20,
-        }}
-      >
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 12 }}>
         <input
           autoFocus
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Task title…"
           style={{
-            width: "100%",
-            marginBottom: 12,
+            flex: 1,
             padding: "4px 0",
             border: "none",
             background: "none",
@@ -193,6 +184,22 @@ export default function TaskDetailModal({
             fontFamily: "inherit",
           }}
         />
+        <button
+          type="button"
+          onClick={onClose}
+          title="Close"
+          style={{
+            border: "none",
+            background: "none",
+            color: "var(--color-text-faint)",
+            fontSize: 16,
+            padding: 4,
+            flexShrink: 0,
+          }}
+        >
+          ✕
+        </button>
+      </div>
 
         <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
           Due date
@@ -278,66 +285,6 @@ export default function TaskDetailModal({
         </div>
         <div style={{ fontSize: 11, color: "var(--color-text-faint)", marginBottom: 16 }}>
           A plain time-based nudge — independent of the due date above, and doesn't mark the task as "due".
-        </div>
-
-        <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
-          Priority
-        </label>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
-          {(["high", "medium", "low"] as Priority[]).map((level) => {
-            const selected = priority === level;
-            return (
-              <button
-                key={level}
-                type="button"
-                onClick={() => setPriority(selected ? null : level)}
-                style={{
-                  fontSize: 12,
-                  fontWeight: 500,
-                  padding: "4px 8px",
-                  borderRadius: "var(--radius-sm)",
-                  border: selected ? "1px solid transparent" : `1px solid ${PRIORITY_COLORS[level]}`,
-                  background: selected ? PRIORITY_COLORS[level] : "none",
-                  color: selected ? "#fff" : PRIORITY_COLORS[level],
-                }}
-              >
-                {PRIORITY_LABELS[level]}
-              </button>
-            );
-          })}
-        </div>
-
-        <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
-          Highlight color
-        </label>
-        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16 }}>
-          <input
-            type="color"
-            value={highlightColor || "#f2d95c"}
-            onChange={(e) => setHighlightColor(e.target.value)}
-            title="Row highlight color"
-            style={{
-              width: 36,
-              height: 28,
-              padding: 0,
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-sm)",
-              background: "none",
-            }}
-          />
-          {highlightColor && (
-            <button
-              type="button"
-              onClick={() => setHighlightColor("")}
-              title="Clear highlight"
-              style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 12 }}
-            >
-              ✕
-            </button>
-          )}
-          <span style={{ fontSize: 11, color: "var(--color-text-faint)" }}>
-            A personal marker for this row — independent of tags/priority.
-          </span>
         </div>
 
         <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
@@ -498,6 +445,66 @@ export default function TaskDetailModal({
             )}
           </div>
         )}
+
+        <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
+          Priority
+        </label>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
+          {(["high", "medium", "low"] as Priority[]).map((level) => {
+            const selected = priority === level;
+            return (
+              <button
+                key={level}
+                type="button"
+                onClick={() => setPriority(selected ? null : level)}
+                style={{
+                  fontSize: 12,
+                  fontWeight: 500,
+                  padding: "4px 8px",
+                  borderRadius: "var(--radius-sm)",
+                  border: selected ? "1px solid transparent" : `1px solid ${PRIORITY_COLORS[level]}`,
+                  background: selected ? PRIORITY_COLORS[level] : "none",
+                  color: selected ? "#fff" : PRIORITY_COLORS[level],
+                }}
+              >
+                {PRIORITY_LABELS[level]}
+              </button>
+            );
+          })}
+        </div>
+
+        <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
+          Highlight color
+        </label>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16 }}>
+          <input
+            type="color"
+            value={highlightColor || "#f2d95c"}
+            onChange={(e) => setHighlightColor(e.target.value)}
+            title="Row highlight color"
+            style={{
+              width: 36,
+              height: 28,
+              padding: 0,
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              background: "none",
+            }}
+          />
+          {highlightColor && (
+            <button
+              type="button"
+              onClick={() => setHighlightColor("")}
+              title="Clear highlight"
+              style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 12 }}
+            >
+              ✕
+            </button>
+          )}
+          <span style={{ fontSize: 11, color: "var(--color-text-faint)" }}>
+            A personal marker for this row — independent of tags/priority.
+          </span>
+        </div>
 
         <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
           Depends on
@@ -821,6 +828,10 @@ export default function TaskDetailModal({
           Add attachment…
         </button>
 
+        <div style={{ fontSize: 11, color: "var(--color-text-faint)", marginBottom: 16 }}>
+          Created on {task.createdAt}
+        </div>
+
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
           <button
             onClick={onClose}
@@ -852,7 +863,6 @@ export default function TaskDetailModal({
             Save
           </button>
         </div>
-      </div>
 
       {previewPath && (
         <div

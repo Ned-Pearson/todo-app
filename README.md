@@ -3,7 +3,6 @@
 Tauri + React + TypeScript + SQLite
 
 TODO:
-- Update UI, layout similar to layout of Microsoft Todo.
 - A running per-task time log (start/stop timer) with a total shown on the row
 - A bulk "postpone all overdue by N days" action from Select mode
 - A lightweight "See also" link between tasks that doesn't block completion, distinct from dependencies

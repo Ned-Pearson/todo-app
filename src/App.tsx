@@ -64,7 +64,14 @@ import BacklogView from "./components/BacklogView";
 import TrashView from "./components/TrashView";
 import StatsView from "./components/StatsView";
 import ManageTagsModal from "./components/ManageTagsModal";
+import Sidebar from "./components/Sidebar";
 import { addInterval, getWeekRange, isOverdue, nowTimestamp, todayStr } from "./lib/date";
+import {
+  type View,
+  VIEW_LABELS,
+  type Theme,
+  SNOOZE_OPTIONS_MINUTES,
+} from "./lib/appConstants";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "./lib/priority";
 import { buildTaskTree } from "./lib/tree";
 import { hexToRgba } from "./lib/color";
@@ -78,18 +85,6 @@ import { isPermissionGranted, requestPermission, sendNotification } from "@tauri
 const GLOBAL_QUICK_ADD_SHORTCUT = "CommandOrControl+Shift+N";
 const OVERDUE_CHECK_INTERVAL_MS = 60_000;
 const TRASH_RETENTION_DAYS = 30;
-
-type View =
-  | "all"
-  | "today"
-  | "this-week"
-  | "no-date"
-  | "calendar"
-  | "history"
-  | "stats"
-  | "archive"
-  | "backlog"
-  | "trash";
 
 // The full set of fields the task detail modal's Save button commits at
 // once — undo/redo for edits treats that whole click as a single step
@@ -111,19 +106,6 @@ interface EditHistoryEntry {
   redo: () => Promise<void>;
 }
 
-const VIEW_LABELS: Record<View, string> = {
-  all: "All",
-  today: "Today",
-  "this-week": "This Week",
-  "no-date": "No due date",
-  calendar: "Calendar",
-  history: "History",
-  stats: "Stats",
-  archive: "Archive",
-  backlog: "Backlog",
-  trash: "Trash",
-};
-
 type SortOption = "manual" | "dueDate" | "priority" | "title";
 
 const SORT_LABELS: Record<SortOption, string> = {
@@ -133,28 +115,11 @@ const SORT_LABELS: Record<SortOption, string> = {
   title: "Title",
 };
 
-type Theme = "light" | "dark";
-
 function getInitialTheme(): Theme {
   const stored = localStorage.getItem("theme");
   if (stored === "light" || stored === "dark") return stored;
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
-
-// The light/dark stylesheet defaults from index.css — used as the color
-// picker's starting value while no custom accent is set, so it opens on
-// something sensible instead of an arbitrary color.
-const DEFAULT_ACCENT: Record<Theme, string> = { light: "#3d4f3a", dark: "#7fa374" };
-
-const SNOOZE_OPTIONS_MINUTES = [15, 30, 60, 120, 240];
-
-const SNOOZE_LABELS: Record<number, string> = {
-  15: "15 minutes",
-  30: "30 minutes",
-  60: "1 hour",
-  120: "2 hours",
-  240: "4 hours",
-};
 
 function getInitialSnoozeMinutes(): number {
   const stored = Number(localStorage.getItem("notifySnoozeMinutes"));
@@ -203,6 +168,7 @@ export default function App() {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [showBulkTagPicker, setShowBulkTagPicker] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
   const [undoStack, setUndoStack] = useState<EditHistoryEntry[]>([]);
   const [redoStack, setRedoStack] = useState<EditHistoryEntry[]>([]);
 
@@ -1245,6 +1211,13 @@ export default function App() {
   const completedCount = visibleTasks.filter((t) => t.completed).length;
 
   const { topLevel: topLevelTasks, childrenByParent } = buildTaskTree(sortTasks(visibleTasks));
+  // Split at the top level only — a completed subtask nested under an
+  // incomplete parent still renders inline exactly as before (still part of
+  // that parent's own "n/m done" subtree count); only completed *root* tasks
+  // move into the collapsed footer below, matching how Microsoft To Do
+  // tucks finished items out of the way without touching subtask nesting.
+  const incompleteTopLevel = topLevelTasks.filter((t) => !t.completed);
+  const completedTopLevel = topLevelTasks.filter((t) => t.completed);
 
   // Overdue tasks (due date in the past, not completed) would otherwise
   // disappear once their due date passes, since Today only shows dueDate ===
@@ -1260,353 +1233,52 @@ export default function App() {
   );
 
   return (
-    <div
-      style={{
-        maxWidth: view === "calendar" || view === "stats" ? 880 : 560,
-        margin: "0 auto",
-        padding: "40px 24px",
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>Tasks</h1>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div
-            style={{ position: "relative", display: "flex" }}
-            onMouseEnter={() => setShowShortcuts(true)}
-            onMouseLeave={() => setShowShortcuts(false)}
-          >
-            <button
-              type="button"
-              style={{
-                width: 28,
-                height: 28,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: 0,
-                border: "1px solid var(--color-border)",
-                borderRadius: "50%",
-                background: "var(--color-surface)",
-                color: "var(--color-text-muted)",
-                fontSize: 13,
-              }}
-            >
-              i
-            </button>
-            {showShortcuts && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: "calc(100% + 6px)",
-                  right: 0,
-                  zIndex: 30,
-                  width: 240,
-                  padding: "10px 12px",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "var(--radius-sm)",
-                  background: "var(--color-surface)",
-                  boxShadow: "var(--shadow-card)",
-                  fontSize: 12,
-                  color: "var(--color-text-muted)",
-                }}
-              >
-                <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 6 }}>
-                  Keyboard shortcuts
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                  <span>n</span>
-                  <span>New task</span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                  <span>/</span>
-                  <span>Focus search</span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                  <span>↑ / ↓</span>
-                  <span>Move between tasks</span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                  <span>Enter</span>
-                  <span>Submit / open task</span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                  <span>Esc</span>
-                  <span>Close modal / clear or unfocus search</span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                  <span>Ctrl/⌘+Shift+N</span>
-                  <span>New task (global)</span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                  <span>Ctrl/⌘+Z</span>
-                  <span>Undo edit</span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                  <span>Ctrl/⌘+Shift+Z</span>
-                  <span>Redo edit</span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span>Ctrl/⌘+K</span>
-                  <span>Command palette</span>
-                </div>
-              </div>
-            )}
+    <div style={{ display: "flex", height: "100%" }}>
+      <Sidebar
+        view={view}
+        setView={setView}
+        customTabs={customTabs}
+        activeTagFilter={activeTagFilter}
+        handleSelectCustomTab={handleSelectCustomTab}
+        colorPickerTabId={colorPickerTabId}
+        setColorPickerTabId={setColorPickerTabId}
+        handleUpdateCustomTabColor={handleUpdateCustomTabColor}
+        handleDeleteCustomTab={handleDeleteCustomTab}
+        setShowAddTabModal={setShowAddTabModal}
+        theme={theme}
+        setTheme={setTheme}
+        customAccent={customAccent}
+        setCustomAccent={setCustomAccent}
+        showAccentPicker={showAccentPicker}
+        setShowAccentPicker={setShowAccentPicker}
+        showShortcuts={showShortcuts}
+        setShowShortcuts={setShowShortcuts}
+        canUndo={undoStack.length > 0}
+        canRedo={redoStack.length > 0}
+        handleUndo={handleUndo}
+        handleRedo={handleRedo}
+        handleExport={handleExport}
+        handleImport={handleImport}
+        dndEnabled={dndEnabled}
+        setDndEnabled={setDndEnabled}
+        notifySnoozeMinutes={notifySnoozeMinutes}
+        setNotifySnoozeMinutes={setNotifySnoozeMinutes}
+        showNotifySettings={showNotifySettings}
+        setShowNotifySettings={setShowNotifySettings}
+        weekStartsOn={weekStartsOn}
+        setWeekStartsOn={setWeekStartsOn}
+      />
+      <div style={{ flex: "1 1 0", overflowY: "auto", minWidth: 0 }}>
+        <div
+          style={{
+            maxWidth: view === "calendar" || view === "stats" ? 880 : 560,
+            margin: "0 auto",
+            padding: "40px 24px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+            <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>{VIEW_LABELS[view]}</h1>
           </div>
-          <button
-            onClick={handleUndo}
-            disabled={undoStack.length === 0}
-            title="Undo the last edit (Ctrl/⌘+Z)"
-            style={{
-              padding: "6px 10px",
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-sm)",
-              background: "var(--color-surface)",
-              color: "var(--color-text-muted)",
-              fontSize: 14,
-              opacity: undoStack.length === 0 ? 0.4 : 1,
-              cursor: undoStack.length === 0 ? "default" : "pointer",
-            }}
-          >
-            ↶
-          </button>
-          <button
-            onClick={handleRedo}
-            disabled={redoStack.length === 0}
-            title="Redo the last undone edit (Ctrl/⌘+Shift+Z)"
-            style={{
-              padding: "6px 10px",
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-sm)",
-              background: "var(--color-surface)",
-              color: "var(--color-text-muted)",
-              fontSize: 14,
-              opacity: redoStack.length === 0 ? 0.4 : 1,
-              cursor: redoStack.length === 0 ? "default" : "pointer",
-            }}
-          >
-            ↷
-          </button>
-          <button
-            onClick={handleExport}
-            title="Export a backup of everything to a JSON file"
-            style={{
-              padding: "6px 10px",
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-sm)",
-              background: "var(--color-surface)",
-              color: "var(--color-text-muted)",
-              fontSize: 13,
-            }}
-          >
-            Export
-          </button>
-          <button
-            onClick={handleImport}
-            title="Restore from a backup JSON file (replaces everything currently in the app)"
-            style={{
-              padding: "6px 10px",
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-sm)",
-              background: "var(--color-surface)",
-              color: "var(--color-text-muted)",
-              fontSize: 13,
-            }}
-          >
-            Import
-          </button>
-          <div style={{ position: "relative", display: "flex" }}>
-            <button
-              type="button"
-              onClick={() => setShowNotifySettings((v) => !v)}
-              title={dndEnabled ? "Notifications paused (Do Not Disturb)" : "Overdue notification settings"}
-              style={{
-                width: 28,
-                height: 28,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: 0,
-                border: "1px solid var(--color-border)",
-                borderRadius: "50%",
-                background: "var(--color-surface)",
-                color: "var(--color-text-muted)",
-                fontSize: 13,
-              }}
-            >
-              {dndEnabled ? "🔕" : "🔔"}
-            </button>
-            {showNotifySettings && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: "calc(100% + 6px)",
-                  right: 0,
-                  zIndex: 30,
-                  width: 200,
-                  padding: "10px 12px",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "var(--radius-sm)",
-                  background: "var(--color-surface)",
-                  boxShadow: "var(--shadow-card)",
-                  fontSize: 12,
-                  color: "var(--color-text-muted)",
-                }}
-              >
-                <label
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    fontWeight: 600,
-                    color: "var(--color-text)",
-                    marginBottom: 10,
-                    cursor: "pointer",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={dndEnabled}
-                    onChange={(e) => setDndEnabled(e.target.checked)}
-                    style={{ accentColor: "var(--color-accent)" }}
-                  />
-                  Do Not Disturb
-                </label>
-                <div style={{ opacity: dndEnabled ? 0.5 : 1 }}>
-                  <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 6 }}>
-                    Remind me again every
-                  </div>
-                  <select
-                    value={notifySnoozeMinutes}
-                    onChange={(e) => setNotifySnoozeMinutes(Number(e.target.value))}
-                    disabled={dndEnabled}
-                    style={{
-                      width: "100%",
-                      padding: "6px 8px",
-                      border: "1px solid var(--color-border)",
-                      borderRadius: "var(--radius-sm)",
-                      background: "var(--color-surface)",
-                      color: "var(--color-text)",
-                      fontSize: 13,
-                    }}
-                  >
-                    {SNOOZE_OPTIONS_MINUTES.map((minutes) => (
-                      <option key={minutes} value={minutes}>
-                        {SNOOZE_LABELS[minutes]}
-                      </option>
-                    ))}
-                  </select>
-                  <div style={{ marginTop: 6, color: "var(--color-text-faint)" }}>
-                    for as long as a task stays overdue
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-          <select
-            value={weekStartsOn}
-            onChange={(e) => setWeekStartsOn(Number(e.target.value) === 1 ? 1 : 0)}
-            title="Week starts on — affects This Week and Calendar"
-            style={{
-              padding: "6px 8px",
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-sm)",
-              background: "var(--color-surface)",
-              color: "var(--color-text-muted)",
-              fontSize: 13,
-            }}
-          >
-            <option value={0}>Sun</option>
-            <option value={1}>Mon</option>
-          </select>
-          <button
-            onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
-            title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
-            style={{
-              padding: "6px 10px",
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-sm)",
-              background: "var(--color-surface)",
-              color: "var(--color-text-muted)",
-              fontSize: 14,
-            }}
-          >
-            {theme === "light" ? "🌙" : "☀️"}
-          </button>
-          <div style={{ position: "relative", display: "flex" }}>
-            <button
-              type="button"
-              onClick={() => setShowAccentPicker((v) => !v)}
-              title="Custom accent color"
-              style={{
-                width: 28,
-                height: 28,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: 0,
-                border: "1px solid var(--color-border)",
-                borderRadius: "50%",
-                background: "var(--color-surface)",
-              }}
-            >
-              <span
-                style={{
-                  width: 14,
-                  height: 14,
-                  borderRadius: "50%",
-                  background: "var(--color-accent)",
-                  display: "block",
-                }}
-              />
-            </button>
-            {showAccentPicker && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: "calc(100% + 6px)",
-                  right: 0,
-                  zIndex: 30,
-                  width: 180,
-                  padding: "10px 12px",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "var(--radius-sm)",
-                  background: "var(--color-surface)",
-                  boxShadow: "var(--shadow-card)",
-                  fontSize: 12,
-                  color: "var(--color-text-muted)",
-                }}
-              >
-                <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 6 }}>Accent color</div>
-                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: customAccent ? 6 : 0 }}>
-                  <input
-                    type="color"
-                    value={customAccent ?? DEFAULT_ACCENT[theme]}
-                    onChange={(e) => setCustomAccent(e.target.value)}
-                    style={{
-                      width: 40,
-                      height: 28,
-                      padding: 0,
-                      border: "1px solid var(--color-border)",
-                      borderRadius: "var(--radius-sm)",
-                      background: "none",
-                    }}
-                  />
-                  <span style={{ fontSize: 12 }}>{customAccent ?? "Theme default"}</span>
-                </div>
-                {customAccent && (
-                  <button
-                    type="button"
-                    onClick={() => setCustomAccent(null)}
-                    style={{ border: "none", background: "none", color: "var(--color-accent)", fontSize: 12 }}
-                  >
-                    Reset to theme default
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
 
       {pinnedTasks.length > 0 && (
         <div style={{ marginBottom: 20 }}>
@@ -1645,161 +1317,6 @@ export default function App() {
           </div>
         </div>
       )}
-
-      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4, marginBottom: 20 }}>
-        {(
-          [
-            "all",
-            "today",
-            "this-week",
-            "no-date",
-            "calendar",
-            "history",
-            "stats",
-            "archive",
-            "backlog",
-            "trash",
-          ] as View[]
-        ).map((v) => (
-          <button
-            key={v}
-            onClick={() => setView(v)}
-            style={{
-              padding: "6px 12px",
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-sm)",
-              background: view === v ? "var(--color-accent-soft)" : "none",
-              color: view === v ? "var(--color-accent)" : "var(--color-text-muted)",
-              fontSize: 13,
-              fontWeight: 500,
-            }}
-          >
-            {VIEW_LABELS[v]}
-          </button>
-        ))}
-        {customTabs.map((tab) => {
-          const active = view === "all" && activeTagFilter === tab.tagId;
-          return (
-            <div
-              key={tab.id}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                padding: "6px 6px 6px 12px",
-                border: "1px solid var(--color-border)",
-                borderRadius: "var(--radius-sm)",
-                background: active ? "var(--color-accent-soft)" : "none",
-              }}
-            >
-              <button
-                onClick={() => handleSelectCustomTab(tab)}
-                style={{
-                  border: "none",
-                  background: "none",
-                  color: active ? "var(--color-accent)" : "var(--color-text-muted)",
-                  fontSize: 13,
-                  fontWeight: 500,
-                }}
-              >
-                {tab.name}
-              </button>
-              <div style={{ position: "relative", display: "flex" }}>
-                <button
-                  type="button"
-                  onClick={() => setColorPickerTabId((id) => (id === tab.id ? null : tab.id))}
-                  title="This tab's accent color — overrides the app-wide accent while it's active"
-                  style={{
-                    width: 14,
-                    height: 14,
-                    padding: 0,
-                    border: `1px solid ${active ? "var(--color-accent)" : "var(--color-border)"}`,
-                    borderRadius: "50%",
-                    background: tab.color ?? "none",
-                  }}
-                />
-                {colorPickerTabId === tab.id && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: "calc(100% + 6px)",
-                      left: 0,
-                      zIndex: 30,
-                      width: 180,
-                      padding: "10px 12px",
-                      border: "1px solid var(--color-border)",
-                      borderRadius: "var(--radius-sm)",
-                      background: "var(--color-surface)",
-                      boxShadow: "var(--shadow-card)",
-                      fontSize: 12,
-                      color: "var(--color-text-muted)",
-                    }}
-                  >
-                    <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 6 }}>
-                      "{tab.name}" tab color
-                    </div>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: tab.color ? 6 : 0 }}>
-                      <input
-                        type="color"
-                        value={tab.color ?? DEFAULT_ACCENT[theme]}
-                        onChange={(e) => handleUpdateCustomTabColor(tab.id, e.target.value)}
-                        style={{
-                          width: 40,
-                          height: 28,
-                          padding: 0,
-                          border: "1px solid var(--color-border)",
-                          borderRadius: "var(--radius-sm)",
-                          background: "none",
-                        }}
-                      />
-                      <span style={{ fontSize: 12 }}>{tab.color ?? "App accent"}</span>
-                    </div>
-                    {tab.color && (
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateCustomTabColor(tab.id, null)}
-                        style={{ border: "none", background: "none", color: "var(--color-accent)", fontSize: 12 }}
-                      >
-                        Reset to app accent
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={() => handleDeleteCustomTab(tab.id)}
-                title="Delete this tab"
-                style={{
-                  border: "none",
-                  background: "none",
-                  color: active ? "var(--color-accent)" : "var(--color-text-faint)",
-                  fontSize: 11,
-                  opacity: 0.7,
-                  padding: 0,
-                }}
-              >
-                ✕
-              </button>
-            </div>
-          );
-        })}
-        <button
-          type="button"
-          onClick={() => setShowAddTabModal(true)}
-          title="Add a custom tab for a project/tag"
-          style={{
-            padding: "6px 12px",
-            border: "1px dashed var(--color-border)",
-            borderRadius: "var(--radius-sm)",
-            background: "none",
-            color: "var(--color-text-faint)",
-            fontSize: 13,
-          }}
-        >
-          + Tab
-        </button>
-      </div>
 
       <div style={{ position: "relative", marginBottom: 20 }}>
         <input
@@ -2013,16 +1530,22 @@ export default function App() {
           type="button"
           onClick={() => setShowAddModal(true)}
           style={{
-            padding: "8px 14px",
-            border: "none",
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            textAlign: "left",
+            padding: "10px 14px",
+            border: "1px solid var(--color-border)",
             borderRadius: "var(--radius-sm)",
-            background: "var(--color-accent)",
-            color: "#fff",
+            background: "var(--color-surface)",
+            color: "var(--color-accent)",
             fontSize: 14,
             fontWeight: 500,
           }}
         >
-          + Add task
+          <span style={{ fontSize: 16, fontWeight: 700 }}>+</span>
+          Add a task
         </button>
         <div style={{ position: "relative", display: "flex" }}>
           <button
@@ -2363,7 +1886,7 @@ export default function App() {
               boxShadow: "var(--shadow-card)",
             }}
           >
-            {topLevelTasks.length === 0 && (
+            {incompleteTopLevel.length === 0 && (
               <div style={{ padding: 20, color: "var(--color-text-faint)", fontSize: 13 }}>
                 {searchQuery.trim()
                   ? "No tasks match your search."
@@ -2378,7 +1901,7 @@ export default function App() {
                           : "No tasks yet."}
               </div>
             )}
-            {topLevelTasks.map((task) => (
+            {incompleteTopLevel.map((task) => (
               <TaskRow
                 key={task.id}
                 task={task}
@@ -2406,8 +1929,69 @@ export default function App() {
               />
             ))}
           </div>
+
+          {completedTopLevel.length > 0 && (
+            <div style={{ marginTop: 20 }}>
+              <button
+                type="button"
+                onClick={() => setShowCompleted((v) => !v)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  border: "none",
+                  background: "none",
+                  color: "var(--color-text-muted)",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  padding: "4px 0",
+                  marginBottom: showCompleted ? 6 : 0,
+                }}
+              >
+                <span style={{ fontSize: 10 }}>{showCompleted ? "▾" : "▸"}</span>
+                Completed ({completedTopLevel.length})
+              </button>
+              {showCompleted && (
+                <div
+                  style={{
+                    background: "var(--color-surface)",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "var(--radius-md)",
+                    boxShadow: "var(--shadow-card)",
+                  }}
+                >
+                  {completedTopLevel.map((task) => (
+                    <TaskRow
+                      key={task.id}
+                      task={task}
+                      depth={0}
+                      childrenByParent={childrenByParent}
+                      priorityFilter={priorityFilter}
+                      onToggle={handleToggle}
+                      onDelete={handleDelete}
+                      onSelect={setSelectedTask}
+                      onAddSubtask={handleAddSubtask}
+                      selectable={selectMode}
+                      selectedIds={selectedIds}
+                      onToggleSelect={handleToggleSelect}
+                      onDuplicate={handleDuplicateTask}
+                      onTogglePin={handleTogglePin}
+                      onSaveAsTemplate={handleSaveAsTemplate}
+                      onExportMarkdown={handleExportTaskMarkdown}
+                      onArchive={handleArchive}
+                      onBacklog={handleBacklog}
+                      onUnbacklog={handleUnbacklog}
+                      showCompletedDate
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </>
       )}
+        </div>
+      </div>
 
       {showAddModal && (
         <AddTaskModal defaultDueDate={dueDate} onClose={() => setShowAddModal(false)} onAdd={handleAddTask} />

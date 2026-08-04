@@ -1,4 +1,4 @@
-import { useState, FocusEvent, KeyboardEvent } from "react";
+import { useState, FocusEvent, KeyboardEvent, CSSProperties } from "react";
 import type { Priority, Task } from "../types";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "../lib/priority";
 import { isOverdue } from "../lib/date";
@@ -7,6 +7,10 @@ import { renderInlineMarkdown } from "../lib/markdown";
 import { hexToRgba } from "../lib/color";
 
 const OVERDUE_COLOR = "#c9184a";
+// Aligns the subtitle line under the title text, past the leading cluster of
+// icons (collapse caret, checkbox, blocked/in-progress/priority icons) on
+// line 1 — matches the offset the description preview below already uses.
+const SUBTITLE_INDENT = 52;
 
 interface Props {
   task: Task;
@@ -73,6 +77,7 @@ export default function TaskRow({
   const [addingSubtask, setAddingSubtask] = useState(false);
   const [subtaskTitle, setSubtaskTitle] = useState("");
   const [dragOver, setDragOver] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const children = childrenByParent.get(task.id) ?? [];
   const hasChildren = children.length > 0;
 
@@ -131,14 +136,27 @@ export default function TaskRow({
 
   const hasTags = task.tags.length > 0 || task.inheritedTags.length > 0;
   const hasDescription = !!task.description;
-  const mainRowIsLast = !hasTags && !hasDescription;
-  const tagsRowIsLast = hasTags && !hasDescription;
   const overdue = isOverdue(task.dueDate, task.dueTime, task.completed);
   const overdueBorder = `3px solid ${overdue ? OVERDUE_COLOR : "transparent"}`;
   // A subtle background wash, not a border/badge — it's a purely personal
   // marker independent of tags/priority, so it shouldn't compete visually
   // with anything that actually carries meaning elsewhere in the row.
   const highlightBg = task.highlightColor ? hexToRgba(task.highlightColor, 0.14) : undefined;
+  const hasSubtitle =
+    !!task.dueDate ||
+    !!task.reminderAt ||
+    (showCompletedDate && !!task.completedAt) ||
+    (showDeletedDate && !!task.deletedAt) ||
+    !!task.recurrence ||
+    task.attachments.length > 0 ||
+    hasTags;
+
+  // Runs an action-menu handler and closes the menu, so picking an item
+  // doesn't leave a stale popover open behind whatever it triggered.
+  function runMenuAction(action: (id: number) => void) {
+    action(task.id);
+    setMenuOpen(false);
+  }
 
   return (
     <>
@@ -172,468 +190,482 @@ export default function TaskRow({
         }
         style={{
           display: "flex",
-          alignItems: "center",
-          gap: 10,
-          padding: mainRowIsLast ? "10px 14px" : "10px 14px 4px",
+          flexDirection: "column",
+          gap: 4,
+          padding: hasDescription ? "10px 14px 4px" : "10px 14px",
           paddingLeft: 14 + depth * 24,
-          borderBottom: mainRowIsLast ? "1px solid var(--color-border)" : "none",
+          borderBottom: hasDescription ? "none" : "1px solid var(--color-border)",
           borderLeft: overdueBorder,
           borderTop: dragOver ? "2px solid var(--color-accent)" : "2px solid transparent",
           background: highlightBg,
           cursor: "pointer",
         }}
       >
-        {selectable && (
+        {/* Line 1: checkbox/status icons, title, and right-aligned progress/pin/actions */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {selectable && (
+            <input
+              type="checkbox"
+              checked={selected}
+              onClick={(e) => e.stopPropagation()}
+              onChange={() => onToggleSelect?.(task.id)}
+              style={{
+                width: 16,
+                height: 16,
+                accentColor: "var(--color-accent)",
+                flexShrink: 0,
+                cursor: "pointer",
+              }}
+            />
+          )}
+          {onReorder && (
+            <span
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData("text/plain", String(task.id));
+                e.dataTransfer.effectAllowed = "move";
+              }}
+              onClick={(e) => e.stopPropagation()}
+              title="Drag to reorder"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 24,
+                height: 24,
+                margin: "-4px 0",
+                cursor: "grab",
+                color: "var(--color-text-faint)",
+                fontSize: 22,
+                flexShrink: 0,
+                userSelect: "none",
+              }}
+            >
+              ⠿
+            </span>
+          )}
+          {hasChildren ? (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setCollapsed((v) => !v);
+              }}
+              title={collapsed ? "Expand subtasks" : "Collapse subtasks"}
+              style={{
+                width: 16,
+                height: 16,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                border: "none",
+                background: "none",
+                color: "var(--color-text-faint)",
+                fontSize: 10,
+                padding: 0,
+                flexShrink: 0,
+              }}
+            >
+              {collapsed ? "▸" : "▾"}
+            </button>
+          ) : (
+            <span style={{ width: 16, flexShrink: 0 }} />
+          )}
           <input
             type="checkbox"
-            checked={selected}
+            checked={task.completed}
+            disabled={readOnly || blocked}
+            title={blocked ? `Blocked by: ${blockingDeps.map((d) => d.title).join(", ")}` : undefined}
             onClick={(e) => e.stopPropagation()}
-            onChange={() => onToggleSelect?.(task.id)}
+            onChange={(e) => onToggle(task.id, e.target.checked)}
             style={{
               width: 16,
               height: 16,
               accentColor: "var(--color-accent)",
               flexShrink: 0,
-              cursor: "pointer",
+              cursor: readOnly || blocked ? "default" : "pointer",
             }}
           />
-        )}
-        {onReorder && (
-          <span
-            draggable
-            onDragStart={(e) => {
-              e.dataTransfer.setData("text/plain", String(task.id));
-              e.dataTransfer.effectAllowed = "move";
-            }}
-            onClick={(e) => e.stopPropagation()}
-            title="Drag to reorder"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 24,
-              height: 24,
-              margin: "-4px 0",
-              cursor: "grab",
-              color: "var(--color-text-faint)",
-              fontSize: 22,
-              flexShrink: 0,
-              userSelect: "none",
-            }}
-          >
-            ⠿
-          </span>
-        )}
-        {hasChildren ? (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setCollapsed((v) => !v);
-            }}
-            title={collapsed ? "Expand subtasks" : "Collapse subtasks"}
-            style={{
-              width: 16,
-              height: 16,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              border: "none",
-              background: "none",
-              color: "var(--color-text-faint)",
-              fontSize: 10,
-              padding: 0,
-              flexShrink: 0,
-            }}
-          >
-            {collapsed ? "▸" : "▾"}
-          </button>
-        ) : (
-          <span style={{ width: 16, flexShrink: 0 }} />
-        )}
-        <input
-          type="checkbox"
-          checked={task.completed}
-          disabled={readOnly || blocked}
-          title={blocked ? `Blocked by: ${blockingDeps.map((d) => d.title).join(", ")}` : undefined}
-          onClick={(e) => e.stopPropagation()}
-          onChange={(e) => onToggle(task.id, e.target.checked)}
-          style={{
-            width: 16,
-            height: 16,
-            accentColor: "var(--color-accent)",
-            flexShrink: 0,
-            cursor: readOnly || blocked ? "default" : "pointer",
-          }}
-        />
-        {blocked && (
-          <span
-            title={`Blocked by: ${blockingDeps.map((d) => d.title).join(", ")}`}
-            style={{ fontSize: 12, flexShrink: 0 }}
-          >
-            🔒
-          </span>
-        )}
-        {onTogglePin && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onTogglePin(task.id);
-            }}
-            title={task.pinned ? "Unpin" : "Pin to shortlist"}
-            style={{
-              border: "none",
-              background: "none",
-              color: task.pinned ? "#f2994a" : "var(--color-text-faint)",
-              fontSize: 14,
-              padding: 0,
-              flexShrink: 0,
-            }}
-          >
-            {task.pinned ? "★" : "☆"}
-          </button>
-        )}
-        {!task.completed && onToggleInProgress && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleInProgress(task.id);
-            }}
-            title={task.inProgress ? "Mark as not started" : "Mark as in progress"}
-            style={{
-              border: "none",
-              background: "none",
-              color: task.inProgress ? "#3d7dd6" : "var(--color-text-faint)",
-              fontSize: 14,
-              padding: 0,
-              flexShrink: 0,
-            }}
-          >
-            {task.inProgress ? "◐" : "○"}
-          </button>
-        )}
-        {task.priority && (
-          <span
-            title={`${PRIORITY_LABELS[task.priority]} priority`}
-            style={{ fontSize: 13, color: PRIORITY_COLORS[task.priority], flexShrink: 0 }}
-          >
-            ⚑
-          </span>
-        )}
-        <span
-          style={{
-            flex: 1,
-            textDecoration: task.completed ? "line-through" : "none",
-            color: task.completed ? "var(--color-text-faint)" : "var(--color-text)",
-          }}
-        >
-          {task.title}
-        </span>
-        {subtreeProgress && (
-          <span
-            title={`${subtreeProgress.completed} of ${subtreeProgress.total} subtasks done`}
-            style={{
-              fontSize: 12,
-              color: "var(--color-text-muted)",
-              background: "var(--color-surface-sunken)",
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-sm)",
-              padding: "2px 6px",
-              whiteSpace: "nowrap",
-              flexShrink: 0,
-            }}
-          >
-            {subtreeProgress.completed}/{subtreeProgress.total}
-          </span>
-        )}
-        {task.dueDate && (
-          <span
-            title={overdue ? "Overdue" : undefined}
-            style={{
-              fontSize: 12,
-              fontWeight: overdue ? 700 : 400,
-              color: overdue ? OVERDUE_COLOR : "var(--color-text-muted)",
-              background: overdue ? "rgba(201, 24, 74, 0.12)" : "var(--color-surface-sunken)",
-              border: `1px solid ${overdue ? OVERDUE_COLOR : "var(--color-border)"}`,
-              borderRadius: "var(--radius-sm)",
-              padding: "2px 6px",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {overdue ? "⚠ " : ""}
-            {task.dueDate}
-            {task.dueTime ? ` ${task.dueTime}` : ""}
-          </span>
-        )}
-        {task.reminderAt && (
-          <span
-            title={task.reminderNotified ? "Reminder already sent" : "Reminder set — independent of the due date"}
-            style={{
-              fontSize: 12,
-              color: "var(--color-text-muted)",
-              background: "var(--color-surface-sunken)",
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-sm)",
-              padding: "2px 6px",
-              whiteSpace: "nowrap",
-              opacity: task.reminderNotified ? 0.55 : 1,
-            }}
-          >
-            🔔 {task.reminderAt}
-          </span>
-        )}
-        {showCompletedDate && task.completedAt && (
-          <span
-            style={{
-              fontSize: 12,
-              color: "var(--color-text-muted)",
-              background: "var(--color-surface-sunken)",
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-sm)",
-              padding: "2px 6px",
-              whiteSpace: "nowrap",
-            }}
-          >
-            Completed {task.completedAt}
-          </span>
-        )}
-        {showDeletedDate && task.deletedAt && (
-          <span
-            style={{
-              fontSize: 12,
-              color: "var(--color-text-muted)",
-              background: "var(--color-surface-sunken)",
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-sm)",
-              padding: "2px 6px",
-              whiteSpace: "nowrap",
-            }}
-          >
-            Deleted {task.deletedAt}
-          </span>
-        )}
-        {task.recurrence && (
-          <span
-            title={`Repeats every ${task.recurrence.interval > 1 ? task.recurrence.interval + " " : ""}${task.recurrence.frequency}${task.recurrence.interval > 1 ? "s" : ""}${task.recurrence.endDate ? ` until ${task.recurrence.endDate}` : ""}`}
-            style={{ fontSize: 13, color: "var(--color-text-faint)" }}
-          >
-            ⟳
-          </span>
-        )}
-        {task.attachments.length > 0 && (
-          <span
-            title={task.attachments.map((a) => fileNameFromPath(a.path)).join(", ")}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 2,
-              fontSize: 13,
-              color: "var(--color-text-faint)",
-              flexShrink: 0,
-            }}
-          >
-            📎{task.attachments.length > 1 ? task.attachments.length : ""}
-          </span>
-        )}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setAddingSubtask((v) => !v);
-          }}
-          title="Add subtask"
-          style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 13 }}
-        >
-          + Subtask
-        </button>
-        {task.recurrence && onSkipOccurrence && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onSkipOccurrence(task.id);
-            }}
-            title="Skip this occurrence and advance to the next one, without marking it complete"
-            style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 13 }}
-          >
-            Skip
-          </button>
-        )}
-        {task.dueDate && !task.recurrence && onPostpone && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onPostpone(task.id);
-            }}
-            title="Push this task's due date forward by a day"
-            style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 13 }}
-          >
-            Postpone
-          </button>
-        )}
-        {onDuplicate && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDuplicate(task.id);
-            }}
-            title="Duplicate this task (and its subtasks)"
-            style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 13 }}
-          >
-            Duplicate
-          </button>
-        )}
-        {onSaveAsTemplate && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onSaveAsTemplate(task.id);
-            }}
-            title="Save this task's title/priority/tags and subtasks as a reusable template"
-            style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 13 }}
-          >
-            Save as template
-          </button>
-        )}
-        {onExportMarkdown && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onExportMarkdown(task.id);
-            }}
-            title="Save this task (and its subtasks) as a Markdown file"
-            style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 13 }}
-          >
-            Export .md
-          </button>
-        )}
-        {!task.backlog && onBacklog && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onBacklog(task.id);
-            }}
-            title="Move to Backlog — hide from All/Today/This Week until you're ready for it"
-            style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 13 }}
-          >
-            Backlog
-          </button>
-        )}
-        {task.backlog && onUnbacklog && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onUnbacklog(task.id);
-            }}
-            title="Bring back into the everyday views"
-            style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 13 }}
-          >
-            Unbacklog
-          </button>
-        )}
-        {onRestore && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onRestore(task.id);
-            }}
-            title="Restore this task out of the trash"
-            style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 13 }}
-          >
-            Restore
-          </button>
-        )}
-        {task.completed && onArchive && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onArchive(task.id);
-            }}
-            title="Move this task to the archive, out of History and the main list"
-            style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 13 }}
-          >
-            Archive
-          </button>
-        )}
-        {onUnarchive && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onUnarchive(task.id);
-            }}
-            title="Restore this task out of the archive"
-            style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 13 }}
-          >
-            Unarchive
-          </button>
-        )}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete(task.id);
-          }}
-          style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 13 }}
-        >
-          {deleteLabel}
-        </button>
-      </div>
-
-      {hasTags && (
-        <div
-          onClick={() => onSelect(task)}
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 4,
-            padding: tagsRowIsLast ? "0 14px 10px" : "0 14px 6px",
-            paddingLeft: 14 + depth * 24 + 52,
-            borderBottom: tagsRowIsLast ? "1px solid var(--color-border)" : "none",
-            borderLeft: overdueBorder,
-            background: highlightBg,
-            cursor: "pointer",
-          }}
-        >
-          {task.tags.map((tag) => (
+          {blocked && (
             <span
-              key={tag.id}
-              style={{
-                fontSize: 11,
-                fontWeight: 500,
-                color: "#fff",
-                background: tag.color,
-                borderRadius: "var(--radius-sm)",
-                padding: "2px 6px",
-                whiteSpace: "nowrap",
-              }}
+              title={`Blocked by: ${blockingDeps.map((d) => d.title).join(", ")}`}
+              style={{ fontSize: 12, flexShrink: 0 }}
             >
-              {tag.name}
+              🔒
             </span>
-          ))}
-          {task.inheritedTags.map((tag) => (
-            <span
-              key={tag.id}
-              title="Inherited from a parent task"
+          )}
+          {!task.completed && onToggleInProgress && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleInProgress(task.id);
+              }}
+              title={task.inProgress ? "Mark as not started" : "Mark as in progress"}
               style={{
-                fontSize: 11,
-                fontWeight: 500,
-                color: tag.color,
+                border: "none",
                 background: "none",
-                border: `1px solid ${tag.color}`,
+                color: task.inProgress ? "#3d7dd6" : "var(--color-text-faint)",
+                fontSize: 14,
+                padding: 0,
+                flexShrink: 0,
+              }}
+            >
+              {task.inProgress ? "◐" : "○"}
+            </button>
+          )}
+          {task.priority && (
+            <span
+              title={`${PRIORITY_LABELS[task.priority]} priority`}
+              style={{ fontSize: 13, color: PRIORITY_COLORS[task.priority], flexShrink: 0 }}
+            >
+              ⚑
+            </span>
+          )}
+          <span
+            style={{
+              flex: 1,
+              textDecoration: task.completed ? "line-through" : "none",
+              color: task.completed ? "var(--color-text-faint)" : "var(--color-text)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {task.title}
+          </span>
+          {subtreeProgress && (
+            <span
+              title={`${subtreeProgress.completed} of ${subtreeProgress.total} subtasks done`}
+              style={{
+                fontSize: 12,
+                color: "var(--color-text-muted)",
+                background: "var(--color-surface-sunken)",
+                border: "1px solid var(--color-border)",
                 borderRadius: "var(--radius-sm)",
                 padding: "2px 6px",
                 whiteSpace: "nowrap",
-                opacity: 0.75,
+                flexShrink: 0,
               }}
             >
-              {tag.name}
+              {subtreeProgress.completed}/{subtreeProgress.total}
             </span>
-          ))}
+          )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setAddingSubtask((v) => !v);
+            }}
+            title="Add subtask"
+            style={{
+              border: "none",
+              background: "none",
+              color: "var(--color-text-faint)",
+              fontSize: 15,
+              fontWeight: 600,
+              padding: "0 2px",
+              flexShrink: 0,
+            }}
+          >
+            +
+          </button>
+          {onTogglePin && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onTogglePin(task.id);
+              }}
+              title={task.pinned ? "Unpin" : "Pin to shortlist"}
+              style={{
+                border: "none",
+                background: "none",
+                color: task.pinned ? "#f2994a" : "var(--color-text-faint)",
+                fontSize: 14,
+                padding: 0,
+                flexShrink: 0,
+              }}
+            >
+              {task.pinned ? "★" : "☆"}
+            </button>
+          )}
+          <div style={{ position: "relative", display: "flex", flexShrink: 0 }}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setMenuOpen((v) => !v);
+              }}
+              title="More actions"
+              style={{
+                border: "none",
+                background: "none",
+                color: "var(--color-text-faint)",
+                fontSize: 16,
+                padding: "0 2px",
+                lineHeight: 1,
+              }}
+            >
+              ⋯
+            </button>
+            {menuOpen && (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  position: "absolute",
+                  top: "calc(100% + 4px)",
+                  right: 0,
+                  zIndex: 30,
+                  minWidth: 170,
+                  padding: 4,
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-sm)",
+                  background: "var(--color-surface)",
+                  boxShadow: "var(--shadow-card)",
+                }}
+              >
+                {task.recurrence && onSkipOccurrence && (
+                  <button
+                    onClick={() => runMenuAction(onSkipOccurrence)}
+                    title="Skip this occurrence and advance to the next one, without marking it complete"
+                    style={menuItemStyle}
+                  >
+                    Skip
+                  </button>
+                )}
+                {task.dueDate && !task.recurrence && onPostpone && (
+                  <button
+                    onClick={() => runMenuAction(onPostpone)}
+                    title="Push this task's due date forward by a day"
+                    style={menuItemStyle}
+                  >
+                    Postpone
+                  </button>
+                )}
+                {onDuplicate && (
+                  <button
+                    onClick={() => runMenuAction(onDuplicate)}
+                    title="Duplicate this task (and its subtasks)"
+                    style={menuItemStyle}
+                  >
+                    Duplicate
+                  </button>
+                )}
+                {onSaveAsTemplate && (
+                  <button
+                    onClick={() => runMenuAction(onSaveAsTemplate)}
+                    title="Save this task's title/priority/tags and subtasks as a reusable template"
+                    style={menuItemStyle}
+                  >
+                    Save as template
+                  </button>
+                )}
+                {onExportMarkdown && (
+                  <button
+                    onClick={() => runMenuAction(onExportMarkdown)}
+                    title="Save this task (and its subtasks) as a Markdown file"
+                    style={menuItemStyle}
+                  >
+                    Export .md
+                  </button>
+                )}
+                {!task.backlog && onBacklog && (
+                  <button
+                    onClick={() => runMenuAction(onBacklog)}
+                    title="Move to Backlog — hide from All/Today/This Week until you're ready for it"
+                    style={menuItemStyle}
+                  >
+                    Backlog
+                  </button>
+                )}
+                {task.backlog && onUnbacklog && (
+                  <button
+                    onClick={() => runMenuAction(onUnbacklog)}
+                    title="Bring back into the everyday views"
+                    style={menuItemStyle}
+                  >
+                    Unbacklog
+                  </button>
+                )}
+                {onRestore && (
+                  <button
+                    onClick={() => runMenuAction(onRestore)}
+                    title="Restore this task out of the trash"
+                    style={menuItemStyle}
+                  >
+                    Restore
+                  </button>
+                )}
+                {task.completed && onArchive && (
+                  <button
+                    onClick={() => runMenuAction(onArchive)}
+                    title="Move this task to the archive, out of History and the main list"
+                    style={menuItemStyle}
+                  >
+                    Archive
+                  </button>
+                )}
+                {onUnarchive && (
+                  <button
+                    onClick={() => runMenuAction(onUnarchive)}
+                    title="Restore this task out of the archive"
+                    style={menuItemStyle}
+                  >
+                    Unarchive
+                  </button>
+                )}
+                <button
+                  onClick={() => runMenuAction(onDelete)}
+                  style={{ ...menuItemStyle, color: "#c9184a" }}
+                >
+                  {deleteLabel}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
-      )}
+
+        {/* Line 2: subtitle — due date/reminder/recurrence/attachments/tags */}
+        {hasSubtitle && (
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "center",
+              gap: 6,
+              marginLeft: SUBTITLE_INDENT,
+            }}
+          >
+            {task.dueDate && (
+              <span
+                title={overdue ? "Overdue" : undefined}
+                style={{
+                  fontSize: 12,
+                  fontWeight: overdue ? 700 : 400,
+                  color: overdue ? OVERDUE_COLOR : "var(--color-text-muted)",
+                  background: overdue ? "rgba(201, 24, 74, 0.12)" : "var(--color-surface-sunken)",
+                  border: `1px solid ${overdue ? OVERDUE_COLOR : "var(--color-border)"}`,
+                  borderRadius: "var(--radius-sm)",
+                  padding: "2px 6px",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {overdue ? "⚠ " : ""}
+                {task.dueDate}
+                {task.dueTime ? ` ${task.dueTime}` : ""}
+              </span>
+            )}
+            {task.reminderAt && (
+              <span
+                title={task.reminderNotified ? "Reminder already sent" : "Reminder set — independent of the due date"}
+                style={{
+                  fontSize: 12,
+                  color: "var(--color-text-muted)",
+                  background: "var(--color-surface-sunken)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-sm)",
+                  padding: "2px 6px",
+                  whiteSpace: "nowrap",
+                  opacity: task.reminderNotified ? 0.55 : 1,
+                }}
+              >
+                🔔 {task.reminderAt}
+              </span>
+            )}
+            {showCompletedDate && task.completedAt && (
+              <span
+                style={{
+                  fontSize: 12,
+                  color: "var(--color-text-muted)",
+                  background: "var(--color-surface-sunken)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-sm)",
+                  padding: "2px 6px",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Completed {task.completedAt}
+              </span>
+            )}
+            {showDeletedDate && task.deletedAt && (
+              <span
+                style={{
+                  fontSize: 12,
+                  color: "var(--color-text-muted)",
+                  background: "var(--color-surface-sunken)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-sm)",
+                  padding: "2px 6px",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Deleted {task.deletedAt}
+              </span>
+            )}
+            {task.recurrence && (
+              <span
+                title={`Repeats every ${task.recurrence.interval > 1 ? task.recurrence.interval + " " : ""}${task.recurrence.frequency}${task.recurrence.interval > 1 ? "s" : ""}${task.recurrence.endDate ? ` until ${task.recurrence.endDate}` : ""}`}
+                style={{ fontSize: 13, color: "var(--color-text-faint)" }}
+              >
+                ⟳
+              </span>
+            )}
+            {task.attachments.length > 0 && (
+              <span
+                title={task.attachments.map((a) => fileNameFromPath(a.path)).join(", ")}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 2,
+                  fontSize: 13,
+                  color: "var(--color-text-faint)",
+                  flexShrink: 0,
+                }}
+              >
+                📎{task.attachments.length > 1 ? task.attachments.length : ""}
+              </span>
+            )}
+            {task.tags.map((tag) => (
+              <span
+                key={tag.id}
+                style={{
+                  fontSize: 11,
+                  fontWeight: 500,
+                  color: "#fff",
+                  background: tag.color,
+                  borderRadius: "var(--radius-sm)",
+                  padding: "2px 6px",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {tag.name}
+              </span>
+            ))}
+            {task.inheritedTags.map((tag) => (
+              <span
+                key={tag.id}
+                title="Inherited from a parent task"
+                style={{
+                  fontSize: 11,
+                  fontWeight: 500,
+                  color: tag.color,
+                  background: "none",
+                  border: `1px solid ${tag.color}`,
+                  borderRadius: "var(--radius-sm)",
+                  padding: "2px 6px",
+                  whiteSpace: "nowrap",
+                  opacity: 0.75,
+                }}
+              >
+                {tag.name}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
 
       {task.description && (
         <div
           onClick={() => onSelect(task)}
           style={{
             padding: "0 14px 10px",
-            paddingLeft: 14 + depth * 24 + 52,
+            paddingLeft: 14 + depth * 24 + SUBTITLE_INDENT,
             fontSize: 12,
             color: "var(--color-text-faint)",
             whiteSpace: "nowrap",
@@ -745,3 +777,15 @@ export default function TaskRow({
     </>
   );
 }
+
+const menuItemStyle: CSSProperties = {
+  display: "block",
+  width: "100%",
+  textAlign: "left",
+  padding: "6px 8px",
+  border: "none",
+  background: "none",
+  color: "var(--color-text)",
+  fontSize: 13,
+  borderRadius: "var(--radius-sm)",
+};
