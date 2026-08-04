@@ -30,6 +30,7 @@ interface Props {
   onPostpone?: (id: number) => void;
   onTogglePin?: (id: number) => void;
   onSaveAsTemplate?: (id: number) => void;
+  onExportMarkdown?: (id: number) => void;
   onArchive?: (id: number) => void;
   onUnarchive?: (id: number) => void;
   onToggleInProgress?: (id: number) => void;
@@ -60,6 +61,7 @@ export default function TaskRow({
   onPostpone,
   onTogglePin,
   onSaveAsTemplate,
+  onExportMarkdown,
   onArchive,
   onUnarchive,
   onToggleInProgress,
@@ -490,6 +492,18 @@ export default function TaskRow({
             Save as template
           </button>
         )}
+        {onExportMarkdown && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onExportMarkdown(task.id);
+            }}
+            title="Save this task (and its subtasks) as a Markdown file"
+            style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 13 }}
+          >
+            Export .md
+          </button>
+        )}
         {!task.backlog && onBacklog && (
           <button
             onClick={(e) => {
@@ -717,6 +731,7 @@ export default function TaskRow({
             onPostpone={onPostpone}
             onTogglePin={onTogglePin}
             onSaveAsTemplate={onSaveAsTemplate}
+            onExportMarkdown={onExportMarkdown}
             onArchive={onArchive}
             onUnarchive={onUnarchive}
             onToggleInProgress={onToggleInProgress}

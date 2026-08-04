@@ -13,6 +13,7 @@ interface Props {
   onDuplicate: (id: number) => void;
   onTogglePin: (id: number) => void;
   onSaveAsTemplate: (id: number) => void;
+  onExportMarkdown: (id: number) => void;
   onUnarchive: (id: number) => void;
 }
 
@@ -33,6 +34,7 @@ export default function ArchiveView({
   onDuplicate,
   onTogglePin,
   onSaveAsTemplate,
+  onExportMarkdown,
   onUnarchive,
 }: Props) {
   const byDate = new Map<string, Task[]>();
@@ -97,6 +99,7 @@ export default function ArchiveView({
                   onDuplicate={onDuplicate}
                   onTogglePin={onTogglePin}
                   onSaveAsTemplate={onSaveAsTemplate}
+                  onExportMarkdown={onExportMarkdown}
                   onUnarchive={onUnarchive}
                   readOnly
                   showCompletedDate

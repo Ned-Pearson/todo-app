@@ -14,6 +14,7 @@ interface Props {
   onPostpone: (id: number) => void;
   onTogglePin: (id: number) => void;
   onSaveAsTemplate: (id: number) => void;
+  onExportMarkdown: (id: number) => void;
   onArchive: (id: number) => void;
   onToggleInProgress: (id: number) => void;
   onUnbacklog: (id: number) => void;
@@ -37,6 +38,7 @@ export default function BacklogView({
   onPostpone,
   onTogglePin,
   onSaveAsTemplate,
+  onExportMarkdown,
   onArchive,
   onToggleInProgress,
   onUnbacklog,
@@ -86,6 +88,7 @@ export default function BacklogView({
           onPostpone={onPostpone}
           onTogglePin={onTogglePin}
           onSaveAsTemplate={onSaveAsTemplate}
+          onExportMarkdown={onExportMarkdown}
           onArchive={onArchive}
           onToggleInProgress={onToggleInProgress}
           onUnbacklog={onUnbacklog}

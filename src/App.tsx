@@ -68,7 +68,8 @@ import { addInterval, getWeekRange, isOverdue, nowTimestamp, todayStr } from "./
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "./lib/priority";
 import { buildTaskTree } from "./lib/tree";
 import { hexToRgba } from "./lib/color";
-import { exportToFile, importFromFile } from "./lib/backup";
+import { exportToFile, importFromFile, exportTaskAsMarkdown } from "./lib/backup";
+import { taskToMarkdown } from "./lib/taskMarkdown";
 import { nextRecurrenceDate, type RecurrenceInput } from "./lib/recurrence";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { register, unregisterAll } from "@tauri-apps/plugin-global-shortcut";
@@ -1091,6 +1092,26 @@ export default function App() {
     }
   }
 
+  // A task can be exported from any view — including Archive/Backlog/Trash,
+  // wherever "Export .md" is passed — so the subtree lookup spans all three
+  // task lists rather than just the everyday `tasks` array, otherwise an
+  // archived or backlogged task's own children (which live in a different
+  // list) would be missing from the export.
+  async function handleExportTaskMarkdown(id: number) {
+    const everyTask = [...tasks, ...archivedTasks, ...trashedTasks];
+    const task = everyTask.find((t) => t.id === id);
+    if (!task) return;
+    const { childrenByParent } = buildTaskTree(everyTask);
+    const markdown = taskToMarkdown(task, childrenByParent);
+    try {
+      const exported = await exportTaskAsMarkdown(task.title, markdown);
+      if (exported) window.alert("Task exported.");
+    } catch (err) {
+      console.error("Failed to export task as Markdown:", err);
+      window.alert(`Couldn't export task: ${err}`);
+    }
+  }
+
   async function handleImport() {
     if (
       !window.confirm(
@@ -1614,6 +1635,7 @@ export default function App() {
                 onPostpone={handlePostpone}
                 onTogglePin={handleTogglePin}
                 onSaveAsTemplate={handleSaveAsTemplate}
+                onExportMarkdown={handleExportTaskMarkdown}
                 onArchive={handleArchive}
                 onToggleInProgress={handleToggleInProgress}
                 onBacklog={handleBacklog}
@@ -2220,6 +2242,7 @@ export default function App() {
           onPostpone={handlePostpone}
           onTogglePin={handleTogglePin}
           onSaveAsTemplate={handleSaveAsTemplate}
+          onExportMarkdown={handleExportTaskMarkdown}
           onArchive={handleArchive}
           onToggleInProgress={handleToggleInProgress}
           onBacklog={handleBacklog}
@@ -2238,6 +2261,7 @@ export default function App() {
           onPostpone={handlePostpone}
           onTogglePin={handleTogglePin}
           onSaveAsTemplate={handleSaveAsTemplate}
+          onExportMarkdown={handleExportTaskMarkdown}
           onArchive={handleArchive}
           onToggleInProgress={handleToggleInProgress}
           onBacklog={handleBacklog}
@@ -2256,6 +2280,7 @@ export default function App() {
           onDuplicate={handleDuplicateTask}
           onTogglePin={handleTogglePin}
           onSaveAsTemplate={handleSaveAsTemplate}
+          onExportMarkdown={handleExportTaskMarkdown}
           onUnarchive={handleUnarchive}
         />
       ) : view === "backlog" ? (
@@ -2271,6 +2296,7 @@ export default function App() {
           onPostpone={handlePostpone}
           onTogglePin={handleTogglePin}
           onSaveAsTemplate={handleSaveAsTemplate}
+          onExportMarkdown={handleExportTaskMarkdown}
           onArchive={handleArchive}
           onToggleInProgress={handleToggleInProgress}
           onUnbacklog={handleUnbacklog}
@@ -2318,6 +2344,7 @@ export default function App() {
                     onPostpone={handlePostpone}
                     onTogglePin={handleTogglePin}
                     onSaveAsTemplate={handleSaveAsTemplate}
+                    onExportMarkdown={handleExportTaskMarkdown}
                     onArchive={handleArchive}
                     onToggleInProgress={handleToggleInProgress}
                     onBacklog={handleBacklog}
@@ -2371,6 +2398,7 @@ export default function App() {
                 onPostpone={handlePostpone}
                 onTogglePin={handleTogglePin}
                 onSaveAsTemplate={handleSaveAsTemplate}
+                onExportMarkdown={handleExportTaskMarkdown}
                 onArchive={handleArchive}
                 onToggleInProgress={handleToggleInProgress}
                 onBacklog={handleBacklog}

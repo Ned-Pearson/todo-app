@@ -15,6 +15,7 @@ interface Props {
   onPostpone: (id: number) => void;
   onTogglePin: (id: number) => void;
   onSaveAsTemplate: (id: number) => void;
+  onExportMarkdown: (id: number) => void;
   onArchive: (id: number) => void;
   onToggleInProgress: (id: number) => void;
   onBacklog: (id: number) => void;
@@ -35,6 +36,7 @@ export default function HistoryView({
   onPostpone,
   onTogglePin,
   onSaveAsTemplate,
+  onExportMarkdown,
   onArchive,
   onToggleInProgress,
   onBacklog,
@@ -106,6 +108,7 @@ export default function HistoryView({
                   onPostpone={onPostpone}
                   onTogglePin={onTogglePin}
                   onSaveAsTemplate={onSaveAsTemplate}
+                  onExportMarkdown={onExportMarkdown}
                   onArchive={onArchive}
                   onToggleInProgress={onToggleInProgress}
                   onBacklog={onBacklog}

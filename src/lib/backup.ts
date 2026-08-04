@@ -55,6 +55,21 @@ export async function exportToFile(): Promise<boolean> {
   return true;
 }
 
+// A separate, much smaller export than the full JSON backup above — one
+// task's Markdown (already rendered by taskToMarkdown) saved to its own
+// file, for sharing outside the app rather than restoring into it.
+export async function exportTaskAsMarkdown(title: string, markdown: string): Promise<boolean> {
+  const safeName = title.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "task";
+  const path = await save({
+    defaultPath: `${safeName}.md`,
+    filters: [{ name: "Markdown", extensions: ["md"] }],
+  });
+  if (!path) return false;
+
+  await writeTextFile(path, markdown);
+  return true;
+}
+
 // Restoring is a full replace, not a merge: importing wipes every task/tag/
 // recurrence/attachment row first, then reinserts the backup's rows with
 // their original ids intact (so parent_id/recurrence_id/task_tags/
