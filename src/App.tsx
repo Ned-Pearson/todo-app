@@ -579,16 +579,22 @@ export default function App() {
   function schedulePendingDelete(pending: { rootIds: number[]; allIds: number[]; label: string }) {
     setPendingDelete(pending);
     pendingDeleteTimeout.current = window.setTimeout(() => {
-      commitPendingDelete();
+      // Passed explicitly rather than read back off `pendingDelete` state:
+      // this closure was created (and captured whatever `pendingDelete` was)
+      // at the moment `schedulePendingDelete` ran, which is *before* the
+      // `setPendingDelete(pending)` above ever commits to a render — reading
+      // the state here would always see the pre-delete value (null), so
+      // `rootIds` would be empty and nothing would actually get trashed.
+      commitPendingDelete(pending);
     }, 5000);
   }
 
-  async function commitPendingDelete() {
+  async function commitPendingDelete(pending?: { rootIds: number[]; allIds: number[]; label: string }) {
     if (pendingDeleteTimeout.current != null) {
       window.clearTimeout(pendingDeleteTimeout.current);
       pendingDeleteTimeout.current = null;
     }
-    const rootIds = pendingDelete?.rootIds ?? [];
+    const rootIds = (pending ?? pendingDelete)?.rootIds ?? [];
     setPendingDelete(null);
     for (const id of rootIds) {
       await moveTaskToTrash(id);
