@@ -141,6 +141,10 @@ function getInitialSnoozeMinutes(): number {
   return SNOOZE_OPTIONS_MINUTES.includes(stored) ? stored : 60;
 }
 
+function getInitialWeekStartsOn(): 0 | 1 {
+  return localStorage.getItem("weekStartsOn") === "1" ? 1 : 0;
+}
+
 export default function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [archivedTasks, setArchivedTasks] = useState<Task[]>([]);
@@ -164,6 +168,7 @@ export default function App() {
   const [showAccentPicker, setShowAccentPicker] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [notifySnoozeMinutes, setNotifySnoozeMinutes] = useState<number>(getInitialSnoozeMinutes);
+  const [weekStartsOn, setWeekStartsOn] = useState<0 | 1>(getInitialWeekStartsOn);
   const [dndEnabled, setDndEnabled] = useState<boolean>(() => localStorage.getItem("notifyDnd") === "true");
   const [showNotifySettings, setShowNotifySettings] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<{ rootIds: number[]; allIds: number[]; label: string } | null>(
@@ -204,6 +209,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("notifySnoozeMinutes", String(notifySnoozeMinutes));
   }, [notifySnoozeMinutes]);
+
+  useEffect(() => {
+    localStorage.setItem("weekStartsOn", String(weekStartsOn));
+  }, [weekStartsOn]);
 
   useEffect(() => {
     localStorage.setItem("notifyDnd", String(dndEnabled));
@@ -1105,7 +1114,7 @@ export default function App() {
     return sortBy === "manual" ? list : [...list].sort(compareTasks);
   }
 
-  const [weekStart, weekEnd] = getWeekRange();
+  const [weekStart, weekEnd] = getWeekRange(weekStartsOn);
   // Backlog tasks are hidden from All/Today/This Week specifically — not
   // from No due date, Calendar, or History, which still show them if they
   // have a due date or are completed. Someday-with-a-date isn't a
@@ -1378,6 +1387,22 @@ export default function App() {
               </div>
             )}
           </div>
+          <select
+            value={weekStartsOn}
+            onChange={(e) => setWeekStartsOn(Number(e.target.value) === 1 ? 1 : 0)}
+            title="Week starts on — affects This Week and Calendar"
+            style={{
+              padding: "6px 8px",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              background: "var(--color-surface)",
+              color: "var(--color-text-muted)",
+              fontSize: 13,
+            }}
+          >
+            <option value={0}>Sun</option>
+            <option value={1}>Mon</option>
+          </select>
           <button
             onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
             title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
@@ -2020,6 +2045,7 @@ export default function App() {
           onSelectTask={setSelectedTask}
           onAddSubtask={handleAddSubtask}
           onSelectDate={setDueDate}
+          weekStartsOn={weekStartsOn}
           onDuplicate={handleDuplicateTask}
           onSkipOccurrence={handleSkipOccurrence}
           onPostpone={handlePostpone}

@@ -36,11 +36,13 @@ export function isOverdue(dueDate: string | null, dueTime: string | null, comple
   return dueTime < nowHM;
 }
 
-// The Sunday-through-Saturday range containing today, matching the
-// calendar view's week layout (which also starts on Sunday).
-export function getWeekRange(): [string, string] {
+// The 7-day range containing today, starting on `weekStartsOn` (0=Sunday,
+// 1=Monday — matching Date#getDay()) and matching whatever the Calendar
+// view's week layout is currently configured to use.
+export function getWeekRange(weekStartsOn: 0 | 1 = 0): [string, string] {
   const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+  const offset = (now.getDay() - weekStartsOn + 7) % 7;
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - offset);
   const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
   return [formatDate(start), formatDate(end)];
 }

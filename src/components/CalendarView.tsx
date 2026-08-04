@@ -13,6 +13,7 @@ interface Props {
   onSelectTask: (task: Task) => void;
   onAddSubtask: (parentId: number, title: string) => void;
   onSelectDate: (date: string) => void;
+  weekStartsOn: 0 | 1;
   onDuplicate: (id: number) => void;
   onSkipOccurrence: (id: number) => void;
   onPostpone: (id: number) => void;
@@ -24,7 +25,7 @@ interface Props {
   onUnbacklog: (id: number) => void;
 }
 
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAYS_SUNDAY_FIRST = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTH_NAMES = [
   "January",
   "February",
@@ -66,8 +67,13 @@ export default function CalendarView({
   onToggleInProgress,
   onBacklog,
   onUnbacklog,
+  weekStartsOn,
 }: Props) {
   const today = todayStr();
+  const weekdayLabels = [
+    ...WEEKDAYS_SUNDAY_FIRST.slice(weekStartsOn),
+    ...WEEKDAYS_SUNDAY_FIRST.slice(0, weekStartsOn),
+  ];
   const [cursor, setCursor] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -109,10 +115,14 @@ export default function CalendarView({
   const firstOfMonth = new Date(year, month, 1);
   const lastOfMonth = new Date(year, month + 1, 0);
 
-  // Fill out to full weeks (Sun-Sat) so leading/trailing days from adjacent
-  // months are visible with their real day numbers, not blank cells.
-  const gridStart = new Date(year, month, 1 - firstOfMonth.getDay());
-  const gridEnd = new Date(year, month, lastOfMonth.getDate() + (6 - lastOfMonth.getDay()));
+  // Fill out to full weeks (starting on weekStartsOn) so leading/trailing
+  // days from adjacent months are visible with their real day numbers, not
+  // blank cells.
+  const leadingOffset = (firstOfMonth.getDay() - weekStartsOn + 7) % 7;
+  const weekEndDay = (weekStartsOn + 6) % 7;
+  const trailingOffset = (weekEndDay - lastOfMonth.getDay() + 7) % 7;
+  const gridStart = new Date(year, month, 1 - leadingOffset);
+  const gridEnd = new Date(year, month, lastOfMonth.getDate() + trailingOffset);
 
   const cells: Date[] = [];
   for (let d = new Date(gridStart); d <= gridEnd; d.setDate(d.getDate() + 1)) {
@@ -179,7 +189,7 @@ export default function CalendarView({
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6, marginBottom: 20 }}>
-        {WEEKDAYS.map((w) => (
+        {weekdayLabels.map((w) => (
           <div
             key={w}
             style={{ fontSize: 12, fontWeight: 500, color: "var(--color-text-faint)", textAlign: "center", padding: "4px 0" }}
