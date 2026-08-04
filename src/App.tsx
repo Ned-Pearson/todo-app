@@ -48,6 +48,7 @@ import {
   updateTaskBacklog,
 } from "./lib/db";
 import TaskDetailModal from "./components/TaskDetailModal";
+import CommandPalette, { type PaletteCommand } from "./components/CommandPalette";
 import AddTaskModal from "./components/AddTaskModal";
 import AddCustomTabModal from "./components/AddCustomTabModal";
 import TaskRow from "./components/TaskRow";
@@ -162,6 +163,7 @@ export default function App() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showManageTags, setShowManageTags] = useState(false);
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [view, setView] = useState<View>("all");
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const [customAccent, setCustomAccent] = useState<string | null>(() => localStorage.getItem("accentColor"));
@@ -246,6 +248,8 @@ export default function App() {
           setShowManageTags(false);
         } else if (showAddModal) {
           setShowAddModal(false);
+        } else if (showCommandPalette) {
+          setShowCommandPalette(false);
         } else if (e.target === searchInputRef.current && searchQuery) {
           // Clear first; a second Escape (now that it's empty) falls through
           // to the blur below instead of doing nothing.
@@ -277,7 +281,17 @@ export default function App() {
         }
       }
 
-      if (selectedTask || showManageTags || showAddModal) return;
+      // Ctrl/⌘+K opens the command palette — checked here (after undo/redo,
+      // before the "any modal open" gate below applies to it) so it's
+      // reachable while typing anywhere, but the gate itself still stops it
+      // from opening a second one, or opening over some other modal.
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k" && !selectedTask && !showManageTags && !showAddModal && !showCommandPalette) {
+        e.preventDefault();
+        setShowCommandPalette(true);
+        return;
+      }
+
+      if (selectedTask || showManageTags || showAddModal || showCommandPalette) return;
 
       if (e.key === "n" && !isTextEntry(e.target)) {
         e.preventDefault();
@@ -307,7 +321,7 @@ export default function App() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedTask, showManageTags, showAddModal, searchQuery, undoStack, redoStack]);
+  }, [selectedTask, showManageTags, showAddModal, showCommandPalette, searchQuery, undoStack, redoStack]);
 
   // A global (OS-level) shortcut so quick-add works even when the app isn't
   // focused — pressing it brings the window to the front and opens the Add
@@ -1230,9 +1244,13 @@ export default function App() {
                   <span>Ctrl/⌘+Z</span>
                   <span>Undo edit</span>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                   <span>Ctrl/⌘+Shift+Z</span>
                   <span>Redo edit</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span>Ctrl/⌘+K</span>
+                  <span>Command palette</span>
                 </div>
               </div>
             )}
@@ -2205,6 +2223,37 @@ export default function App() {
       {showAddModal && (
         <AddTaskModal defaultDueDate={dueDate} onClose={() => setShowAddModal(false)} onAdd={handleAddTask} />
       )}
+
+      {showCommandPalette &&
+        (() => {
+          const paletteCommands: PaletteCommand[] = [
+            { id: "new-task", label: "New task", run: () => setShowAddModal(true) },
+            { id: "focus-search", label: "Focus search", run: () => searchInputRef.current?.focus() },
+            ...(Object.keys(VIEW_LABELS) as View[]).map((v) => ({
+              id: `view-${v}`,
+              label: `Go to ${VIEW_LABELS[v]}`,
+              run: () => setView(v),
+            })),
+            {
+              id: "toggle-theme",
+              label: theme === "light" ? "Switch to dark mode" : "Switch to light mode",
+              run: () => setTheme((t) => (t === "light" ? "dark" : "light")),
+            },
+            { id: "manage-tags", label: "Manage tags", run: () => setShowManageTags(true) },
+            { id: "export", label: "Export backup", run: handleExport },
+            { id: "import", label: "Import backup", run: handleImport },
+            { id: "undo", label: "Undo last edit", run: handleUndo },
+            { id: "redo", label: "Redo last undone edit", run: handleRedo },
+          ];
+          return (
+            <CommandPalette
+              tasks={[...activeTasks, ...activeArchivedTasks]}
+              commands={paletteCommands}
+              onSelectTask={setSelectedTask}
+              onClose={() => setShowCommandPalette(false)}
+            />
+          );
+        })()}
 
       {selectedTask && (
         <TaskDetailModal
