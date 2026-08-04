@@ -45,6 +45,7 @@ import {
   updateTaskHighlightColor,
   updateTaskInProgress,
   updateTaskParent,
+  updateTaskBacklog,
 } from "./lib/db";
 import TaskDetailModal from "./components/TaskDetailModal";
 import AddTaskModal from "./components/AddTaskModal";
@@ -53,6 +54,7 @@ import TaskRow from "./components/TaskRow";
 import CalendarView from "./components/CalendarView";
 import HistoryView from "./components/HistoryView";
 import ArchiveView from "./components/ArchiveView";
+import BacklogView from "./components/BacklogView";
 import StatsView from "./components/StatsView";
 import ManageTagsModal from "./components/ManageTagsModal";
 import { addInterval, getWeekRange, isOverdue, nowTimestamp, todayStr } from "./lib/date";
@@ -68,7 +70,7 @@ import { isPermissionGranted, requestPermission, sendNotification } from "@tauri
 const GLOBAL_QUICK_ADD_SHORTCUT = "CommandOrControl+Shift+N";
 const OVERDUE_CHECK_INTERVAL_MS = 60_000;
 
-type View = "all" | "today" | "this-week" | "no-date" | "calendar" | "history" | "stats" | "archive";
+type View = "all" | "today" | "this-week" | "no-date" | "calendar" | "history" | "stats" | "archive" | "backlog";
 
 // The full set of fields the task detail modal's Save button commits at
 // once — undo/redo for edits treats that whole click as a single step
@@ -99,6 +101,7 @@ const VIEW_LABELS: Record<View, string> = {
   history: "History",
   stats: "Stats",
   archive: "Archive",
+  backlog: "Backlog",
 };
 
 type SortOption = "manual" | "dueDate" | "priority" | "title";
@@ -356,7 +359,11 @@ export default function App() {
       const now = Date.now();
       const snoozeMs = notifySnoozeMinutes * 60_000;
       for (const task of tasks) {
-        const overdue = isOverdue(task.dueDate, task.dueTime, task.completed);
+        // A backlog task is deliberately not-yet-actionable — nagging with
+        // overdue notifications would undermine the whole point of hiding
+        // it from Today. Standalone reminders (a separate, explicit "notify
+        // me at this time" action) aren't affected by this.
+        const overdue = isOverdue(task.dueDate, task.dueTime, task.completed) && !task.backlog;
         if (overdue) {
           const last = lastNotifiedAt.current.get(task.id);
           if (last == null || now - last >= snoozeMs) {
@@ -409,7 +416,8 @@ export default function App() {
   useEffect(() => {
     if (view === "today") setDueDate(todayStr());
     // Bulk select only applies to the list views, not Calendar/History/Stats/Archive.
-    if (view === "calendar" || view === "history" || view === "stats" || view === "archive") exitSelectMode();
+    if (view === "calendar" || view === "history" || view === "stats" || view === "archive" || view === "backlog")
+      exitSelectMode();
   }, [view]);
 
   async function reload() {
@@ -675,6 +683,16 @@ export default function App() {
 
   async function handleUnarchive(id: number) {
     await updateTaskArchived(id, false);
+    await reload();
+  }
+
+  async function handleBacklog(id: number) {
+    await updateTaskBacklog(id, true);
+    await reload();
+  }
+
+  async function handleUnbacklog(id: number) {
+    await updateTaskBacklog(id, false);
     await reload();
   }
 
@@ -1088,14 +1106,22 @@ export default function App() {
   }
 
   const [weekStart, weekEnd] = getWeekRange();
+  // Backlog tasks are hidden from All/Today/This Week specifically — not
+  // from No due date, Calendar, or History, which still show them if they
+  // have a due date or are completed. Someday-with-a-date isn't a
+  // contradiction, and a completed task's backlog flag is moot history.
   const visibleTasks =
     view === "today"
-      ? searchFilteredTasks.filter((t) => t.dueDate === todayStr())
+      ? searchFilteredTasks.filter((t) => t.dueDate === todayStr() && !t.backlog)
       : view === "this-week"
-        ? searchFilteredTasks.filter((t) => t.dueDate != null && t.dueDate >= weekStart && t.dueDate <= weekEnd)
+        ? searchFilteredTasks.filter(
+            (t) => t.dueDate != null && t.dueDate >= weekStart && t.dueDate <= weekEnd && !t.backlog
+          )
         : view === "no-date"
           ? searchFilteredTasks.filter((t) => t.dueDate == null)
-          : searchFilteredTasks;
+          : view === "all"
+            ? searchFilteredTasks.filter((t) => !t.backlog)
+            : searchFilteredTasks;
   const completedCount = visibleTasks.filter((t) => t.completed).length;
 
   const { topLevel: topLevelTasks, childrenByParent } = buildTaskTree(sortTasks(visibleTasks));
@@ -1104,7 +1130,11 @@ export default function App() {
   // disappear once their due date passes, since Today only shows dueDate ===
   // today. Surface them in their own section above the Today list instead.
   const overdueTasks =
-    view === "today" ? searchFilteredTasks.filter((t) => isOverdue(t.dueDate, t.dueTime, t.completed)) : [];
+    view === "today"
+      ? searchFilteredTasks.filter((t) => isOverdue(t.dueDate, t.dueTime, t.completed) && !t.backlog)
+      : [];
+
+  const backlogFilteredTasks = searchFilteredTasks.filter((t) => t.backlog);
   const { topLevel: overdueTopLevel, childrenByParent: overdueChildrenByParent } = buildTaskTree(
     sortTasks(overdueTasks)
   );
@@ -1467,6 +1497,8 @@ export default function App() {
                 onSaveAsTemplate={handleSaveAsTemplate}
                 onArchive={handleArchive}
                 onToggleInProgress={handleToggleInProgress}
+                onBacklog={handleBacklog}
+                onUnbacklog={handleUnbacklog}
               />
             ))}
           </div>
@@ -1474,7 +1506,9 @@ export default function App() {
       )}
 
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4, marginBottom: 20 }}>
-        {(["all", "today", "this-week", "no-date", "calendar", "history", "stats", "archive"] as View[]).map((v) => (
+        {(
+          ["all", "today", "this-week", "no-date", "calendar", "history", "stats", "archive", "backlog"] as View[]
+        ).map((v) => (
           <button
             key={v}
             onClick={() => setView(v)}
@@ -1591,7 +1625,11 @@ export default function App() {
         )}
       </div>
 
-      {view !== "calendar" && view !== "history" && view !== "stats" && view !== "archive" && (
+      {view !== "calendar" &&
+        view !== "history" &&
+        view !== "stats" &&
+        view !== "archive" &&
+        view !== "backlog" && (
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 20 }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted)" }}>Sort by:</span>
           <select
@@ -1840,7 +1878,11 @@ export default function App() {
             </div>
           )}
         </div>
-        {view !== "calendar" && view !== "history" && view !== "stats" && view !== "archive" && (
+        {view !== "calendar" &&
+        view !== "history" &&
+        view !== "stats" &&
+        view !== "archive" &&
+        view !== "backlog" && (
           <button
             type="button"
             onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
@@ -1985,6 +2027,8 @@ export default function App() {
           onSaveAsTemplate={handleSaveAsTemplate}
           onArchive={handleArchive}
           onToggleInProgress={handleToggleInProgress}
+          onBacklog={handleBacklog}
+          onUnbacklog={handleUnbacklog}
         />
       ) : view === "history" ? (
         <HistoryView
@@ -2001,6 +2045,8 @@ export default function App() {
           onSaveAsTemplate={handleSaveAsTemplate}
           onArchive={handleArchive}
           onToggleInProgress={handleToggleInProgress}
+          onBacklog={handleBacklog}
+          onUnbacklog={handleUnbacklog}
         />
       ) : view === "stats" ? (
         <StatsView tasks={searchFilteredTasks} />
@@ -2016,6 +2062,23 @@ export default function App() {
           onTogglePin={handleTogglePin}
           onSaveAsTemplate={handleSaveAsTemplate}
           onUnarchive={handleUnarchive}
+        />
+      ) : view === "backlog" ? (
+        <BacklogView
+          tasks={backlogFilteredTasks}
+          priorityFilter={priorityFilter}
+          onToggle={handleToggle}
+          onDelete={handleDelete}
+          onSelectTask={setSelectedTask}
+          onAddSubtask={handleAddSubtask}
+          onDuplicate={handleDuplicateTask}
+          onSkipOccurrence={handleSkipOccurrence}
+          onPostpone={handlePostpone}
+          onTogglePin={handleTogglePin}
+          onSaveAsTemplate={handleSaveAsTemplate}
+          onArchive={handleArchive}
+          onToggleInProgress={handleToggleInProgress}
+          onUnbacklog={handleUnbacklog}
         />
       ) : (
         <>
@@ -2052,6 +2115,8 @@ export default function App() {
                     onSaveAsTemplate={handleSaveAsTemplate}
                     onArchive={handleArchive}
                     onToggleInProgress={handleToggleInProgress}
+                    onBacklog={handleBacklog}
+                    onUnbacklog={handleUnbacklog}
                   />
                 ))}
               </div>
@@ -2103,6 +2168,8 @@ export default function App() {
                 onSaveAsTemplate={handleSaveAsTemplate}
                 onArchive={handleArchive}
                 onToggleInProgress={handleToggleInProgress}
+                onBacklog={handleBacklog}
+                onUnbacklog={handleUnbacklog}
               />
             ))}
           </div>

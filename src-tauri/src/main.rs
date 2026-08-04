@@ -140,6 +140,12 @@ fn main() {
             sql: include_str!("../migrations/023_in_progress.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 24,
+            description: "add task backlog",
+            sql: include_str!("../migrations/024_backlog.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

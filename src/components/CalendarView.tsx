@@ -20,6 +20,8 @@ interface Props {
   onSaveAsTemplate: (id: number) => void;
   onArchive: (id: number) => void;
   onToggleInProgress: (id: number) => void;
+  onBacklog: (id: number) => void;
+  onUnbacklog: (id: number) => void;
 }
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -62,6 +64,8 @@ export default function CalendarView({
   onSaveAsTemplate,
   onArchive,
   onToggleInProgress,
+  onBacklog,
+  onUnbacklog,
 }: Props) {
   const today = todayStr();
   const [cursor, setCursor] = useState(() => {
@@ -296,6 +300,8 @@ export default function CalendarView({
             onSaveAsTemplate={onSaveAsTemplate}
             onArchive={onArchive}
             onToggleInProgress={onToggleInProgress}
+            onBacklog={onBacklog}
+            onUnbacklog={onUnbacklog}
           />
         ))}
         {virtualSelectedTasks.length > 0 && (

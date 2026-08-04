@@ -31,6 +31,8 @@ interface Props {
   onArchive?: (id: number) => void;
   onUnarchive?: (id: number) => void;
   onToggleInProgress?: (id: number) => void;
+  onBacklog?: (id: number) => void;
+  onUnbacklog?: (id: number) => void;
 }
 
 export default function TaskRow({
@@ -56,6 +58,8 @@ export default function TaskRow({
   onArchive,
   onUnarchive,
   onToggleInProgress,
+  onBacklog,
+  onUnbacklog,
 }: Props) {
   const selected = selectable && (selectedIds?.has(task.id) ?? false);
   const [addingSubtask, setAddingSubtask] = useState(false);
@@ -465,6 +469,30 @@ export default function TaskRow({
             Save as template
           </button>
         )}
+        {!task.backlog && onBacklog && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onBacklog(task.id);
+            }}
+            title="Move to Backlog — hide from All/Today/This Week until you're ready for it"
+            style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 13 }}
+          >
+            Backlog
+          </button>
+        )}
+        {task.backlog && onUnbacklog && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onUnbacklog(task.id);
+            }}
+            title="Bring back into the everyday views"
+            style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 13 }}
+          >
+            Unbacklog
+          </button>
+        )}
         {task.completed && onArchive && (
           <button
             onClick={(e) => {
@@ -659,6 +687,8 @@ export default function TaskRow({
             onArchive={onArchive}
             onUnarchive={onUnarchive}
             onToggleInProgress={onToggleInProgress}
+            onBacklog={onBacklog}
+            onUnbacklog={onUnbacklog}
           />
         ))}
     </>

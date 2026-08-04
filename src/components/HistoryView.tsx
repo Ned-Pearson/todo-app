@@ -17,6 +17,8 @@ interface Props {
   onSaveAsTemplate: (id: number) => void;
   onArchive: (id: number) => void;
   onToggleInProgress: (id: number) => void;
+  onBacklog: (id: number) => void;
+  onUnbacklog: (id: number) => void;
 }
 
 const UNKNOWN_DATE = "Unknown date";
@@ -35,6 +37,8 @@ export default function HistoryView({
   onSaveAsTemplate,
   onArchive,
   onToggleInProgress,
+  onBacklog,
+  onUnbacklog,
 }: Props) {
   const completed = tasks.filter((t) => t.completed);
 
@@ -104,6 +108,8 @@ export default function HistoryView({
                   onSaveAsTemplate={onSaveAsTemplate}
                   onArchive={onArchive}
                   onToggleInProgress={onToggleInProgress}
+                  onBacklog={onBacklog}
+                  onUnbacklog={onUnbacklog}
                   readOnly
                   showCompletedDate
                 />

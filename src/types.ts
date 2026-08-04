@@ -102,4 +102,8 @@ export interface Task {
   // distinguishes "not started" from "in progress" for an incomplete task,
   // toggled independently of completing it.
   inProgress: boolean;
+  // "Someday" — hides the task from All/Today/This Week without archiving
+  // or deleting it. Independent of completed/archived; Calendar (if it has
+  // a due date) and History (if it's completed) still show it.
+  backlog: boolean;
 }

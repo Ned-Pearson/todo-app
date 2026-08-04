@@ -62,6 +62,7 @@ function rowToTask(
     reminderNotified: !!row.reminder_notified,
     highlightColor: row.highlight_color,
     inProgress: !!row.in_progress,
+    backlog: !!row.backlog,
   };
 }
 
@@ -207,6 +208,11 @@ export async function updateTaskHighlightColor(id: number, color: string | null)
 export async function updateTaskInProgress(id: number, inProgress: boolean): Promise<void> {
   const db = await getDb();
   await db.execute("UPDATE tasks SET in_progress = ? WHERE id = ?", [inProgress ? 1 : 0, id]);
+}
+
+export async function updateTaskBacklog(id: number, backlog: boolean): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE tasks SET backlog = ? WHERE id = ?", [backlog ? 1 : 0, id]);
 }
 
 export async function getAllTags(): Promise<Tag[]> {
