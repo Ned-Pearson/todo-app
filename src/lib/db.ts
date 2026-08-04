@@ -1,4 +1,5 @@
 import Database from "@tauri-apps/plugin-sql";
+import { formatDate, nowTimestamp } from "./date";
 import type {
   Attachment,
   CustomTab,
@@ -63,6 +64,7 @@ function rowToTask(
     highlightColor: row.highlight_color,
     inProgress: !!row.in_progress,
     backlog: !!row.backlog,
+    deletedAt: row.deleted_at,
   };
 }
 
@@ -165,11 +167,14 @@ async function attachRelations(db: Database, rows: any[]): Promise<Task[]> {
 
 // Excludes archived tasks — the point of archiving is to move old completed
 // tasks out of the everyday working set (including History, which is built
-// from this same list), into the separate Archive view instead.
+// from this same list), into the separate Archive view instead. Also
+// excludes trashed tasks (see getTrashedTasks/moveTaskToTrash below) — a
+// deleted task shouldn't linger in the everyday list just because it was
+// archived first.
 export async function getAllTasks(): Promise<Task[]> {
   const db = await getDb();
   const rows = await db.select<any[]>(
-    `${TASKS_WITH_RECURRENCE_SELECT} WHERE tasks.archived = 0 ORDER BY tasks.sort_order ASC, tasks.id DESC`
+    `${TASKS_WITH_RECURRENCE_SELECT} WHERE tasks.archived = 0 AND tasks.deleted_at IS NULL ORDER BY tasks.sort_order ASC, tasks.id DESC`
   );
   return attachRelations(db, rows);
 }
@@ -177,7 +182,7 @@ export async function getAllTasks(): Promise<Task[]> {
 export async function getArchivedTasks(): Promise<Task[]> {
   const db = await getDb();
   const rows = await db.select<any[]>(
-    `${TASKS_WITH_RECURRENCE_SELECT} WHERE tasks.archived = 1 ORDER BY tasks.completed_at DESC, tasks.id DESC`
+    `${TASKS_WITH_RECURRENCE_SELECT} WHERE tasks.archived = 1 AND tasks.deleted_at IS NULL ORDER BY tasks.completed_at DESC, tasks.id DESC`
   );
   return attachRelations(db, rows);
 }
@@ -185,6 +190,57 @@ export async function getArchivedTasks(): Promise<Task[]> {
 export async function updateTaskArchived(id: number, archived: boolean): Promise<void> {
   const db = await getDb();
   await db.execute("UPDATE tasks SET archived = ? WHERE id = ?", [archived ? 1 : 0, id]);
+}
+
+export async function getTrashedTasks(): Promise<Task[]> {
+  const db = await getDb();
+  const rows = await db.select<any[]>(
+    `${TASKS_WITH_RECURRENCE_SELECT} WHERE tasks.deleted_at IS NOT NULL ORDER BY tasks.deleted_at DESC, tasks.id DESC`
+  );
+  return attachRelations(db, rows);
+}
+
+// A soft delete: cascades to the whole subtree (mirroring deleteTask's own
+// cascade) so a trashed parent's children move to Trash with it, rather
+// than being orphaned back at top-level in the everyday list.
+export async function moveTaskToTrash(id: number): Promise<void> {
+  const db = await getDb();
+  const children = await db.select<any[]>("SELECT id FROM tasks WHERE parent_id = ?", [id]);
+  for (const child of children) {
+    await moveTaskToTrash(child.id);
+  }
+  await db.execute("UPDATE tasks SET deleted_at = ? WHERE id = ?", [nowTimestamp(), id]);
+}
+
+// Restores the whole subtree together, same reasoning as moveTaskToTrash —
+// they were trashed as one unit, so they come back as one unit.
+export async function restoreTaskFromTrash(id: number): Promise<void> {
+  const db = await getDb();
+  const children = await db.select<any[]>("SELECT id FROM tasks WHERE parent_id = ?", [id]);
+  for (const child of children) {
+    await restoreTaskFromTrash(child.id);
+  }
+  await db.execute("UPDATE tasks SET deleted_at = NULL WHERE id = ?", [id]);
+}
+
+// Permanently purges anything that's been in Trash longer than
+// `retentionDays` — a plain string comparison against a date-only cutoff
+// works here since deleted_at's "YYYY-MM-DD HH:MM" format sorts the same as
+// it compares chronologically. Called once on startup rather than on a
+// timer, since a local desktop app only needs to catch up whenever it's
+// actually opened.
+export async function purgeExpiredTrash(retentionDays: number): Promise<void> {
+  const db = await getDb();
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - retentionDays);
+  const cutoffStr = formatDate(cutoff);
+  const rows = await db.select<any[]>("SELECT id FROM tasks WHERE deleted_at IS NOT NULL AND deleted_at < ?", [
+    cutoffStr,
+  ]);
+  for (const row of rows) {
+    await db.execute("DELETE FROM task_dependencies WHERE task_id = ? OR depends_on_id = ?", [row.id, row.id]);
+    await db.execute("DELETE FROM tasks WHERE id = ?", [row.id]);
+  }
 }
 
 // Setting/changing/clearing a reminder always resets reminder_notified back

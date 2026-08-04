@@ -152,6 +152,12 @@ fn main() {
             sql: include_str!("../migrations/025_custom_tab_color.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 26,
+            description: "add task trash",
+            sql: include_str!("../migrations/026_trash.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

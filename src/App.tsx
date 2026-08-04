@@ -17,6 +17,10 @@ import {
   clearTaskRecurrence,
   setTaskCompleted,
   deleteTask,
+  getTrashedTasks,
+  moveTaskToTrash,
+  restoreTaskFromTrash,
+  purgeExpiredTrash,
   updateTaskTitle,
   updateTaskDescription,
   updateTaskDueDate,
@@ -57,6 +61,7 @@ import CalendarView from "./components/CalendarView";
 import HistoryView from "./components/HistoryView";
 import ArchiveView from "./components/ArchiveView";
 import BacklogView from "./components/BacklogView";
+import TrashView from "./components/TrashView";
 import StatsView from "./components/StatsView";
 import ManageTagsModal from "./components/ManageTagsModal";
 import { addInterval, getWeekRange, isOverdue, nowTimestamp, todayStr } from "./lib/date";
@@ -71,8 +76,19 @@ import { isPermissionGranted, requestPermission, sendNotification } from "@tauri
 
 const GLOBAL_QUICK_ADD_SHORTCUT = "CommandOrControl+Shift+N";
 const OVERDUE_CHECK_INTERVAL_MS = 60_000;
+const TRASH_RETENTION_DAYS = 30;
 
-type View = "all" | "today" | "this-week" | "no-date" | "calendar" | "history" | "stats" | "archive" | "backlog";
+type View =
+  | "all"
+  | "today"
+  | "this-week"
+  | "no-date"
+  | "calendar"
+  | "history"
+  | "stats"
+  | "archive"
+  | "backlog"
+  | "trash";
 
 // The full set of fields the task detail modal's Save button commits at
 // once — undo/redo for edits treats that whole click as a single step
@@ -104,6 +120,7 @@ const VIEW_LABELS: Record<View, string> = {
   stats: "Stats",
   archive: "Archive",
   backlog: "Backlog",
+  trash: "Trash",
 };
 
 type SortOption = "manual" | "dueDate" | "priority" | "title";
@@ -150,6 +167,7 @@ function getInitialWeekStartsOn(): 0 | 1 {
 export default function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [archivedTasks, setArchivedTasks] = useState<Task[]>([]);
+  const [trashedTasks, setTrashedTasks] = useState<Task[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [savedViews, setSavedViews] = useState<SavedView[]>([]);
   const [customTabs, setCustomTabs] = useState<CustomTab[]>([]);
@@ -456,23 +474,39 @@ export default function App() {
 
   useEffect(() => {
     if (view === "today") setDueDate(todayStr());
-    // Bulk select only applies to the list views, not Calendar/History/Stats/Archive.
-    if (view === "calendar" || view === "history" || view === "stats" || view === "archive" || view === "backlog")
+    // Bulk select only applies to the list views, not Calendar/History/Stats/Archive/Backlog/Trash.
+    if (
+      view === "calendar" ||
+      view === "history" ||
+      view === "stats" ||
+      view === "archive" ||
+      view === "backlog" ||
+      view === "trash"
+    )
       exitSelectMode();
   }, [view]);
 
   async function reload() {
-    const [updatedTasks, updatedArchivedTasks, updatedTags, updatedSavedViews, updatedCustomTabs, updatedTemplates] =
-      await Promise.all([
-        getAllTasks(),
-        getArchivedTasks(),
-        getAllTags(),
-        getAllSavedViews(),
-        getAllCustomTabs(),
-        getAllTaskTemplates(),
-      ]);
+    const [
+      updatedTasks,
+      updatedArchivedTasks,
+      updatedTrashedTasks,
+      updatedTags,
+      updatedSavedViews,
+      updatedCustomTabs,
+      updatedTemplates,
+    ] = await Promise.all([
+      getAllTasks(),
+      getArchivedTasks(),
+      getTrashedTasks(),
+      getAllTags(),
+      getAllSavedViews(),
+      getAllCustomTabs(),
+      getAllTaskTemplates(),
+    ]);
     setTasks(updatedTasks);
     setArchivedTasks(updatedArchivedTasks);
+    setTrashedTasks(updatedTrashedTasks);
     setTags(updatedTags);
     setSavedViews(updatedSavedViews);
     setCustomTabs(updatedCustomTabs);
@@ -480,8 +514,11 @@ export default function App() {
     setSelectedTask((prev) => (prev ? (updatedTasks.find((t) => t.id === prev.id) ?? null) : prev));
   }
 
+  // Trash is purged once on startup rather than on a timer — a local
+  // desktop app only needs to catch up on retention whenever it's actually
+  // opened, not continuously while running.
   useEffect(() => {
-    reload();
+    purgeExpiredTrash(TRASH_RETENTION_DAYS).then(reload);
   }, []);
 
   async function handleAddTask(
@@ -567,10 +604,11 @@ export default function App() {
   // Deleting doesn't hit the database right away: the task(s) (and their
   // subtasks) are just hidden from the UI for a few seconds while a toast
   // offers "Undo". Only once that window elapses without being cancelled
-  // does the actual cascading DELETE happen — cascading delete on a parent
-  // with subtasks is otherwise unforgiving. `rootIds` are the tasks the user
-  // actually deleted (deleteTask cascades to their descendants itself);
-  // `allIds` is the full set hidden from the UI in the meantime.
+  // does the task actually move to Trash (moveTaskToTrash cascades to
+  // descendants itself) — a real DELETE only ever happens from within Trash
+  // ("Delete forever") or once something's been there past the retention
+  // window. `rootIds` are the tasks the user actually deleted; `allIds` is
+  // the full set hidden from the UI in the meantime.
   function schedulePendingDelete(pending: { rootIds: number[]; allIds: number[]; label: string }) {
     setPendingDelete(pending);
     pendingDeleteTimeout.current = window.setTimeout(() => {
@@ -586,8 +624,20 @@ export default function App() {
     const rootIds = pendingDelete?.rootIds ?? [];
     setPendingDelete(null);
     for (const id of rootIds) {
-      await deleteTask(id);
+      await moveTaskToTrash(id);
     }
+    await reload();
+  }
+
+  async function handleRestoreFromTrash(id: number) {
+    await restoreTaskFromTrash(id);
+    await reload();
+  }
+
+  async function handleDeleteForever(id: number) {
+    const task = trashedTasks.find((t) => t.id === id);
+    if (!window.confirm(`Permanently delete "${task?.title ?? "this task"}"? This can't be undone.`)) return;
+    await deleteTask(id);
     await reload();
   }
 
@@ -1121,6 +1171,9 @@ export default function App() {
 
   const searchFilteredTasks = filterByTagPriorityAndSearch(activeTasks);
   const archivedSearchFilteredTasks = filterByTagPriorityAndSearch(activeArchivedTasks);
+  // No pending-delete filter needed here — nothing in the 5-second undo
+  // window has been moved to Trash yet by definition.
+  const trashedSearchFilteredTasks = filterByTagPriorityAndSearch(trashedTasks);
 
   // "Manual" preserves the order the query already came back in (driven by
   // sort_order, i.e. drag order); the other options re-sort every sibling
@@ -1573,7 +1626,18 @@ export default function App() {
 
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4, marginBottom: 20 }}>
         {(
-          ["all", "today", "this-week", "no-date", "calendar", "history", "stats", "archive", "backlog"] as View[]
+          [
+            "all",
+            "today",
+            "this-week",
+            "no-date",
+            "calendar",
+            "history",
+            "stats",
+            "archive",
+            "backlog",
+            "trash",
+          ] as View[]
         ).map((v) => (
           <button
             key={v}
@@ -1757,7 +1821,8 @@ export default function App() {
         view !== "history" &&
         view !== "stats" &&
         view !== "archive" &&
-        view !== "backlog" && (
+        view !== "backlog" &&
+        view !== "trash" && (
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 20 }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted)" }}>Sort by:</span>
           <select
@@ -2010,7 +2075,8 @@ export default function App() {
         view !== "history" &&
         view !== "stats" &&
         view !== "archive" &&
-        view !== "backlog" && (
+        view !== "backlog" &&
+        view !== "trash" && (
           <button
             type="button"
             onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
@@ -2208,6 +2274,16 @@ export default function App() {
           onArchive={handleArchive}
           onToggleInProgress={handleToggleInProgress}
           onUnbacklog={handleUnbacklog}
+        />
+      ) : view === "trash" ? (
+        <TrashView
+          tasks={trashedSearchFilteredTasks}
+          priorityFilter={priorityFilter}
+          onToggle={handleToggle}
+          onDeleteForever={handleDeleteForever}
+          onSelectTask={setSelectedTask}
+          onAddSubtask={handleAddSubtask}
+          onRestore={handleRestoreFromTrash}
         />
       ) : (
         <>

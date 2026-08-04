@@ -110,4 +110,8 @@ export interface Task {
   // or deleting it. Independent of completed/archived; Calendar (if it has
   // a due date) and History (if it's completed) still show it.
   backlog: boolean;
+  // Set the moment a task is soft-deleted (moved to Trash); null otherwise.
+  // Purged for good — hard DELETE — once it's older than the retention
+  // window, independent of the separate 5-second delete-Undo toast.
+  deletedAt: string | null;
 }

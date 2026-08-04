@@ -19,6 +19,8 @@ interface Props {
   onAddSubtask: (parentId: number, title: string) => void;
   readOnly?: boolean;
   showCompletedDate?: boolean;
+  showDeletedDate?: boolean;
+  deleteLabel?: string;
   onReorder?: (draggedId: number, targetId: number) => void;
   selectable?: boolean;
   selectedIds?: Set<number>;
@@ -33,6 +35,7 @@ interface Props {
   onToggleInProgress?: (id: number) => void;
   onBacklog?: (id: number) => void;
   onUnbacklog?: (id: number) => void;
+  onRestore?: (id: number) => void;
 }
 
 export default function TaskRow({
@@ -46,6 +49,8 @@ export default function TaskRow({
   onAddSubtask,
   readOnly = false,
   showCompletedDate = false,
+  showDeletedDate = false,
+  deleteLabel = "Delete",
   onReorder,
   selectable = false,
   selectedIds,
@@ -60,6 +65,7 @@ export default function TaskRow({
   onToggleInProgress,
   onBacklog,
   onUnbacklog,
+  onRestore,
 }: Props) {
   const selected = selectable && (selectedIds?.has(task.id) ?? false);
   const [addingSubtask, setAddingSubtask] = useState(false);
@@ -388,6 +394,21 @@ export default function TaskRow({
             Completed {task.completedAt}
           </span>
         )}
+        {showDeletedDate && task.deletedAt && (
+          <span
+            style={{
+              fontSize: 12,
+              color: "var(--color-text-muted)",
+              background: "var(--color-surface-sunken)",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              padding: "2px 6px",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Deleted {task.deletedAt}
+          </span>
+        )}
         {task.recurrence && (
           <span
             title={`Repeats every ${task.recurrence.interval > 1 ? task.recurrence.interval + " " : ""}${task.recurrence.frequency}${task.recurrence.interval > 1 ? "s" : ""}${task.recurrence.endDate ? ` until ${task.recurrence.endDate}` : ""}`}
@@ -493,6 +514,18 @@ export default function TaskRow({
             Unbacklog
           </button>
         )}
+        {onRestore && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRestore(task.id);
+            }}
+            title="Restore this task out of the trash"
+            style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 13 }}
+          >
+            Restore
+          </button>
+        )}
         {task.completed && onArchive && (
           <button
             onClick={(e) => {
@@ -524,7 +557,7 @@ export default function TaskRow({
           }}
           style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 13 }}
         >
-          Delete
+          {deleteLabel}
         </button>
       </div>
 
@@ -689,6 +722,9 @@ export default function TaskRow({
             onToggleInProgress={onToggleInProgress}
             onBacklog={onBacklog}
             onUnbacklog={onUnbacklog}
+            onRestore={onRestore}
+            showDeletedDate={showDeletedDate}
+            deleteLabel={deleteLabel}
           />
         ))}
     </>
