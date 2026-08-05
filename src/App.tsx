@@ -46,6 +46,8 @@ import {
   deleteTaskTemplate,
   addTaskDependency,
   removeTaskDependency,
+  addRelatedTask,
+  removeRelatedTask,
   getArchivedTasks,
   updateTaskArchived,
   updateTaskReminder,
@@ -1019,6 +1021,27 @@ export default function App() {
   async function handleRemoveDependency(taskId: number, dependsOnId: number) {
     await removeTaskDependency(taskId, dependsOnId);
     await reload();
+  }
+
+  async function handleAddRelatedTask(taskId: number, relatedTaskId: number) {
+    try {
+      await addRelatedTask(taskId, relatedTaskId);
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : String(err));
+      return;
+    }
+    await reload();
+  }
+
+  async function handleRemoveRelatedTask(taskId: number, relatedTaskId: number) {
+    await removeRelatedTask(taskId, relatedTaskId);
+    await reload();
+  }
+
+  function handleSelectRelatedTask(taskId: number) {
+    const everyTask = [...tasks, ...archivedTasks, ...trashedTasks];
+    const task = everyTask.find((t) => t.id === taskId);
+    if (task) setSelectedTask(task);
   }
 
   async function handleToggleTag(taskId: number, tagId: number, assign: boolean) {
@@ -2206,6 +2229,9 @@ export default function App() {
           onRemoveAttachment={handleRemoveAttachment}
           onAddDependency={(dependsOnId) => handleAddDependency(selectedTask.id, dependsOnId)}
           onRemoveDependency={(dependsOnId) => handleRemoveDependency(selectedTask.id, dependsOnId)}
+          onAddRelatedTask={(relatedTaskId) => handleAddRelatedTask(selectedTask.id, relatedTaskId)}
+          onRemoveRelatedTask={(relatedTaskId) => handleRemoveRelatedTask(selectedTask.id, relatedTaskId)}
+          onSelectRelatedTask={handleSelectRelatedTask}
         />
       )}
 

@@ -36,6 +36,9 @@ interface Props {
   onRemoveAttachment: (attachmentId: number) => void;
   onAddDependency: (dependsOnId: number) => void;
   onRemoveDependency: (dependsOnId: number) => void;
+  onAddRelatedTask: (relatedTaskId: number) => void;
+  onRemoveRelatedTask: (relatedTaskId: number) => void;
+  onSelectRelatedTask: (taskId: number) => void;
 }
 
 export default function TaskDetailModal({
@@ -50,6 +53,9 @@ export default function TaskDetailModal({
   onRemoveAttachment,
   onAddDependency,
   onRemoveDependency,
+  onAddRelatedTask,
+  onRemoveRelatedTask,
+  onSelectRelatedTask,
 }: Props) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? "");
@@ -85,6 +91,19 @@ export default function TaskDetailModal({
       setSelectedDependencyId(dependencyCandidates[0]?.id ?? null);
     }
   }, [task.dependsOn]);
+
+  const relatedCandidates = allTasks.filter(
+    (t) => t.id !== task.id && !task.relatedTasks.some((r) => r.id === t.id)
+  );
+  const [selectedRelatedId, setSelectedRelatedId] = useState<number | null>(relatedCandidates[0]?.id ?? null);
+
+  // Same reasoning as the dependency dropdown above — keep the selection
+  // valid as tasks are linked/unlinked.
+  useEffect(() => {
+    if (selectedRelatedId != null && !relatedCandidates.some((c) => c.id === selectedRelatedId)) {
+      setSelectedRelatedId(relatedCandidates[0]?.id ?? null);
+    }
+  }, [task.relatedTasks]);
 
   function buildRecurrenceInput(): RecurrenceInput | null {
     return repeat === "none"
@@ -587,6 +606,98 @@ export default function TaskDetailModal({
           task.dependsOn.length === 0 && (
             <div style={{ fontSize: 12, color: "var(--color-text-faint)", marginBottom: 16 }}>
               No other tasks to depend on yet.
+            </div>
+          )
+        )}
+
+        <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
+          See also
+        </label>
+        {task.relatedTasks.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
+            {task.relatedTasks.map((rel) => (
+              <div
+                key={rel.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "4px 8px",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-sm)",
+                  background: "var(--color-surface-sunken)",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => onSelectRelatedTask(rel.id)}
+                  title="Open this task"
+                  style={{
+                    flex: 1,
+                    textAlign: "left",
+                    border: "none",
+                    background: "none",
+                    padding: 0,
+                    fontSize: 13,
+                    textDecoration: rel.completed ? "line-through" : "underline",
+                    color: rel.completed ? "var(--color-text-faint)" : "var(--color-text)",
+                    cursor: "pointer",
+                  }}
+                >
+                  {rel.title}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onRemoveRelatedTask(rel.id)}
+                  title="Remove this link"
+                  style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 12 }}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        {relatedCandidates.length > 0 ? (
+          <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 16 }}>
+            <select
+              value={selectedRelatedId ?? ""}
+              onChange={(e) => setSelectedRelatedId(Number(e.target.value))}
+              style={{
+                flex: 1,
+                padding: "6px 8px",
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-sm)",
+                background: "var(--color-surface)",
+                color: "var(--color-text)",
+                fontSize: 13,
+              }}
+            >
+              {relatedCandidates.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.title}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => selectedRelatedId != null && onAddRelatedTask(selectedRelatedId)}
+              style={{
+                padding: "6px 10px",
+                border: "none",
+                borderRadius: "var(--radius-sm)",
+                background: "var(--color-accent)",
+                color: "#fff",
+                fontSize: 13,
+              }}
+            >
+              Add
+            </button>
+          </div>
+        ) : (
+          task.relatedTasks.length === 0 && (
+            <div style={{ fontSize: 12, color: "var(--color-text-faint)", marginBottom: 16 }}>
+              No other tasks to link yet.
             </div>
           )
         )}

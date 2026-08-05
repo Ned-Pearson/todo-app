@@ -74,6 +74,17 @@ export interface TaskDependency {
   completed: boolean;
 }
 
+// A "See also" cross-reference — structurally identical to TaskDependency
+// (just enough to show and link to the other task) but semantically
+// unrelated: unlike a dependency, linking to one never gates completion.
+// The relationship is symmetric (linking A to B always means B is also
+// linked to A), unlike dependencies which are one-directional.
+export interface RelatedTask {
+  id: number;
+  title: string;
+  completed: boolean;
+}
+
 export interface Task {
   id: number;
   title: string;
@@ -91,6 +102,7 @@ export interface Task {
   attachments: Attachment[];
   pinned: boolean;
   dependsOn: TaskDependency[];
+  relatedTasks: RelatedTask[];
   archived: boolean;
   // A standalone time-based nudge, independent of dueDate/dueTime — doesn't
   // imply the task is "due", just that a notification should fire at this

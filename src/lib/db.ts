@@ -5,6 +5,7 @@ import type {
   CustomTab,
   Priority,
   RecurrenceFrequency,
+  RelatedTask,
   SavedView,
   Tag,
   Task,
@@ -27,7 +28,8 @@ function rowToTask(
   tags: Tag[],
   inheritedTags: Tag[],
   attachments: Attachment[],
-  dependsOn: TaskDependency[]
+  dependsOn: TaskDependency[],
+  relatedTasks: RelatedTask[]
 ): Task {
   return {
     id: row.id,
@@ -58,6 +60,7 @@ function rowToTask(
     attachments,
     pinned: !!row.pinned,
     dependsOn,
+    relatedTasks,
     archived: !!row.archived,
     reminderAt: row.reminder_at,
     reminderNotified: !!row.reminder_notified,
@@ -156,13 +159,35 @@ async function attachRelations(db: Database, rows: any[]): Promise<Task[]> {
     dependsOnByTask.set(row.task_id, list);
   }
 
+  // task_related stores one row per pair (symmetric, unlike
+  // task_dependencies), so each row is fanned out into both directions here.
+  const relatedRows = await db.select<any[]>(`
+    SELECT task_related.task_id AS task_id, task_related.related_task_id AS related_task_id,
+           t1.title AS task_title, t1.completed AS task_completed,
+           t2.title AS related_title, t2.completed AS related_completed
+    FROM task_related
+    JOIN tasks t1 ON t1.id = task_related.task_id
+    JOIN tasks t2 ON t2.id = task_related.related_task_id
+  `);
+  const relatedByTask = new Map<number, RelatedTask[]>();
+  for (const row of relatedRows) {
+    const forward = relatedByTask.get(row.task_id) ?? [];
+    forward.push({ id: row.related_task_id, title: row.related_title, completed: !!row.related_completed });
+    relatedByTask.set(row.task_id, forward);
+
+    const backward = relatedByTask.get(row.related_task_id) ?? [];
+    backward.push({ id: row.task_id, title: row.task_title, completed: !!row.task_completed });
+    relatedByTask.set(row.related_task_id, backward);
+  }
+
   return rows.map((row) =>
     rowToTask(
       row,
       tagsByTask.get(row.id) ?? [],
       inheritedTagsByTask.get(row.id) ?? [],
       attachmentsByTask.get(row.id) ?? [],
-      dependsOnByTask.get(row.id) ?? []
+      dependsOnByTask.get(row.id) ?? [],
+      relatedByTask.get(row.id) ?? []
     )
   );
 }
@@ -228,6 +253,7 @@ export async function restoreTaskFromTrash(id: number): Promise<void> {
 async function deleteTrashedTaskIds(db: Database, ids: number[]): Promise<void> {
   for (const id of ids) {
     await db.execute("DELETE FROM task_dependencies WHERE task_id = ? OR depends_on_id = ?", [id, id]);
+    await db.execute("DELETE FROM task_related WHERE task_id = ? OR related_task_id = ?", [id, id]);
     await db.execute("DELETE FROM tasks WHERE id = ?", [id]);
   }
 }
@@ -699,6 +725,7 @@ export async function deleteTask(id: number): Promise<void> {
     await deleteTask(child.id);
   }
   await db.execute("DELETE FROM task_dependencies WHERE task_id = ? OR depends_on_id = ?", [id, id]);
+  await db.execute("DELETE FROM task_related WHERE task_id = ? OR related_task_id = ?", [id, id]);
   await db.execute("DELETE FROM tasks WHERE id = ?", [id]);
 }
 
@@ -741,4 +768,22 @@ export async function addTaskDependency(taskId: number, dependsOnId: number): Pr
 export async function removeTaskDependency(taskId: number, dependsOnId: number): Promise<void> {
   const db = await getDb();
   await db.execute("DELETE FROM task_dependencies WHERE task_id = ? AND depends_on_id = ?", [taskId, dependsOnId]);
+}
+
+// task_related is symmetric — a single row stands for the link in both
+// directions — so it's always stored with the smaller id first to avoid
+// ever holding both (a, b) and (b, a) for the same pair.
+export async function addRelatedTask(taskId: number, otherTaskId: number): Promise<void> {
+  if (taskId === otherTaskId) {
+    throw new Error("A task can't be related to itself.");
+  }
+  const db = await getDb();
+  const [a, b] = taskId < otherTaskId ? [taskId, otherTaskId] : [otherTaskId, taskId];
+  await db.execute("INSERT OR IGNORE INTO task_related (task_id, related_task_id) VALUES (?, ?)", [a, b]);
+}
+
+export async function removeRelatedTask(taskId: number, otherTaskId: number): Promise<void> {
+  const db = await getDb();
+  const [a, b] = taskId < otherTaskId ? [taskId, otherTaskId] : [otherTaskId, taskId];
+  await db.execute("DELETE FROM task_related WHERE task_id = ? AND related_task_id = ?", [a, b]);
 }

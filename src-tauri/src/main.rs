@@ -164,6 +164,12 @@ fn main() {
             sql: include_str!("../migrations/027_timer.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 28,
+            description: "add task_related table",
+            sql: include_str!("../migrations/028_task_related.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()
