@@ -791,6 +791,12 @@ export default function App() {
       await stopTaskTimer(id);
     } else {
       await startTaskTimer(id);
+      // One-directional: starting the timer means you're actively working
+      // on this right now, so it's a reasonable moment to also mark it in
+      // progress. The reverse doesn't hold — stopping the timer (a break,
+      // done for the day, ...) doesn't imply the task is no longer in
+      // progress, so that flag is left alone on stop.
+      if (!task.inProgress) await updateTaskInProgress(id, true);
     }
     await reload();
   }
