@@ -1083,6 +1083,12 @@ export default function App() {
     await reload();
   }
 
+  function handleClearAllFilters() {
+    setActiveTagFilter(null);
+    setPriorityFilter(null);
+    setSearchQuery("");
+  }
+
   // A saved view is just a shortcut for the tag/priority/search combo — it
   // doesn't touch which view (All/Today/Calendar/etc.) is currently open, so
   // "show me high-priority Work tasks" applies whether you're checking Today
@@ -1376,6 +1382,87 @@ export default function App() {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
             <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>{VIEW_LABELS[view]}</h1>
           </div>
+
+      {(activeTagFilter != null || priorityFilter != null || searchQuery.trim() !== "") && (
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 20,
+            padding: "8px 12px",
+            borderRadius: "var(--radius-sm)",
+            border: "1px solid var(--color-accent)",
+            background: "var(--color-accent-soft)",
+          }}
+        >
+          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-accent)" }}>
+            Filtering:
+          </span>
+          {activeTagFilter != null &&
+            (() => {
+              const tag = tags.find((t) => t.id === activeTagFilter);
+              return tag ? (
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 500,
+                    padding: "2px 8px",
+                    borderRadius: 999,
+                    background: tag.color,
+                    color: "#fff",
+                  }}
+                >
+                  {tag.name}
+                </span>
+              ) : null;
+            })()}
+          {priorityFilter != null && (
+            <span
+              style={{
+                fontSize: 12,
+                fontWeight: 500,
+                padding: "2px 8px",
+                borderRadius: 999,
+                background: PRIORITY_COLORS[priorityFilter],
+                color: "#fff",
+              }}
+            >
+              {PRIORITY_LABELS[priorityFilter]}
+            </span>
+          )}
+          {searchQuery.trim() !== "" && (
+            <span
+              style={{
+                fontSize: 12,
+                fontWeight: 500,
+                padding: "2px 8px",
+                borderRadius: 999,
+                border: "1px solid var(--color-accent)",
+                color: "var(--color-accent)",
+              }}
+            >
+              "{searchQuery.trim()}"
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={handleClearAllFilters}
+            style={{
+              marginLeft: "auto",
+              border: "none",
+              background: "none",
+              color: "var(--color-accent)",
+              fontSize: 12,
+              fontWeight: 600,
+              textDecoration: "underline",
+            }}
+          >
+            Clear all
+          </button>
+        </div>
+      )}
 
       {pinnedTasks.length > 0 && (
         <div style={{ marginBottom: 20 }}>
