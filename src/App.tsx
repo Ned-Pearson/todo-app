@@ -83,6 +83,7 @@ import { hexToRgba } from "./lib/color";
 import { exportToFile, importFromFile, exportTaskAsMarkdown } from "./lib/backup";
 import { taskToMarkdown } from "./lib/taskMarkdown";
 import { nextRecurrenceDate, type RecurrenceInput } from "./lib/recurrence";
+import { useClickOutside } from "./lib/useClickOutside";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { register, unregisterAll } from "@tauri-apps/plugin-global-shortcut";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
@@ -175,6 +176,12 @@ export default function App() {
   const [showBulkTagPicker, setShowBulkTagPicker] = useState(false);
   const [showBulkPostponePicker, setShowBulkPostponePicker] = useState(false);
   const [bulkPostponeDays, setBulkPostponeDays] = useState("1");
+  const templatesPickerRef = useRef<HTMLDivElement>(null);
+  const bulkTagPickerRef = useRef<HTMLDivElement>(null);
+  const bulkPostponePickerRef = useRef<HTMLDivElement>(null);
+  useClickOutside(templatesPickerRef, showTemplatesPicker, () => setShowTemplatesPicker(false));
+  useClickOutside(bulkTagPickerRef, showBulkTagPicker, () => setShowBulkTagPicker(false));
+  useClickOutside(bulkPostponePickerRef, showBulkPostponePicker, () => setShowBulkPostponePicker(false));
   const [showCompleted, setShowCompleted] = useState(false);
   const [undoStack, setUndoStack] = useState<EditHistoryEntry[]>([]);
   const [redoStack, setRedoStack] = useState<EditHistoryEntry[]>([]);
@@ -1638,7 +1645,7 @@ export default function App() {
           <span style={{ fontSize: 16, fontWeight: 700 }}>+</span>
           Add a task
         </button>
-        <div style={{ position: "relative", display: "flex" }}>
+        <div ref={templatesPickerRef} style={{ position: "relative", display: "flex" }}>
           <button
             type="button"
             onClick={() => setShowTemplatesPicker((v) => !v)}
@@ -1762,7 +1769,7 @@ export default function App() {
           >
             Complete
           </button>
-          <div style={{ position: "relative" }}>
+          <div ref={bulkTagPickerRef} style={{ position: "relative" }}>
             <button
               type="button"
               disabled={selectedIds.size === 0}
@@ -1822,7 +1829,7 @@ export default function App() {
               </div>
             )}
           </div>
-          <div style={{ position: "relative" }}>
+          <div ref={bulkPostponePickerRef} style={{ position: "relative" }}>
             <button
               type="button"
               disabled={selectedIds.size === 0}

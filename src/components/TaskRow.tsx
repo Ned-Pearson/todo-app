@@ -1,4 +1,4 @@
-import { useState, useEffect, FocusEvent, KeyboardEvent, CSSProperties } from "react";
+import { useState, useEffect, useRef, FocusEvent, KeyboardEvent, CSSProperties } from "react";
 import type { Priority, Task } from "../types";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "../lib/priority";
 import { isOverdue } from "../lib/date";
@@ -6,6 +6,7 @@ import { fileNameFromPath } from "../lib/attachments";
 import { renderInlineMarkdown } from "../lib/markdown";
 import { hexToRgba } from "../lib/color";
 import { formatDuration } from "../lib/duration";
+import { useClickOutside } from "../lib/useClickOutside";
 
 const OVERDUE_COLOR = "#c9184a";
 // Aligns the subtitle line under the title text, past the leading cluster of
@@ -90,6 +91,8 @@ export default function TaskRow({
   }, [task.timerStartedAt]);
   const [dragOver, setDragOver] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  useClickOutside(menuRef, menuOpen, () => setMenuOpen(false));
   const children = childrenByParent.get(task.id) ?? [];
   const hasChildren = children.length > 0;
 
@@ -409,7 +412,7 @@ export default function TaskRow({
               {task.pinned ? "★" : "☆"}
             </button>
           )}
-          <div style={{ position: "relative", display: "flex", flexShrink: 0 }}>
+          <div ref={menuRef} style={{ position: "relative", display: "flex", flexShrink: 0 }}>
             <button
               onClick={(e) => {
                 e.stopPropagation();

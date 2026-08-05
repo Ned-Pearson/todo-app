@@ -1,5 +1,7 @@
+import { useRef } from "react";
 import type { CustomTab } from "../types";
 import { type View, VIEW_LABELS, type Theme, DEFAULT_ACCENT, SNOOZE_OPTIONS_MINUTES, SNOOZE_LABELS } from "../lib/appConstants";
+import { useClickOutside } from "../lib/useClickOutside";
 
 interface Props {
   view: View;
@@ -87,6 +89,13 @@ export default function Sidebar({
   weekStartsOn,
   setWeekStartsOn,
 }: Props) {
+  const colorPickerRef = useRef<HTMLDivElement>(null);
+  const notifySettingsRef = useRef<HTMLDivElement>(null);
+  const accentPickerRef = useRef<HTMLDivElement>(null);
+  useClickOutside(colorPickerRef, colorPickerTabId !== null, () => setColorPickerTabId(() => null));
+  useClickOutside(notifySettingsRef, showNotifySettings, () => setShowNotifySettings(() => false));
+  useClickOutside(accentPickerRef, showAccentPicker, () => setShowAccentPicker(() => false));
+
   return (
     <div
       style={{
@@ -166,7 +175,10 @@ export default function Sidebar({
               >
                 {tab.name}
               </button>
-              <div style={{ position: "relative", display: "flex" }}>
+              <div
+                ref={colorPickerTabId === tab.id ? colorPickerRef : undefined}
+                style={{ position: "relative", display: "flex" }}
+              >
                 <button
                   type="button"
                   onClick={() => setColorPickerTabId((id) => (id === tab.id ? null : tab.id))}
@@ -408,7 +420,7 @@ export default function Sidebar({
         >
           Import
         </button>
-        <div style={{ position: "relative", display: "flex" }}>
+        <div ref={notifySettingsRef} style={{ position: "relative", display: "flex" }}>
           <button
             type="button"
             onClick={() => setShowNotifySettings((v) => !v)}
@@ -526,7 +538,7 @@ export default function Sidebar({
         >
           {theme === "light" ? "🌙" : "☀️"}
         </button>
-        <div style={{ position: "relative", display: "flex" }}>
+        <div ref={accentPickerRef} style={{ position: "relative", display: "flex" }}>
           <button
             type="button"
             onClick={() => setShowAccentPicker((v) => !v)}
