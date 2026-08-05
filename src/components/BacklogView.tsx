@@ -17,6 +17,7 @@ interface Props {
   onExportMarkdown: (id: number) => void;
   onArchive: (id: number) => void;
   onToggleInProgress: (id: number) => void;
+  onToggleTimer: (id: number) => void;
   onUnbacklog: (id: number) => void;
 }
 
@@ -41,6 +42,7 @@ export default function BacklogView({
   onExportMarkdown,
   onArchive,
   onToggleInProgress,
+  onToggleTimer,
   onUnbacklog,
 }: Props) {
   const { topLevel, childrenByParent } = buildTaskTree(tasks);
@@ -91,6 +93,7 @@ export default function BacklogView({
           onExportMarkdown={onExportMarkdown}
           onArchive={onArchive}
           onToggleInProgress={onToggleInProgress}
+          onToggleTimer={onToggleTimer}
           onUnbacklog={onUnbacklog}
         />
       ))}

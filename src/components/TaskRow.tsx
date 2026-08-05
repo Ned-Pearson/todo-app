@@ -1,10 +1,11 @@
-import { useState, FocusEvent, KeyboardEvent, CSSProperties } from "react";
+import { useState, useEffect, FocusEvent, KeyboardEvent, CSSProperties } from "react";
 import type { Priority, Task } from "../types";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "../lib/priority";
 import { isOverdue } from "../lib/date";
 import { fileNameFromPath } from "../lib/attachments";
 import { renderInlineMarkdown } from "../lib/markdown";
 import { hexToRgba } from "../lib/color";
+import { formatDuration } from "../lib/duration";
 
 const OVERDUE_COLOR = "#c9184a";
 // Aligns the subtitle line under the title text, past the leading cluster of
@@ -41,6 +42,7 @@ interface Props {
   onBacklog?: (id: number) => void;
   onUnbacklog?: (id: number) => void;
   onRestore?: (id: number) => void;
+  onToggleTimer?: (id: number) => void;
 }
 
 export default function TaskRow({
@@ -72,10 +74,20 @@ export default function TaskRow({
   onBacklog,
   onUnbacklog,
   onRestore,
+  onToggleTimer,
 }: Props) {
   const selected = selectable && (selectedIds?.has(task.id) ?? false);
   const [addingSubtask, setAddingSubtask] = useState(false);
   const [subtaskTitle, setSubtaskTitle] = useState("");
+  // Forces a re-render once a second while this row's timer is running, so
+  // the elapsed time actually ticks — Date.now() is read fresh each render,
+  // not stored, so it stays correct even if a render gets skipped/delayed.
+  const [, forceTick] = useState(0);
+  useEffect(() => {
+    if (!task.timerStartedAt) return;
+    const interval = setInterval(() => forceTick((n) => n + 1), 1000);
+    return () => clearInterval(interval);
+  }, [task.timerStartedAt]);
   const [dragOver, setDragOver] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const children = childrenByParent.get(task.id) ?? [];
@@ -142,6 +154,10 @@ export default function TaskRow({
   // marker independent of tags/priority, so it shouldn't compete visually
   // with anything that actually carries meaning elsewhere in the row.
   const highlightBg = task.highlightColor ? hexToRgba(task.highlightColor, 0.14) : undefined;
+  const hasTimeLogged = task.timeSpentSeconds > 0 || !!task.timerStartedAt;
+  const liveElapsedSeconds = task.timerStartedAt
+    ? task.timeSpentSeconds + Math.floor((Date.now() - Date.parse(task.timerStartedAt)) / 1000)
+    : task.timeSpentSeconds;
   const hasSubtitle =
     !!task.dueDate ||
     !!task.reminderAt ||
@@ -149,7 +165,8 @@ export default function TaskRow({
     (showDeletedDate && !!task.deletedAt) ||
     !!task.recurrence ||
     task.attachments.length > 0 ||
-    hasTags;
+    hasTags ||
+    hasTimeLogged;
 
   // Runs an action-menu handler and closes the menu, so picking an item
   // doesn't leave a stale popover open behind whatever it triggered.
@@ -551,6 +568,43 @@ export default function TaskRow({
                 {task.dueTime ? ` ${task.dueTime}` : ""}
               </span>
             )}
+            {hasTimeLogged && (
+              <span
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  fontSize: 12,
+                  color: "var(--color-text-muted)",
+                  background: "var(--color-surface-sunken)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-sm)",
+                  padding: "2px 6px",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {!task.completed && onToggleTimer && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleTimer(task.id);
+                    }}
+                    title={task.timerStartedAt ? "Stop timer" : "Start timer"}
+                    style={{
+                      border: "none",
+                      background: "none",
+                      color: task.timerStartedAt ? "#3d7dd6" : "var(--color-text-muted)",
+                      padding: 0,
+                      fontSize: 12,
+                      lineHeight: 1,
+                    }}
+                  >
+                    {task.timerStartedAt ? "⏸" : "▶"}
+                  </button>
+                )}
+                ⏱ {formatDuration(liveElapsedSeconds)}
+              </span>
+            )}
             {task.reminderAt && (
               <span
                 title={task.reminderNotified ? "Reminder already sent" : "Reminder set — independent of the due date"}
@@ -770,6 +824,7 @@ export default function TaskRow({
             onBacklog={onBacklog}
             onUnbacklog={onUnbacklog}
             onRestore={onRestore}
+            onToggleTimer={onToggleTimer}
             showDeletedDate={showDeletedDate}
             deleteLabel={deleteLabel}
           />

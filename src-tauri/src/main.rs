@@ -158,6 +158,12 @@ fn main() {
             sql: include_str!("../migrations/026_trash.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 27,
+            description: "add task timer",
+            sql: include_str!("../migrations/027_timer.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

@@ -18,6 +18,7 @@ interface Props {
   onExportMarkdown: (id: number) => void;
   onArchive: (id: number) => void;
   onToggleInProgress: (id: number) => void;
+  onToggleTimer: (id: number) => void;
   onBacklog: (id: number) => void;
   onUnbacklog: (id: number) => void;
 }
@@ -39,6 +40,7 @@ export default function HistoryView({
   onExportMarkdown,
   onArchive,
   onToggleInProgress,
+  onToggleTimer,
   onBacklog,
   onUnbacklog,
 }: Props) {
@@ -111,6 +113,7 @@ export default function HistoryView({
                   onExportMarkdown={onExportMarkdown}
                   onArchive={onArchive}
                   onToggleInProgress={onToggleInProgress}
+                  onToggleTimer={onToggleTimer}
                   onBacklog={onBacklog}
                   onUnbacklog={onUnbacklog}
                   readOnly

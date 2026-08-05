@@ -22,6 +22,8 @@ import {
   restoreTaskFromTrash,
   purgeExpiredTrash,
   emptyTrash,
+  startTaskTimer,
+  stopTaskTimer,
   updateTaskTitle,
   updateTaskDescription,
   updateTaskDueDate,
@@ -544,6 +546,13 @@ export default function App() {
     const idsToUpdate = completed ? [id, ...getDescendantIds(id)] : [id];
     const completedAt = completed ? nowTimestamp() : null;
     for (const taskId of idsToUpdate) {
+      // A timer left running after its task is done would just keep
+      // accumulating meaningless time in the background — fold it into the
+      // total the same way explicitly clicking "Stop" would.
+      if (completed) {
+        const task = tasks.find((t) => t.id === taskId);
+        if (task?.timerStartedAt) await stopTaskTimer(taskId);
+      }
       await setTaskCompleted(taskId, completed, completedAt);
     }
 
@@ -751,6 +760,17 @@ export default function App() {
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
     await updateTaskInProgress(id, !task.inProgress);
+    await reload();
+  }
+
+  async function handleToggleTimer(id: number) {
+    const task = tasks.find((t) => t.id === id);
+    if (!task) return;
+    if (task.timerStartedAt) {
+      await stopTaskTimer(id);
+    } else {
+      await startTaskTimer(id);
+    }
     await reload();
   }
 
@@ -1330,6 +1350,7 @@ export default function App() {
                 onExportMarkdown={handleExportTaskMarkdown}
                 onArchive={handleArchive}
                 onToggleInProgress={handleToggleInProgress}
+                onToggleTimer={handleToggleTimer}
                 onBacklog={handleBacklog}
                 onUnbacklog={handleUnbacklog}
               />
@@ -1788,6 +1809,7 @@ export default function App() {
           onExportMarkdown={handleExportTaskMarkdown}
           onArchive={handleArchive}
           onToggleInProgress={handleToggleInProgress}
+          onToggleTimer={handleToggleTimer}
           onBacklog={handleBacklog}
           onUnbacklog={handleUnbacklog}
         />
@@ -1807,6 +1829,7 @@ export default function App() {
           onExportMarkdown={handleExportTaskMarkdown}
           onArchive={handleArchive}
           onToggleInProgress={handleToggleInProgress}
+          onToggleTimer={handleToggleTimer}
           onBacklog={handleBacklog}
           onUnbacklog={handleUnbacklog}
         />
@@ -1842,6 +1865,7 @@ export default function App() {
           onExportMarkdown={handleExportTaskMarkdown}
           onArchive={handleArchive}
           onToggleInProgress={handleToggleInProgress}
+          onToggleTimer={handleToggleTimer}
           onUnbacklog={handleUnbacklog}
         />
       ) : view === "trash" ? (
@@ -1891,6 +1915,7 @@ export default function App() {
                     onExportMarkdown={handleExportTaskMarkdown}
                     onArchive={handleArchive}
                     onToggleInProgress={handleToggleInProgress}
+                    onToggleTimer={handleToggleTimer}
                     onBacklog={handleBacklog}
                     onUnbacklog={handleUnbacklog}
                   />
@@ -1945,6 +1970,7 @@ export default function App() {
                 onExportMarkdown={handleExportTaskMarkdown}
                 onArchive={handleArchive}
                 onToggleInProgress={handleToggleInProgress}
+                onToggleTimer={handleToggleTimer}
                 onBacklog={handleBacklog}
                 onUnbacklog={handleUnbacklog}
               />

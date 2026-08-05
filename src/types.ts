@@ -114,4 +114,13 @@ export interface Task {
   // Purged for good — hard DELETE — once it's older than the retention
   // window, independent of the separate 5-second delete-Undo toast.
   deletedAt: string | null;
+  // Accumulated time from every past start/stop cycle, not counting
+  // whatever's elapsed on the *current* run if one is active.
+  timeSpentSeconds: number;
+  // A precise ISO timestamp (not the app's usual minute-precision "date
+  // time" strings) for whenever the timer is currently running; null
+  // otherwise. Elapsed time is always computed against real wall-clock time
+  // (Date.now() vs. this timestamp), not app uptime, so it stays correct
+  // across the app being closed and reopened mid-timer.
+  timerStartedAt: string | null;
 }

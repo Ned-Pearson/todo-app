@@ -65,6 +65,8 @@ function rowToTask(
     inProgress: !!row.in_progress,
     backlog: !!row.backlog,
     deletedAt: row.deleted_at,
+    timeSpentSeconds: row.time_spent_seconds,
+    timerStartedAt: row.timer_started_at,
   };
 }
 
@@ -289,6 +291,28 @@ export async function updateTaskInProgress(id: number, inProgress: boolean): Pro
 export async function updateTaskBacklog(id: number, backlog: boolean): Promise<void> {
   const db = await getDb();
   await db.execute("UPDATE tasks SET backlog = ? WHERE id = ?", [backlog ? 1 : 0, id]);
+}
+
+export async function startTaskTimer(id: number): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE tasks SET timer_started_at = ? WHERE id = ?", [new Date().toISOString(), id]);
+}
+
+// Elapsed time is computed in JS (Date.parse against the stored ISO
+// timestamp) rather than with SQLite date functions — sqlx's bundled SQLite
+// version parsing "YYYY-MM-DDTHH:MM:SS.SSSZ" correctly isn't something
+// worth depending on when a plain read-then-write does the same thing more
+// predictably.
+export async function stopTaskTimer(id: number): Promise<void> {
+  const db = await getDb();
+  const rows = await db.select<any[]>("SELECT time_spent_seconds, timer_started_at FROM tasks WHERE id = ?", [id]);
+  const row = rows[0];
+  if (!row?.timer_started_at) return;
+  const elapsedSeconds = Math.max(0, Math.round((Date.now() - Date.parse(row.timer_started_at)) / 1000));
+  await db.execute("UPDATE tasks SET time_spent_seconds = ?, timer_started_at = NULL WHERE id = ?", [
+    row.time_spent_seconds + elapsedSeconds,
+    id,
+  ]);
 }
 
 export async function getAllTags(): Promise<Tag[]> {
