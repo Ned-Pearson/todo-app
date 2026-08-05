@@ -11,6 +11,7 @@ interface Props {
   onSelectTask: (task: Task) => void;
   onAddSubtask: (parentId: number, title: string) => void;
   onRestore: (id: number) => void;
+  onEmptyTrash: () => void;
 }
 
 const UNKNOWN_DATE = "Unknown date";
@@ -31,6 +32,7 @@ export default function TrashView({
   onSelectTask,
   onAddSubtask,
   onRestore,
+  onEmptyTrash,
 }: Props) {
   const byDate = new Map<string, Task[]>();
   for (const t of tasks) {
@@ -65,6 +67,24 @@ export default function TrashView({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <button
+          type="button"
+          onClick={onEmptyTrash}
+          title="Permanently delete everything in Trash right now"
+          style={{
+            padding: "6px 12px",
+            border: "1px solid #c9184a",
+            borderRadius: "var(--radius-sm)",
+            background: "none",
+            color: "#c9184a",
+            fontSize: 13,
+            fontWeight: 500,
+          }}
+        >
+          Empty Trash
+        </button>
+      </div>
       {dates.map((date) => {
         const { topLevel, childrenByParent } = buildTaskTree(byDate.get(date) ?? []);
         return (

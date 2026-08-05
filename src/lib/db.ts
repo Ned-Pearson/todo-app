@@ -223,6 +223,13 @@ export async function restoreTaskFromTrash(id: number): Promise<void> {
   await db.execute("UPDATE tasks SET deleted_at = NULL WHERE id = ?", [id]);
 }
 
+async function deleteTrashedTaskIds(db: Database, ids: number[]): Promise<void> {
+  for (const id of ids) {
+    await db.execute("DELETE FROM task_dependencies WHERE task_id = ? OR depends_on_id = ?", [id, id]);
+    await db.execute("DELETE FROM tasks WHERE id = ?", [id]);
+  }
+}
+
 // Permanently purges anything that's been in Trash longer than
 // `retentionDays` — a plain string comparison against a date-only cutoff
 // works here since deleted_at's "YYYY-MM-DD HH:MM" format sorts the same as
@@ -237,10 +244,23 @@ export async function purgeExpiredTrash(retentionDays: number): Promise<void> {
   const rows = await db.select<any[]>("SELECT id FROM tasks WHERE deleted_at IS NOT NULL AND deleted_at < ?", [
     cutoffStr,
   ]);
-  for (const row of rows) {
-    await db.execute("DELETE FROM task_dependencies WHERE task_id = ? OR depends_on_id = ?", [row.id, row.id]);
-    await db.execute("DELETE FROM tasks WHERE id = ?", [row.id]);
-  }
+  await deleteTrashedTaskIds(
+    db,
+    rows.map((r) => r.id)
+  );
+}
+
+// The "Empty Trash" button's counterpart to purgeExpiredTrash above — same
+// permanent delete, just for everything currently in Trash regardless of
+// how long it's been there, since the user asked for it explicitly rather
+// than waiting out the retention window.
+export async function emptyTrash(): Promise<void> {
+  const db = await getDb();
+  const rows = await db.select<any[]>("SELECT id FROM tasks WHERE deleted_at IS NOT NULL");
+  await deleteTrashedTaskIds(
+    db,
+    rows.map((r) => r.id)
+  );
 }
 
 // Setting/changing/clearing a reminder always resets reminder_notified back

@@ -21,6 +21,7 @@ import {
   moveTaskToTrash,
   restoreTaskFromTrash,
   purgeExpiredTrash,
+  emptyTrash,
   updateTaskTitle,
   updateTaskDescription,
   updateTaskDueDate,
@@ -611,6 +612,19 @@ export default function App() {
     const task = trashedTasks.find((t) => t.id === id);
     if (!window.confirm(`Permanently delete "${task?.title ?? "this task"}"? This can't be undone.`)) return;
     await deleteTask(id);
+    await reload();
+  }
+
+  async function handleEmptyTrash() {
+    if (trashedTasks.length === 0) return;
+    if (
+      !window.confirm(
+        `Permanently delete all ${trashedTasks.length} task(s) in Trash? This can't be undone.`
+      )
+    ) {
+      return;
+    }
+    await emptyTrash();
     await reload();
   }
 
@@ -1839,6 +1853,7 @@ export default function App() {
           onSelectTask={setSelectedTask}
           onAddSubtask={handleAddSubtask}
           onRestore={handleRestoreFromTrash}
+          onEmptyTrash={handleEmptyTrash}
         />
       ) : (
         <>
