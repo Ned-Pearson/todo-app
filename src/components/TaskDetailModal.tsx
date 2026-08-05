@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { convertFileSrc } from "@tauri-apps/api/core";
-import type { Priority, Tag, Task } from "../types";
+import type { CustomTab, Priority, Tag, Task } from "../types";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "../lib/priority";
 import { fileNameFromPath, isImagePath } from "../lib/attachments";
 import {
@@ -39,6 +39,8 @@ interface Props {
   onAddRelatedTask: (relatedTaskId: number) => void;
   onRemoveRelatedTask: (relatedTaskId: number) => void;
   onSelectRelatedTask: (taskId: number) => void;
+  customTabs: CustomTab[];
+  onChangeList: (listId: number | null) => void;
 }
 
 export default function TaskDetailModal({
@@ -56,6 +58,8 @@ export default function TaskDetailModal({
   onAddRelatedTask,
   onRemoveRelatedTask,
   onSelectRelatedTask,
+  customTabs,
+  onChangeList,
 }: Props) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? "");
@@ -701,6 +705,31 @@ export default function TaskDetailModal({
             </div>
           )
         )}
+
+        <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
+          List
+        </label>
+        <select
+          value={task.listId ?? ""}
+          onChange={(e) => onChangeList(e.target.value === "" ? null : Number(e.target.value))}
+          style={{
+            width: "100%",
+            padding: "6px 8px",
+            marginBottom: 16,
+            border: "1px solid var(--color-border)",
+            borderRadius: "var(--radius-sm)",
+            background: "var(--color-surface)",
+            color: "var(--color-text)",
+            fontSize: 13,
+          }}
+        >
+          <option value="">No list</option>
+          {customTabs.map((tab) => (
+            <option key={tab.id} value={tab.id}>
+              {tab.name}
+            </option>
+          ))}
+        </select>
 
         <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
           Tags

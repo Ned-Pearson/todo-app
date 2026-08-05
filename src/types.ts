@@ -41,7 +41,11 @@ export interface SavedView {
 export interface CustomTab {
   id: number;
   name: string;
-  tagId: number;
+  // Legacy — lists used to just be a shortcut for "filter All by this tag."
+  // No longer read for membership (that's tasks.listId now) and no longer
+  // required when creating a list; kept nullable rather than dropped so a
+  // pre-existing tab's old binding isn't silently destroyed.
+  tagId: number | null;
   // Overrides --color-accent/--color-accent-soft while this tab is active,
   // taking precedence over the app-wide custom accent — gives each project
   // tab its own visual identity instead of sharing one global accent.
@@ -85,6 +89,14 @@ export interface RelatedTask {
   completed: boolean;
 }
 
+// Just enough of a task's list to render a badge/title without needing the
+// full CustomTab array on hand at every call site.
+export interface TaskListRef {
+  id: number;
+  name: string;
+  color: string | null;
+}
+
 export interface Task {
   id: number;
   title: string;
@@ -103,6 +115,12 @@ export interface Task {
   pinned: boolean;
   dependsOn: TaskDependency[];
   relatedTasks: RelatedTask[];
+  // Which list this task belongs to, if any — independent of tags entirely
+  // (a task can be in a list without carrying any tag at all). `list` is the
+  // denormalized name/color for display; `listId` alone is what's read/
+  // written for membership.
+  listId: number | null;
+  list: TaskListRef | null;
   archived: boolean;
   // A standalone time-based nudge, independent of dueDate/dueTime — doesn't
   // imply the task is "due", just that a notification should fire at this

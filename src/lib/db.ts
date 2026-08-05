@@ -61,6 +61,8 @@ function rowToTask(
     pinned: !!row.pinned,
     dependsOn,
     relatedTasks,
+    listId: row.list_id,
+    list: row.list_name != null ? { id: row.list_id, name: row.list_name, color: row.list_color } : null,
     archived: !!row.archived,
     reminderAt: row.reminder_at,
     reminderNotified: !!row.reminder_notified,
@@ -102,9 +104,12 @@ const TASKS_WITH_RECURRENCE_SELECT = `
          recurrence_rules.interval AS recurrence_interval,
          recurrence_rules.end_date AS recurrence_end_date,
          recurrence_rules.occurrences_remaining AS recurrence_occurrences_remaining,
-         recurrence_rules.weekdays AS recurrence_weekdays
+         recurrence_rules.weekdays AS recurrence_weekdays,
+         custom_tabs.name AS list_name,
+         custom_tabs.color AS list_color
   FROM tasks
   LEFT JOIN recurrence_rules ON tasks.recurrence_id = recurrence_rules.id
+  LEFT JOIN custom_tabs ON tasks.list_id = custom_tabs.id
 `;
 
 // Shared by getAllTasks/getArchivedTasks: given a set of already-fetched
@@ -358,10 +363,10 @@ export async function deleteTag(id: number): Promise<void> {
   // A saved view referencing this tag still works afterward — it just drops
   // the tag part of its filter combo instead of pointing at a dead id.
   await db.execute("UPDATE saved_views SET tag_id = NULL WHERE tag_id = ?", [id]);
-  // A custom tab has no meaning without its tag (unlike a saved view, which
-  // can drop just the tag part and still apply its other filters), so the
-  // tab itself is removed rather than left pointing at nothing.
-  await db.execute("DELETE FROM custom_tabs WHERE tag_id = ?", [id]);
+  // A list is independent of tags now (its old tag_id binding is legacy —
+  // see CustomTab.tagId), so deleting a tag just drops that binding rather
+  // than taking the list down with it.
+  await db.execute("UPDATE custom_tabs SET tag_id = NULL WHERE tag_id = ?", [id]);
   await db.execute("DELETE FROM tags WHERE id = ?", [id]);
 }
 
@@ -410,13 +415,12 @@ export async function getAllCustomTabs(): Promise<CustomTab[]> {
   return rows.map(rowToCustomTab);
 }
 
-export async function createCustomTab(name: string, tagId: number): Promise<number> {
+export async function createCustomTab(name: string): Promise<number> {
   const db = await getDb();
   const rows = await db.select<any[]>("SELECT MAX(sort_order) AS m FROM custom_tabs");
   const nextSortOrder = (typeof rows[0]?.m === "number" ? rows[0].m : -1) + 1;
-  const result = await db.execute("INSERT INTO custom_tabs (name, tag_id, sort_order) VALUES (?, ?, ?)", [
+  const result = await db.execute("INSERT INTO custom_tabs (name, sort_order) VALUES (?, ?)", [
     name,
-    tagId,
     nextSortOrder,
   ]);
   return result.lastInsertId as number;
@@ -424,6 +428,10 @@ export async function createCustomTab(name: string, tagId: number): Promise<numb
 
 export async function deleteCustomTab(id: number): Promise<void> {
   const db = await getDb();
+  // No FK enforcement in this app (see ARCHITECTURE.md) — a task pointing at
+  // a just-deleted list has to be cleared explicitly or it'd keep a dangling
+  // list_id around.
+  await db.execute("UPDATE tasks SET list_id = NULL WHERE list_id = ?", [id]);
   await db.execute("DELETE FROM custom_tabs WHERE id = ?", [id]);
 }
 
@@ -524,14 +532,25 @@ export async function createTask(
   parentId?: number,
   recurrenceId?: number,
   priority?: Priority,
-  dueTime?: string
-): Promise<void> {
+  dueTime?: string,
+  listId?: number
+): Promise<number> {
   const db = await getDb();
   const sortOrder = await nextSortOrder(db, parentId ?? null);
-  await db.execute(
-    "INSERT INTO tasks (title, due_date, due_time, parent_id, recurrence_id, priority, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)",
-    [title, dueDate || null, dueTime || null, parentId ?? null, recurrenceId ?? null, priority ?? null, sortOrder]
+  const result = await db.execute(
+    "INSERT INTO tasks (title, due_date, due_time, parent_id, recurrence_id, priority, sort_order, list_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    [
+      title,
+      dueDate || null,
+      dueTime || null,
+      parentId ?? null,
+      recurrenceId ?? null,
+      priority ?? null,
+      sortOrder,
+      listId ?? null,
+    ]
   );
+  return result.lastInsertId as number;
 }
 
 // Duplicates a task's own fields (title, description, due date/time,
@@ -548,8 +567,8 @@ async function duplicateTaskRecursive(db: Database, sourceId: number, newParentI
   const rows = await db.select<any[]>("SELECT * FROM tasks WHERE id = ?", [sourceId]);
   const row = rows[0];
   const result = await db.execute(
-    "INSERT INTO tasks (title, description, due_date, due_time, parent_id, priority, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)",
-    [row.title, row.description, row.due_date, row.due_time, newParentId, row.priority, row.sort_order]
+    "INSERT INTO tasks (title, description, due_date, due_time, parent_id, priority, sort_order, list_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    [row.title, row.description, row.due_date, row.due_time, newParentId, row.priority, row.sort_order, row.list_id]
   );
   const newId = result.lastInsertId as number;
 
@@ -663,6 +682,11 @@ export async function updateTaskSortOrder(id: number, sortOrder: number): Promis
 export async function updateTaskParent(id: number, parentId: number | null): Promise<void> {
   const db = await getDb();
   await db.execute("UPDATE tasks SET parent_id = ? WHERE id = ?", [parentId, id]);
+}
+
+export async function updateTaskList(id: number, listId: number | null): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE tasks SET list_id = ? WHERE id = ?", [listId, id]);
 }
 
 export async function updateTaskPriority(id: number, priority: Priority | null): Promise<void> {

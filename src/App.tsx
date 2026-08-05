@@ -56,6 +56,7 @@ import {
   updateTaskInProgress,
   updateTaskParent,
   updateTaskBacklog,
+  updateTaskList,
 } from "./lib/db";
 import TaskDetailModal from "./components/TaskDetailModal";
 import CommandPalette, { type PaletteCommand } from "./components/CommandPalette";
@@ -147,6 +148,7 @@ export default function App() {
   const [showTemplatesPicker, setShowTemplatesPicker] = useState(false);
   const [showAddTabModal, setShowAddTabModal] = useState(false);
   const [activeTagFilter, setActiveTagFilter] = useState<number | null>(null);
+  const [activeListId, setActiveListId] = useState<number | null>(null);
   const [dueDate, setDueDate] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<Priority | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>("manual");
@@ -199,15 +201,12 @@ export default function App() {
     else localStorage.removeItem("accentColor");
   }, [customAccent]);
 
-  // The active custom tab's own color (if it has one) overrides the
-  // app-wide custom accent while that tab is active, using the same "active"
-  // check the tab row itself uses to highlight (view is All and the tag
-  // filter matches, regardless of whether that got set by clicking the tab
-  // or the plain tag filter row). Switching away restores the app-wide
-  // accent (or the theme default) automatically, since effectiveAccent is
-  // just derived state re-evaluated every render.
-  const activeCustomTab = customTabs.find((t) => view === "all" && activeTagFilter === t.tagId);
-  const effectiveAccent = activeCustomTab?.color ?? customAccent;
+  // The active list's own color (if it has one) overrides the app-wide
+  // custom accent while that list is open. Switching away restores the
+  // app-wide accent (or the theme default) automatically, since
+  // effectiveAccent is just derived state re-evaluated every render.
+  const activeList = activeListId != null ? (customTabs.find((t) => t.id === activeListId) ?? null) : null;
+  const effectiveAccent = activeList?.color ?? customAccent;
 
   // Overrides --color-accent/--color-accent-soft as inline styles on the
   // root element, which win over index.css's :root/[data-theme] rules
@@ -519,7 +518,17 @@ export default function App() {
             recurrence.weekdays
           )
         : undefined;
-      await createTask(title, taskDueDate, undefined, recurrenceId, priority ?? undefined, taskDueDate ? dueTime : undefined);
+      // Adding a task while a list is open should land it directly in that
+      // list, not just in the untagged everyday view.
+      await createTask(
+        title,
+        taskDueDate,
+        undefined,
+        recurrenceId,
+        priority ?? undefined,
+        taskDueDate ? dueTime : undefined,
+        activeListId ?? undefined
+      );
       // Today keeps defaulting to today's date, Calendar keeps whatever day is
       // selected — only clear the field when neither has a sensible default
       // to fall back to.
@@ -576,7 +585,15 @@ export default function App() {
         const withinEnd = !task.recurrence.endDate || nextDue <= task.recurrence.endDate;
         const withinCount = task.recurrence.occurrencesLeft == null || task.recurrence.occurrencesLeft > 1;
         if (withinEnd && withinCount) {
-          await createTask(task.title, nextDue, task.parentId ?? undefined, task.recurrence.id);
+          await createTask(
+            task.title,
+            nextDue,
+            task.parentId ?? undefined,
+            task.recurrence.id,
+            undefined,
+            undefined,
+            task.listId ?? undefined
+          );
           await decrementRecurrenceOccurrences(task.recurrence.id);
           await clearTaskRecurrence(task.id);
         }
@@ -736,7 +753,15 @@ export default function App() {
 
   async function handleAddSubtask(parentId: number, title: string) {
     const parent = tasks.find((t) => t.id === parentId);
-    await createTask(title, parent?.dueDate ?? undefined, parentId, undefined, undefined, parent?.dueTime ?? undefined);
+    await createTask(
+      title,
+      parent?.dueDate ?? undefined,
+      parentId,
+      undefined,
+      undefined,
+      parent?.dueTime ?? undefined,
+      parent?.listId ?? undefined
+    );
     await reload();
   }
 
@@ -1123,31 +1148,40 @@ export default function App() {
     await reload();
   }
 
-  // A custom tab is really just a shortcut for "switch to All and filter by
-  // this tag" — clicking one sets exactly that pair of state, and it reads
-  // as "active" whenever those two happen to already match (including via
-  // the ordinary tag filter row), the same way saved views work.
-  async function handleCreateCustomTab(tabName: string, tag: { id: number } | { name: string; color: string }) {
-    const tagId = "id" in tag ? tag.id : await createTag(tag.name, tag.color);
-    await createCustomTab(tabName, tagId);
+  async function handleCreateCustomTab(tabName: string) {
+    const newId = await createCustomTab(tabName);
     setShowAddTabModal(false);
     await reload();
     setView("all");
-    setActiveTagFilter(tagId);
+    setActiveListId(newId);
+    // Entering a list is a fresh, dedicated destination — an invisible
+    // leftover tag/priority filter would silently hide tasks in it with no
+    // visible cue why, since list mode hides the filter chips/banner that'd
+    // normally explain that.
+    setActiveTagFilter(null);
+    setPriorityFilter(null);
   }
 
   function handleSelectCustomTab(tab: CustomTab) {
     setView("all");
-    setActiveTagFilter(tab.tagId);
+    setActiveListId(tab.id);
+    setActiveTagFilter(null);
+    setPriorityFilter(null);
   }
 
   async function handleDeleteCustomTab(id: number) {
     await deleteCustomTab(id);
+    if (activeListId === id) setActiveListId(null);
     await reload();
   }
 
   async function handleUpdateCustomTabColor(id: number, color: string | null) {
     await updateCustomTabColor(id, color);
+    await reload();
+  }
+
+  async function handleChangeTaskList(taskId: number, listId: number | null) {
+    await updateTaskList(taskId, listId);
     await reload();
   }
 
@@ -1193,6 +1227,7 @@ export default function App() {
       const imported = await importFromFile();
       if (imported) {
         setSelectedTask(null);
+        setActiveListId(null);
         await reload();
         window.alert("Backup restored.");
       }
@@ -1223,10 +1258,32 @@ export default function App() {
   // search filters reach both instead of Archive silently showing everything
   // regardless of whatever filter is currently active.
   function filterByTagPriorityAndSearch(list: Task[]): Task[] {
+    // Viewing a list keeps only tasks assigned to it, plus every one of
+    // their descendants (regardless of the descendant's own list) so a
+    // matching task's subtree stays intact — same reasoning as the priority
+    // filter below. A subtask's listId is only ever copied from its parent
+    // at creation time (not live-inherited like tags), so without this a
+    // subtask added before this feature, or dragged in from elsewhere,
+    // would otherwise silently vanish from its own parent's list.
+    const listFiltered = (() => {
+      if (activeListId == null) return list;
+      const visibleIdSet = new Set(list.filter((t) => t.listId === activeListId).map((t) => t.id));
+      function addDescendants(id: number) {
+        for (const t of list) {
+          if (t.parentId === id && !visibleIdSet.has(t.id)) {
+            visibleIdSet.add(t.id);
+            addDescendants(t.id);
+          }
+        }
+      }
+      for (const id of [...visibleIdSet]) addDescendants(id);
+      return list.filter((t) => visibleIdSet.has(t.id));
+    })();
+
     const tagFiltered =
       activeTagFilter == null
-        ? list
-        : list.filter(
+        ? listFiltered
+        : listFiltered.filter(
             (t) =>
               t.tags.some((tag) => tag.id === activeTagFilter) ||
               t.inheritedTags.some((tag) => tag.id === activeTagFilter)
@@ -1341,7 +1398,8 @@ export default function App() {
         view={view}
         setView={setView}
         customTabs={customTabs}
-        activeTagFilter={activeTagFilter}
+        activeListId={activeListId}
+        setActiveListId={setActiveListId}
         handleSelectCustomTab={handleSelectCustomTab}
         colorPickerTabId={colorPickerTabId}
         setColorPickerTabId={setColorPickerTabId}
@@ -1380,10 +1438,10 @@ export default function App() {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-            <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>{VIEW_LABELS[view]}</h1>
+            <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>{activeList ? activeList.name : VIEW_LABELS[view]}</h1>
           </div>
 
-      {(activeTagFilter != null || priorityFilter != null || searchQuery.trim() !== "") && (
+      {activeListId == null && (activeTagFilter != null || priorityFilter != null || searchQuery.trim() !== "") && (
         <div
           style={{
             display: "flex",
@@ -1481,6 +1539,7 @@ export default function App() {
                 task={task}
                 depth={0}
                 childrenByParent={new Map()}
+                activeListId={activeListId}
                 priorityFilter={priorityFilter}
                 onToggle={handleToggle}
                 onDelete={handleDelete}
@@ -1570,33 +1629,35 @@ export default function App() {
         </div>
       )}
 
-      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginBottom: 20 }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted)", marginRight: 2 }}>
-          Filter by priority:
-        </span>
-        {(["high", "medium", "low"] as Priority[]).map((level) => {
-          const active = priorityFilter === level;
-          return (
-            <button
-              key={level}
-              onClick={() => setPriorityFilter(active ? null : level)}
-              style={{
-                fontSize: 12,
-                fontWeight: 500,
-                padding: "4px 10px",
-                borderRadius: 999,
-                border: `1px solid ${PRIORITY_COLORS[level]}`,
-                background: active ? PRIORITY_COLORS[level] : "none",
-                color: active ? "#fff" : PRIORITY_COLORS[level],
-              }}
-            >
-              {PRIORITY_LABELS[level]}
-            </button>
-          );
-        })}
-      </div>
+      {activeListId == null && (
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginBottom: 20 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted)", marginRight: 2 }}>
+            Filter by priority:
+          </span>
+          {(["high", "medium", "low"] as Priority[]).map((level) => {
+            const active = priorityFilter === level;
+            return (
+              <button
+                key={level}
+                onClick={() => setPriorityFilter(active ? null : level)}
+                style={{
+                  fontSize: 12,
+                  fontWeight: 500,
+                  padding: "4px 10px",
+                  borderRadius: 999,
+                  border: `1px solid ${PRIORITY_COLORS[level]}`,
+                  background: active ? PRIORITY_COLORS[level] : "none",
+                  color: active ? "#fff" : PRIORITY_COLORS[level],
+                }}
+              >
+                {PRIORITY_LABELS[level]}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
-      {tags.length > 0 && (
+      {activeListId == null && tags.length > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginBottom: 20 }}>
           {tags.map((tag) => {
             const active = activeTagFilter === tag.id;
@@ -1627,7 +1688,8 @@ export default function App() {
         </div>
       )}
 
-      {(savedViews.length > 0 || activeTagFilter != null || priorityFilter != null || searchQuery.trim() !== "") && (
+      {activeListId == null &&
+        (savedViews.length > 0 || activeTagFilter != null || priorityFilter != null || searchQuery.trim() !== "") && (
         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginBottom: 20 }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted)", marginRight: 2 }}>
             Saved views:
@@ -2112,6 +2174,7 @@ export default function App() {
                     task={task}
                     depth={0}
                     childrenByParent={overdueChildrenByParent}
+                    activeListId={activeListId}
                     priorityFilter={priorityFilter}
                     onToggle={handleToggle}
                     onDelete={handleDelete}
@@ -2167,6 +2230,7 @@ export default function App() {
                 task={task}
                 depth={0}
                 childrenByParent={childrenByParent}
+                activeListId={activeListId}
                 priorityFilter={priorityFilter}
                 onToggle={handleToggle}
                 onDelete={handleDelete}
@@ -2227,6 +2291,7 @@ export default function App() {
                       task={task}
                       depth={0}
                       childrenByParent={childrenByParent}
+                      activeListId={activeListId}
                       priorityFilter={priorityFilter}
                       onToggle={handleToggle}
                       onDelete={handleDelete}
@@ -2266,7 +2331,10 @@ export default function App() {
             ...(Object.keys(VIEW_LABELS) as View[]).map((v) => ({
               id: `view-${v}`,
               label: `Go to ${VIEW_LABELS[v]}`,
-              run: () => setView(v),
+              run: () => {
+                setView(v);
+                setActiveListId(null);
+              },
             })),
             {
               id: "toggle-theme",
@@ -2326,6 +2394,8 @@ export default function App() {
           onAddRelatedTask={(relatedTaskId) => handleAddRelatedTask(selectedTask.id, relatedTaskId)}
           onRemoveRelatedTask={(relatedTaskId) => handleRemoveRelatedTask(selectedTask.id, relatedTaskId)}
           onSelectRelatedTask={handleSelectRelatedTask}
+          customTabs={customTabs}
+          onChangeList={(listId) => handleChangeTaskList(selectedTask.id, listId)}
         />
       )}
 
@@ -2340,11 +2410,7 @@ export default function App() {
       )}
 
       {showAddTabModal && (
-        <AddCustomTabModal
-          tags={tags}
-          onClose={() => setShowAddTabModal(false)}
-          onCreate={handleCreateCustomTab}
-        />
+        <AddCustomTabModal onClose={() => setShowAddTabModal(false)} onCreate={handleCreateCustomTab} />
       )}
 
       {pendingDelete && (

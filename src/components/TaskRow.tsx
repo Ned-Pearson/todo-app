@@ -19,6 +19,10 @@ interface Props {
   depth: number;
   childrenByParent: Map<number, Task[]>;
   priorityFilter: Priority | null;
+  // Which list (if any) is currently open — used only to suppress this
+  // row's own "belongs to list X" badge when it'd be redundant with the
+  // list you're already looking at.
+  activeListId?: number | null;
   onToggle: (id: number, completed: boolean) => void;
   onDelete: (id: number) => void;
   onSelect: (task: Task) => void;
@@ -51,6 +55,7 @@ export default function TaskRow({
   depth,
   childrenByParent,
   priorityFilter,
+  activeListId = null,
   onToggle,
   onDelete,
   onSelect,
@@ -150,6 +155,11 @@ export default function TaskRow({
   }
 
   const hasTags = task.tags.length > 0 || task.inheritedTags.length > 0;
+  // Redundant (and just visual noise) while already looking at this exact
+  // list, so it's suppressed there — still shows for a task from a
+  // *different* list appearing as a promoted descendant, or anywhere else
+  // (All, Today, Calendar, etc.) the row renders.
+  const showListBadge = !!task.list && task.list.id !== activeListId;
   const hasDescription = !!task.description;
   const overdue = isOverdue(task.dueDate, task.dueTime, task.completed);
   const overdueBorder = `3px solid ${overdue ? OVERDUE_COLOR : "transparent"}`;
@@ -174,6 +184,7 @@ export default function TaskRow({
     !!task.recurrence ||
     task.attachments.length > 0 ||
     hasTags ||
+    showListBadge ||
     hasTimeLogged ||
     showTimerControl;
 
@@ -719,6 +730,23 @@ export default function TaskRow({
                 {tag.name}
               </span>
             ))}
+            {showListBadge && task.list && (
+              <span
+                title={`In list: ${task.list.name}`}
+                style={{
+                  fontSize: 11,
+                  fontWeight: 500,
+                  color: task.list.color ?? "var(--color-text-muted)",
+                  background: task.list.color ? hexToRgba(task.list.color, 0.15) : "var(--color-surface-sunken)",
+                  border: `1px solid ${task.list.color ?? "var(--color-border)"}`,
+                  borderRadius: "var(--radius-sm)",
+                  padding: "2px 6px",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                📋 {task.list.name}
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -811,6 +839,7 @@ export default function TaskRow({
             depth={depth + 1}
             childrenByParent={childrenByParent}
             priorityFilter={priorityFilter}
+            activeListId={activeListId}
             onToggle={onToggle}
             onDelete={onDelete}
             onSelect={onSelect}

@@ -7,7 +7,8 @@ interface Props {
   view: View;
   setView: (view: View) => void;
   customTabs: CustomTab[];
-  activeTagFilter: number | null;
+  activeListId: number | null;
+  setActiveListId: (id: number | null) => void;
   handleSelectCustomTab: (tab: CustomTab) => void;
   colorPickerTabId: number | null;
   setColorPickerTabId: (updater: (id: number | null) => number | null) => void;
@@ -59,7 +60,8 @@ export default function Sidebar({
   view,
   setView,
   customTabs,
-  activeTagFilter,
+  activeListId,
+  setActiveListId,
   handleSelectCustomTab,
   colorPickerTabId,
   setColorPickerTabId,
@@ -113,24 +115,30 @@ export default function Sidebar({
       <div style={{ fontSize: 16, fontWeight: 700, margin: "0 8px 16px" }}>Tasks</div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: 16 }}>
-        {ALL_VIEWS.map((v) => (
-          <button
-            key={v}
-            onClick={() => setView(v)}
-            style={{
-              textAlign: "left",
-              padding: "8px 10px",
-              border: "none",
-              borderRadius: "var(--radius-sm)",
-              background: view === v ? "var(--color-accent-soft)" : "none",
-              color: view === v ? "var(--color-accent)" : "var(--color-text-muted)",
-              fontSize: 13,
-              fontWeight: 500,
-            }}
-          >
-            {VIEW_LABELS[v]}
-          </button>
-        ))}
+        {ALL_VIEWS.map((v) => {
+          const active = view === v && activeListId == null;
+          return (
+            <button
+              key={v}
+              onClick={() => {
+                setView(v);
+                setActiveListId(null);
+              }}
+              style={{
+                textAlign: "left",
+                padding: "8px 10px",
+                border: "none",
+                borderRadius: "var(--radius-sm)",
+                background: active ? "var(--color-accent-soft)" : "none",
+                color: active ? "var(--color-accent)" : "var(--color-text-muted)",
+                fontSize: 13,
+                fontWeight: 500,
+              }}
+            >
+              {VIEW_LABELS[v]}
+            </button>
+          );
+        })}
       </div>
 
       <div
@@ -147,7 +155,7 @@ export default function Sidebar({
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: 16 }}>
         {customTabs.map((tab) => {
-          const active = view === "all" && activeTagFilter === tab.tagId;
+          const active = activeListId === tab.id;
           return (
             <div
               key={tab.id}
@@ -261,7 +269,7 @@ export default function Sidebar({
         <button
           type="button"
           onClick={() => setShowAddTabModal(true)}
-          title="Add a custom tab for a project/tag"
+          title="Add a new list"
           style={{
             textAlign: "left",
             padding: "6px 10px",
@@ -273,7 +281,7 @@ export default function Sidebar({
             marginTop: 4,
           }}
         >
-          + Tab
+          + New list
         </button>
       </div>
 

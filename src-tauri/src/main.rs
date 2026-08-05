@@ -170,6 +170,12 @@ fn main() {
             sql: include_str!("../migrations/028_task_related.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 29,
+            description: "add lists (nullable custom_tabs.tag_id, tasks.list_id)",
+            sql: include_str!("../migrations/029_lists.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()
