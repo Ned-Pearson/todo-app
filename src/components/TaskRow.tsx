@@ -155,6 +155,11 @@ export default function TaskRow({
   // with anything that actually carries meaning elsewhere in the row.
   const highlightBg = task.highlightColor ? hexToRgba(task.highlightColor, 0.14) : undefined;
   const hasTimeLogged = task.timeSpentSeconds > 0 || !!task.timerStartedAt;
+  // The start/stop control itself is always shown on an incomplete task (so
+  // there's something to discover it from before any time's been logged);
+  // the read-only badge (no button) still shows on a completed/read-only
+  // row purely to display whatever total was already logged.
+  const showTimerControl = !task.completed && !!onToggleTimer;
   const liveElapsedSeconds = task.timerStartedAt
     ? task.timeSpentSeconds + Math.floor((Date.now() - Date.parse(task.timerStartedAt)) / 1000)
     : task.timeSpentSeconds;
@@ -166,7 +171,8 @@ export default function TaskRow({
     !!task.recurrence ||
     task.attachments.length > 0 ||
     hasTags ||
-    hasTimeLogged;
+    hasTimeLogged ||
+    showTimerControl;
 
   // Runs an action-menu handler and closes the menu, so picking an item
   // doesn't leave a stale popover open behind whatever it triggered.
@@ -568,7 +574,7 @@ export default function TaskRow({
                 {task.dueTime ? ` ${task.dueTime}` : ""}
               </span>
             )}
-            {hasTimeLogged && (
+            {(hasTimeLogged || showTimerControl) && (
               <span
                 style={{
                   display: "flex",
@@ -583,11 +589,11 @@ export default function TaskRow({
                   whiteSpace: "nowrap",
                 }}
               >
-                {!task.completed && onToggleTimer && (
+                {showTimerControl && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      onToggleTimer(task.id);
+                      onToggleTimer?.(task.id);
                     }}
                     title={task.timerStartedAt ? "Stop timer" : "Start timer"}
                     style={{
