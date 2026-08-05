@@ -171,6 +171,8 @@ export default function App() {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [showBulkTagPicker, setShowBulkTagPicker] = useState(false);
+  const [showBulkPostponePicker, setShowBulkPostponePicker] = useState(false);
+  const [bulkPostponeDays, setBulkPostponeDays] = useState("1");
   const [showCompleted, setShowCompleted] = useState(false);
   const [undoStack, setUndoStack] = useState<EditHistoryEntry[]>([]);
   const [redoStack, setRedoStack] = useState<EditHistoryEntry[]>([]);
@@ -661,6 +663,7 @@ export default function App() {
     setSelectMode(false);
     setSelectedIds(new Set());
     setShowBulkTagPicker(false);
+    setShowBulkPostponePicker(false);
   }
 
   function handleToggleSelect(id: number) {
@@ -701,6 +704,24 @@ export default function App() {
     for (const id of selectedIds) {
       await addTagToTask(id, tagId);
     }
+    await reload();
+  }
+
+  // Same eligibility as the single-task Postpone button (has a due date,
+  // isn't recurring — Skip is the recurring equivalent), plus the "overdue"
+  // qualifier the bulk action is specifically for: a selected task that
+  // isn't actually overdue is silently left untouched rather than treated
+  // as an error, since selection in bulk mode isn't itself a promise that
+  // every selected task is eligible for whatever action gets applied next.
+  async function handleBulkPostpone(days: number) {
+    for (const id of selectedIds) {
+      const task = tasks.find((t) => t.id === id);
+      if (!task?.dueDate || task.recurrence) continue;
+      if (!isOverdue(task.dueDate, task.dueTime, task.completed)) continue;
+      const nextDue = addInterval(task.dueDate, "daily", days);
+      await updateTaskDueDate(id, nextDue, task.dueTime ?? "");
+    }
+    exitSelectMode();
     await reload();
   }
 
@@ -1769,6 +1790,76 @@ export default function App() {
                     {tag.name}
                   </button>
                 ))}
+              </div>
+            )}
+          </div>
+          <div style={{ position: "relative" }}>
+            <button
+              type="button"
+              disabled={selectedIds.size === 0}
+              onClick={() => setShowBulkPostponePicker((v) => !v)}
+              title="Push every selected overdue task's due date forward by N days"
+              style={{
+                padding: "6px 10px",
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-sm)",
+                background: "none",
+                color: "var(--color-text)",
+                fontSize: 13,
+                opacity: selectedIds.size === 0 ? 0.5 : 1,
+              }}
+            >
+              Postpone ▾
+            </button>
+            {showBulkPostponePicker && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "calc(100% + 4px)",
+                  left: 0,
+                  zIndex: 30,
+                  minWidth: 220,
+                  padding: 8,
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-sm)",
+                  background: "var(--color-surface)",
+                  boxShadow: "var(--shadow-card)",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                  <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>Postpone overdue by</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={bulkPostponeDays}
+                    onChange={(e) => setBulkPostponeDays(e.target.value)}
+                    style={{
+                      width: 50,
+                      padding: "4px 6px",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: "var(--radius-sm)",
+                      background: "var(--color-surface)",
+                      color: "var(--color-text)",
+                      fontSize: 13,
+                    }}
+                  />
+                  <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>day(s)</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleBulkPostpone(Math.max(1, Number(bulkPostponeDays) || 1))}
+                  style={{
+                    width: "100%",
+                    padding: "6px 10px",
+                    border: "none",
+                    borderRadius: "var(--radius-sm)",
+                    background: "var(--color-accent)",
+                    color: "#fff",
+                    fontSize: 13,
+                  }}
+                >
+                  Apply
+                </button>
               </div>
             )}
           </div>
