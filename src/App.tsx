@@ -162,13 +162,12 @@ export default function App() {
   const [showMoreViews, setShowMoreViews] = useState(false);
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const [customAccent, setCustomAccent] = useState<string | null>(() => localStorage.getItem("accentColor"));
-  const [showAccentPicker, setShowAccentPicker] = useState(false);
   const [colorPickerTabId, setColorPickerTabId] = useState<number | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showConfigMenu, setShowConfigMenu] = useState(false);
   const [notifySnoozeMinutes, setNotifySnoozeMinutes] = useState<number>(getInitialSnoozeMinutes);
   const [weekStartsOn, setWeekStartsOn] = useState<0 | 1>(getInitialWeekStartsOn);
   const [dndEnabled, setDndEnabled] = useState<boolean>(() => localStorage.getItem("notifyDnd") === "true");
-  const [showNotifySettings, setShowNotifySettings] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<{ rootIds: number[]; allIds: number[]; label: string } | null>(
     null
   );
@@ -1420,22 +1419,14 @@ export default function App() {
         setTheme={setTheme}
         customAccent={customAccent}
         setCustomAccent={setCustomAccent}
-        showAccentPicker={showAccentPicker}
-        setShowAccentPicker={setShowAccentPicker}
-        showShortcuts={showShortcuts}
-        setShowShortcuts={setShowShortcuts}
-        canUndo={undoStack.length > 0}
-        canRedo={redoStack.length > 0}
-        handleUndo={handleUndo}
-        handleRedo={handleRedo}
+        showConfigMenu={showConfigMenu}
+        setShowConfigMenu={setShowConfigMenu}
         handleExport={handleExport}
         handleImport={handleImport}
         dndEnabled={dndEnabled}
         setDndEnabled={setDndEnabled}
         notifySnoozeMinutes={notifySnoozeMinutes}
         setNotifySnoozeMinutes={setNotifySnoozeMinutes}
-        showNotifySettings={showNotifySettings}
-        setShowNotifySettings={setShowNotifySettings}
         weekStartsOn={weekStartsOn}
         setWeekStartsOn={setWeekStartsOn}
       />
@@ -1449,6 +1440,122 @@ export default function App() {
         >
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
             <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>{activeList ? activeList.name : VIEW_LABELS[view]}</h1>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div
+                style={{ position: "relative", display: "flex" }}
+                onMouseEnter={() => setShowShortcuts(true)}
+                onMouseLeave={() => setShowShortcuts(false)}
+              >
+                <button
+                  type="button"
+                  style={{
+                    width: 28,
+                    height: 28,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: 0,
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "50%",
+                    background: "var(--color-surface)",
+                    color: "var(--color-text-muted)",
+                    fontSize: 13,
+                  }}
+                >
+                  i
+                </button>
+                {showShortcuts && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "calc(100% + 6px)",
+                      right: 0,
+                      zIndex: 30,
+                      width: 240,
+                      padding: "10px 12px",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: "var(--radius-sm)",
+                      background: "var(--color-surface)",
+                      boxShadow: "var(--shadow-card)",
+                      fontSize: 12,
+                      color: "var(--color-text-muted)",
+                    }}
+                  >
+                    <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 6 }}>Keyboard shortcuts</div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                      <span>n</span>
+                      <span>New task</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                      <span>/</span>
+                      <span>Focus search</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                      <span>↑ / ↓</span>
+                      <span>Move between tasks</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                      <span>Enter</span>
+                      <span>Submit / open task</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                      <span>Esc</span>
+                      <span>Close modal / clear or unfocus search</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                      <span>Ctrl/⌘+Shift+N</span>
+                      <span>New task (global)</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                      <span>Ctrl/⌘+Z</span>
+                      <span>Undo edit</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                      <span>Ctrl/⌘+Shift+Z</span>
+                      <span>Redo edit</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span>Ctrl/⌘+K</span>
+                      <span>Command palette</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={handleUndo}
+                disabled={undoStack.length === 0}
+                title="Undo the last edit (Ctrl/⌘+Z)"
+                style={{
+                  padding: "6px 10px",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-sm)",
+                  background: "var(--color-surface)",
+                  color: "var(--color-text-muted)",
+                  fontSize: 14,
+                  opacity: undoStack.length > 0 ? 1 : 0.4,
+                  cursor: undoStack.length > 0 ? "pointer" : "default",
+                }}
+              >
+                ↶
+              </button>
+              <button
+                onClick={handleRedo}
+                disabled={redoStack.length === 0}
+                title="Redo the last undone edit (Ctrl/⌘+Shift+Z)"
+                style={{
+                  padding: "6px 10px",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-sm)",
+                  background: "var(--color-surface)",
+                  color: "var(--color-text-muted)",
+                  fontSize: 14,
+                  opacity: redoStack.length > 0 ? 1 : 0.4,
+                  cursor: redoStack.length > 0 ? "pointer" : "default",
+                }}
+              >
+                ↷
+              </button>
+            </div>
           </div>
 
       {activeListId == null && (activeTagFilter != null || priorityFilter != null || searchQuery.trim() !== "") && (

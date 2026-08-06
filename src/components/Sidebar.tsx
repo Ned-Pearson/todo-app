@@ -21,22 +21,14 @@ interface Props {
   setTheme: (updater: (t: Theme) => Theme) => void;
   customAccent: string | null;
   setCustomAccent: (color: string | null) => void;
-  showAccentPicker: boolean;
-  setShowAccentPicker: (updater: (v: boolean) => boolean) => void;
-  showShortcuts: boolean;
-  setShowShortcuts: (show: boolean) => void;
-  canUndo: boolean;
-  canRedo: boolean;
-  handleUndo: () => void;
-  handleRedo: () => void;
+  showConfigMenu: boolean;
+  setShowConfigMenu: (updater: (v: boolean) => boolean) => void;
   handleExport: () => void;
   handleImport: () => void;
   dndEnabled: boolean;
   setDndEnabled: (enabled: boolean) => void;
   notifySnoozeMinutes: number;
   setNotifySnoozeMinutes: (minutes: number) => void;
-  showNotifySettings: boolean;
-  setShowNotifySettings: (updater: (v: boolean) => boolean) => void;
   weekStartsOn: 0 | 1;
   setWeekStartsOn: (value: 0 | 1) => void;
 }
@@ -48,9 +40,12 @@ const PRIMARY_VIEWS: View[] = ["all", "today", "this-week", "no-date", "calendar
 const MORE_VIEWS: View[] = ["history", "stats", "archive", "backlog", "trash"];
 
 // The app's left navigation rail — every built-in view plus custom tabs
-// (project-bound tag shortcuts), with the app-wide settings/chrome cluster
-// (previously the header's icon row) pinned to the bottom, same as where
-// account/settings controls sit in Microsoft To Do's sidebar.
+// (project-bound tag shortcuts), with a single "Config ▾" button pinned to
+// the bottom holding everything reached for far less often (export/import,
+// notifications, week-start, theme, accent). Undo/redo and the keyboard-
+// shortcuts info popover live in the main column's header instead — they're
+// used often enough (and relevant to whatever's currently on screen) that
+// burying them behind Config or all the way down here didn't make sense.
 export default function Sidebar({
   view,
   setView,
@@ -69,32 +64,22 @@ export default function Sidebar({
   setTheme,
   customAccent,
   setCustomAccent,
-  showAccentPicker,
-  setShowAccentPicker,
-  showShortcuts,
-  setShowShortcuts,
-  canUndo,
-  canRedo,
-  handleUndo,
-  handleRedo,
+  showConfigMenu,
+  setShowConfigMenu,
   handleExport,
   handleImport,
   dndEnabled,
   setDndEnabled,
   notifySnoozeMinutes,
   setNotifySnoozeMinutes,
-  showNotifySettings,
-  setShowNotifySettings,
   weekStartsOn,
   setWeekStartsOn,
 }: Props) {
   const colorPickerRef = useRef<HTMLDivElement>(null);
-  const notifySettingsRef = useRef<HTMLDivElement>(null);
-  const accentPickerRef = useRef<HTMLDivElement>(null);
+  const configMenuRef = useRef<HTMLDivElement>(null);
   const moreViewsRef = useRef<HTMLDivElement>(null);
   useClickOutside(colorPickerRef, colorPickerTabId !== null, () => setColorPickerTabId(() => null));
-  useClickOutside(notifySettingsRef, showNotifySettings, () => setShowNotifySettings(() => false));
-  useClickOutside(accentPickerRef, showAccentPicker, () => setShowAccentPicker(() => false));
+  useClickOutside(configMenuRef, showConfigMenu, () => setShowConfigMenu(() => false));
   useClickOutside(moreViewsRef, showMoreViews, () => setShowMoreViews(() => false));
 
   return (
@@ -353,36 +338,32 @@ export default function Sidebar({
         </button>
       </div>
 
-      <div style={{ marginTop: "auto", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, padding: "0 8px" }}>
-        <div
-          style={{ position: "relative", display: "flex" }}
-          onMouseEnter={() => setShowShortcuts(true)}
-          onMouseLeave={() => setShowShortcuts(false)}
-        >
+      <div style={{ marginTop: "auto", padding: "0 8px" }}>
+        <div ref={configMenuRef} style={{ position: "relative" }}>
           <button
             type="button"
+            onClick={() => setShowConfigMenu((v) => !v)}
             style={{
-              width: 28,
-              height: 28,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: 0,
+              width: "100%",
+              textAlign: "left",
+              padding: "8px 10px",
               border: "1px solid var(--color-border)",
-              borderRadius: "50%",
-              background: "var(--color-surface)",
-              color: "var(--color-text-muted)",
+              borderRadius: "var(--radius-sm)",
+              background: showConfigMenu ? "var(--color-accent-soft)" : "var(--color-surface)",
+              color: showConfigMenu ? "var(--color-accent)" : "var(--color-text-muted)",
               fontSize: 13,
+              fontWeight: 500,
             }}
           >
-            i
+            Config ▾
           </button>
-          {showShortcuts && (
+          {showConfigMenu && (
             <div
               style={{
                 position: "absolute",
                 bottom: "calc(100% + 6px)",
                 left: 0,
+                right: 0,
                 zIndex: 30,
                 width: 240,
                 padding: "10px 12px",
@@ -394,146 +375,39 @@ export default function Sidebar({
                 color: "var(--color-text-muted)",
               }}
             >
-              <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 6 }}>Keyboard shortcuts</div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                <span>n</span>
-                <span>New task</span>
+              <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                <button
+                  onClick={handleExport}
+                  title="Export a backup of everything to a JSON file"
+                  style={{
+                    flex: 1,
+                    padding: "6px 10px",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "var(--radius-sm)",
+                    background: "var(--color-surface)",
+                    color: "var(--color-text-muted)",
+                    fontSize: 13,
+                  }}
+                >
+                  Export
+                </button>
+                <button
+                  onClick={handleImport}
+                  title="Restore from a backup JSON file (replaces everything currently in the app)"
+                  style={{
+                    flex: 1,
+                    padding: "6px 10px",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "var(--radius-sm)",
+                    background: "var(--color-surface)",
+                    color: "var(--color-text-muted)",
+                    fontSize: 13,
+                  }}
+                >
+                  Import
+                </button>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                <span>/</span>
-                <span>Focus search</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                <span>↑ / ↓</span>
-                <span>Move between tasks</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                <span>Enter</span>
-                <span>Submit / open task</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                <span>Esc</span>
-                <span>Close modal / clear or unfocus search</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                <span>Ctrl/⌘+Shift+N</span>
-                <span>New task (global)</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                <span>Ctrl/⌘+Z</span>
-                <span>Undo edit</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                <span>Ctrl/⌘+Shift+Z</span>
-                <span>Redo edit</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Ctrl/⌘+K</span>
-                <span>Command palette</span>
-              </div>
-            </div>
-          )}
-        </div>
-        <button
-          onClick={handleUndo}
-          disabled={!canUndo}
-          title="Undo the last edit (Ctrl/⌘+Z)"
-          style={{
-            padding: "6px 10px",
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--radius-sm)",
-            background: "var(--color-surface)",
-            color: "var(--color-text-muted)",
-            fontSize: 14,
-            opacity: canUndo ? 1 : 0.4,
-            cursor: canUndo ? "pointer" : "default",
-          }}
-        >
-          ↶
-        </button>
-        <button
-          onClick={handleRedo}
-          disabled={!canRedo}
-          title="Redo the last undone edit (Ctrl/⌘+Shift+Z)"
-          style={{
-            padding: "6px 10px",
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--radius-sm)",
-            background: "var(--color-surface)",
-            color: "var(--color-text-muted)",
-            fontSize: 14,
-            opacity: canRedo ? 1 : 0.4,
-            cursor: canRedo ? "pointer" : "default",
-          }}
-        >
-          ↷
-        </button>
-        <button
-          onClick={handleExport}
-          title="Export a backup of everything to a JSON file"
-          style={{
-            padding: "6px 10px",
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--radius-sm)",
-            background: "var(--color-surface)",
-            color: "var(--color-text-muted)",
-            fontSize: 13,
-          }}
-        >
-          Export
-        </button>
-        <button
-          onClick={handleImport}
-          title="Restore from a backup JSON file (replaces everything currently in the app)"
-          style={{
-            padding: "6px 10px",
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--radius-sm)",
-            background: "var(--color-surface)",
-            color: "var(--color-text-muted)",
-            fontSize: 13,
-          }}
-        >
-          Import
-        </button>
-        <div ref={notifySettingsRef} style={{ position: "relative", display: "flex" }}>
-          <button
-            type="button"
-            onClick={() => setShowNotifySettings((v) => !v)}
-            title={dndEnabled ? "Notifications paused (Do Not Disturb)" : "Overdue notification settings"}
-            style={{
-              width: 28,
-              height: 28,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: 0,
-              border: "1px solid var(--color-border)",
-              borderRadius: "50%",
-              background: "var(--color-surface)",
-              color: "var(--color-text-muted)",
-              fontSize: 13,
-            }}
-          >
-            {dndEnabled ? "🔕" : "🔔"}
-          </button>
-          {showNotifySettings && (
-            <div
-              style={{
-                position: "absolute",
-                bottom: "calc(100% + 6px)",
-                left: 0,
-                zIndex: 30,
-                width: 200,
-                padding: "10px 12px",
-                border: "1px solid var(--color-border)",
-                borderRadius: "var(--radius-sm)",
-                background: "var(--color-surface)",
-                boxShadow: "var(--shadow-card)",
-                fontSize: 12,
-                color: "var(--color-text-muted)",
-              }}
-            >
+
               <label
                 style={{
                   display: "flex",
@@ -553,7 +427,7 @@ export default function Sidebar({
                 />
                 Do Not Disturb
               </label>
-              <div style={{ opacity: dndEnabled ? 0.5 : 1 }}>
+              <div style={{ opacity: dndEnabled ? 0.5 : 1, marginBottom: 12 }}>
                 <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 6 }}>
                   Remind me again every
                 </div>
@@ -581,83 +455,46 @@ export default function Sidebar({
                   for as long as a task stays overdue
                 </div>
               </div>
-            </div>
-          )}
-        </div>
-        <select
-          value={weekStartsOn}
-          onChange={(e) => setWeekStartsOn(Number(e.target.value) === 1 ? 1 : 0)}
-          title="Week starts on — affects This Week and Calendar"
-          style={{
-            padding: "6px 8px",
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--radius-sm)",
-            background: "var(--color-surface)",
-            color: "var(--color-text-muted)",
-            fontSize: 13,
-          }}
-        >
-          <option value={0}>Sun</option>
-          <option value={1}>Mon</option>
-        </select>
-        <button
-          onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
-          title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
-          style={{
-            padding: "6px 10px",
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--radius-sm)",
-            background: "var(--color-surface)",
-            color: "var(--color-text-muted)",
-            fontSize: 14,
-          }}
-        >
-          {theme === "light" ? "🌙" : "☀️"}
-        </button>
-        <div ref={accentPickerRef} style={{ position: "relative", display: "flex" }}>
-          <button
-            type="button"
-            onClick={() => setShowAccentPicker((v) => !v)}
-            title="Custom accent color"
-            style={{
-              width: 28,
-              height: 28,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: 0,
-              border: "1px solid var(--color-border)",
-              borderRadius: "50%",
-              background: "var(--color-surface)",
-            }}
-          >
-            <span
-              style={{
-                width: 14,
-                height: 14,
-                borderRadius: "50%",
-                background: "var(--color-accent)",
-                display: "block",
-              }}
-            />
-          </button>
-          {showAccentPicker && (
-            <div
-              style={{
-                position: "absolute",
-                bottom: "calc(100% + 6px)",
-                left: 0,
-                zIndex: 30,
-                width: 180,
-                padding: "10px 12px",
-                border: "1px solid var(--color-border)",
-                borderRadius: "var(--radius-sm)",
-                background: "var(--color-surface)",
-                boxShadow: "var(--shadow-card)",
-                fontSize: 12,
-                color: "var(--color-text-muted)",
-              }}
-            >
+
+              <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 6 }}>Week starts on</div>
+              <select
+                value={weekStartsOn}
+                onChange={(e) => setWeekStartsOn(Number(e.target.value) === 1 ? 1 : 0)}
+                title="Week starts on — affects This Week and Calendar"
+                style={{
+                  width: "100%",
+                  marginBottom: 12,
+                  padding: "6px 8px",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-sm)",
+                  background: "var(--color-surface)",
+                  color: "var(--color-text-muted)",
+                  fontSize: 13,
+                }}
+              >
+                <option value={0}>Sun</option>
+                <option value={1}>Mon</option>
+              </select>
+
+              <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 6 }}>Theme</div>
+              <button
+                onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
+                title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+                style={{
+                  width: "100%",
+                  marginBottom: 12,
+                  padding: "6px 10px",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-sm)",
+                  background: "var(--color-surface)",
+                  color: "var(--color-text-muted)",
+                  fontSize: 13,
+                  textAlign: "left",
+                }}
+              >
+                {theme === "light" ? "🌙 Switch to dark" : "☀️ Switch to light"}
+              </button>
+
               <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 6 }}>Accent color</div>
               <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: customAccent ? 6 : 0 }}>
                 <input
@@ -679,7 +516,7 @@ export default function Sidebar({
                 <button
                   type="button"
                   onClick={() => setCustomAccent(null)}
-                  style={{ border: "none", background: "none", color: "var(--color-accent)", fontSize: 12 }}
+                  style={{ border: "none", background: "none", color: "var(--color-accent)", fontSize: 12, padding: 0 }}
                 >
                   Reset to theme default
                 </button>
