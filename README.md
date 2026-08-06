@@ -3,8 +3,16 @@
 Tauri + React + TypeScript + SQLite
 
 TODO:
-
-
+- Drag-to-reorder lists in the sidebar
+- Configurable Trash retention (currently hardcoded to 30 days)
+- Export a whole list as Markdown (currently only single-task export exists)
+- List icons (an emoji picker per list, alongside the existing color dot)
+- Per-list/per-tag stats breakdown (Stats is currently app-wide only)
+- Recurring reminders (reminders are currently one-shot, unlike due dates)
+- Time estimate vs. actual time spent per task
+- A "My Day"-style dashboard combining Pinned + Overdue + Today + a stats glance
+- Accessibility pass (ARIA/screen-reader review across popovers, drag-and-drop, keyboard nav)
+- Scheduled/automatic export (currently fully manual)
 
 ## Project structure~
 
