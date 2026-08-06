@@ -23,6 +23,12 @@ interface Props {
   // row's own "belongs to list X" badge when it'd be redundant with the
   // list you're already looking at.
   activeListId?: number | null;
+  // Bumping `version` applies `collapsed` to every row (and, via the
+  // recursive child render below, every nested row too) — the "Expand all"/
+  // "Collapse all" buttons' mechanism. A row's own caret toggle keeps
+  // working independently afterward, since this just seeds the same local
+  // `collapsed` state rather than replacing it with something lifted up.
+  collapseSignal?: { collapsed: boolean; version: number } | null;
   onToggle: (id: number, completed: boolean) => void;
   onDelete: (id: number) => void;
   onSelect: (task: Task) => void;
@@ -57,6 +63,7 @@ export default function TaskRow({
   childrenByParent,
   priorityFilter,
   activeListId = null,
+  collapseSignal,
   onToggle,
   onDelete,
   onSelect,
@@ -138,6 +145,12 @@ export default function TaskRow({
   const [collapsed, setCollapsed] = useState(
     () => !!priorityFilter && hasChildren && !children.every((c) => c.priority === priorityFilter)
   );
+  // Keyed on the signal's version specifically (not its `collapsed` value),
+  // so two consecutive "Collapse all" clicks each still re-apply — the value
+  // alone wouldn't change between them, so the effect wouldn't re-run.
+  useEffect(() => {
+    if (collapseSignal && hasChildren) setCollapsed(collapseSignal.collapsed);
+  }, [collapseSignal?.version]);
 
   function submitSubtask() {
     const trimmed = subtaskTitle.trim();
@@ -885,6 +898,7 @@ export default function TaskRow({
             childrenByParent={childrenByParent}
             priorityFilter={priorityFilter}
             activeListId={activeListId}
+            collapseSignal={collapseSignal}
             onToggle={onToggle}
             onDelete={onDelete}
             onSelect={onSelect}

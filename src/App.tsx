@@ -172,6 +172,7 @@ export default function App() {
   const [dueDate, setDueDate] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<Priority | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>("manual");
+  const [collapseSignal, setCollapseSignal] = useState<{ collapsed: boolean; version: number } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -1158,6 +1159,17 @@ export default function App() {
     setSearchQuery("");
   }
 
+  // Bumping the version (rather than just toggling `collapsed`) is what
+  // makes two consecutive clicks of the *same* button both take effect —
+  // see the matching effect in TaskRow.tsx.
+  function handleExpandAll() {
+    setCollapseSignal((prev) => ({ collapsed: false, version: (prev?.version ?? 0) + 1 }));
+  }
+
+  function handleCollapseAll() {
+    setCollapseSignal((prev) => ({ collapsed: true, version: (prev?.version ?? 0) + 1 }));
+  }
+
   // A saved view is just a shortcut for the tag/priority/search combo — it
   // doesn't touch which view (All/Today/Calendar/etc.) is currently open, so
   // "show me high-priority Work tasks" applies whether you're checking Today
@@ -1735,6 +1747,7 @@ export default function App() {
                 depth={0}
                 childrenByParent={new Map()}
                 activeListId={activeListId}
+                collapseSignal={collapseSignal}
                 priorityFilter={priorityFilter}
                 onToggle={handleToggle}
                 onDelete={handleDelete}
@@ -1822,6 +1835,22 @@ export default function App() {
               </option>
             ))}
           </select>
+          <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
+            <button
+              type="button"
+              onClick={handleExpandAll}
+              style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 12 }}
+            >
+              Expand all
+            </button>
+            <button
+              type="button"
+              onClick={handleCollapseAll}
+              style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 12 }}
+            >
+              Collapse all
+            </button>
+          </div>
         </div>
       )}
 
@@ -2374,6 +2403,7 @@ export default function App() {
                     depth={0}
                     childrenByParent={overdueChildrenByParent}
                     activeListId={activeListId}
+                    collapseSignal={collapseSignal}
                     priorityFilter={priorityFilter}
                     onToggle={handleToggle}
                     onDelete={handleDelete}
@@ -2431,6 +2461,7 @@ export default function App() {
                 depth={0}
                 childrenByParent={childrenByParent}
                 activeListId={activeListId}
+                collapseSignal={collapseSignal}
                 priorityFilter={priorityFilter}
                 onToggle={handleToggle}
                 onDelete={handleDelete}
@@ -2493,6 +2524,7 @@ export default function App() {
                       depth={0}
                       childrenByParent={childrenByParent}
                       activeListId={activeListId}
+                      collapseSignal={collapseSignal}
                       priorityFilter={priorityFilter}
                       onToggle={handleToggle}
                       onDelete={handleDelete}
