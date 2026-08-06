@@ -15,6 +15,7 @@ interface Props {
   onClose: () => void;
   onAdd: (
     title: string,
+    description: string,
     dueDate: string,
     dueTime: string,
     priority: Priority | null,
@@ -24,6 +25,7 @@ interface Props {
 
 export default function AddTaskModal({ defaultDueDate, onClose, onAdd }: Props) {
   const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState(defaultDueDate);
   const [dueTime, setDueTime] = useState("");
   const [priority, setPriority] = useState<Priority | null>(null);
@@ -74,7 +76,7 @@ export default function AddTaskModal({ defaultDueDate, onClose, onAdd }: Props) 
       const finalTitle = strippedTitle || trimmed;
       const finalDueDate = detected ? detected.date : dueDate;
       const finalDueTime = detected?.time && !dueTime ? detected.time : dueTime;
-      await onAdd(finalTitle, finalDueDate, finalDueTime, priority, buildRecurrenceInput());
+      await onAdd(finalTitle, description, finalDueDate, finalDueTime, priority, buildRecurrenceInput());
     } finally {
       setSaving(false);
     }
@@ -132,6 +134,25 @@ export default function AddTaskModal({ defaultDueDate, onClose, onAdd }: Props) 
             {detectedDate.timeMatch ? ` ${detectedDate.timeMatch}` : ""}"
           </div>
         )}
+
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Description… (optional)"
+          rows={2}
+          style={{
+            width: "100%",
+            marginBottom: 16,
+            padding: "6px 8px",
+            border: "1px solid var(--color-border)",
+            borderRadius: "var(--radius-sm)",
+            background: "var(--color-surface)",
+            color: "var(--color-text)",
+            fontSize: 13,
+            fontFamily: "inherit",
+            resize: "vertical",
+          }}
+        />
 
         <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
           Due date

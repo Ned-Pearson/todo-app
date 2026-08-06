@@ -570,14 +570,16 @@ export async function createTask(
   recurrenceId?: number,
   priority?: Priority,
   dueTime?: string,
-  listId?: number
+  listId?: number,
+  description?: string
 ): Promise<number> {
   const db = await getDb();
   const sortOrder = await nextSortOrder(db, parentId ?? null);
   const result = await db.execute(
-    "INSERT INTO tasks (title, due_date, due_time, parent_id, recurrence_id, priority, sort_order, list_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO tasks (title, description, due_date, due_time, parent_id, recurrence_id, priority, sort_order, list_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
     [
       title,
+      description || null,
       dueDate || null,
       dueTime || null,
       parentId ?? null,

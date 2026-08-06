@@ -533,6 +533,7 @@ export default function App() {
 
   async function handleAddTask(
     title: string,
+    description: string,
     taskDueDate: string,
     dueTime: string,
     priority: Priority | null,
@@ -557,7 +558,8 @@ export default function App() {
         recurrenceId,
         priority ?? undefined,
         taskDueDate ? dueTime : undefined,
-        activeListId ?? undefined
+        activeListId ?? undefined,
+        description
       );
       // A list's default tag (distinct from list membership itself) applies
       // the same way — only to new tasks added while that list is open, not
