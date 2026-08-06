@@ -159,6 +159,7 @@ export default function App() {
   const [showManageTags, setShowManageTags] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [view, setView] = useState<View>("all");
+  const [showMoreViews, setShowMoreViews] = useState(false);
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const [customAccent, setCustomAccent] = useState<string | null>(() => localStorage.getItem("accentColor"));
   const [showAccentPicker, setShowAccentPicker] = useState(false);
@@ -1404,6 +1405,8 @@ export default function App() {
       <Sidebar
         view={view}
         setView={setView}
+        showMoreViews={showMoreViews}
+        setShowMoreViews={setShowMoreViews}
         customTabs={customTabs}
         activeListId={activeListId}
         setActiveListId={setActiveListId}

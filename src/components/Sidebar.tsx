@@ -6,6 +6,8 @@ import { useClickOutside } from "../lib/useClickOutside";
 interface Props {
   view: View;
   setView: (view: View) => void;
+  showMoreViews: boolean;
+  setShowMoreViews: (updater: (v: boolean) => boolean) => void;
   customTabs: CustomTab[];
   activeListId: number | null;
   setActiveListId: (id: number | null) => void;
@@ -39,18 +41,11 @@ interface Props {
   setWeekStartsOn: (value: 0 | 1) => void;
 }
 
-const ALL_VIEWS: View[] = [
-  "all",
-  "today",
-  "this-week",
-  "no-date",
-  "calendar",
-  "history",
-  "stats",
-  "archive",
-  "backlog",
-  "trash",
-];
+// Kept as top-level sidebar buttons — the views reached for constantly.
+const PRIMARY_VIEWS: View[] = ["all", "today", "this-week", "no-date", "calendar"];
+// Reviewed/housekeeping views, reached for far less often — tucked behind a
+// "More" dropdown instead of permanently taking up sidebar space.
+const MORE_VIEWS: View[] = ["history", "stats", "archive", "backlog", "trash"];
 
 // The app's left navigation rail — every built-in view plus custom tabs
 // (project-bound tag shortcuts), with the app-wide settings/chrome cluster
@@ -59,6 +54,8 @@ const ALL_VIEWS: View[] = [
 export default function Sidebar({
   view,
   setView,
+  showMoreViews,
+  setShowMoreViews,
   customTabs,
   activeListId,
   setActiveListId,
@@ -94,9 +91,11 @@ export default function Sidebar({
   const colorPickerRef = useRef<HTMLDivElement>(null);
   const notifySettingsRef = useRef<HTMLDivElement>(null);
   const accentPickerRef = useRef<HTMLDivElement>(null);
+  const moreViewsRef = useRef<HTMLDivElement>(null);
   useClickOutside(colorPickerRef, colorPickerTabId !== null, () => setColorPickerTabId(() => null));
   useClickOutside(notifySettingsRef, showNotifySettings, () => setShowNotifySettings(() => false));
   useClickOutside(accentPickerRef, showAccentPicker, () => setShowAccentPicker(() => false));
+  useClickOutside(moreViewsRef, showMoreViews, () => setShowMoreViews(() => false));
 
   return (
     <div
@@ -114,8 +113,8 @@ export default function Sidebar({
     >
       <div style={{ fontSize: 16, fontWeight: 700, margin: "0 8px 16px" }}>Tasks</div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: 16 }}>
-        {ALL_VIEWS.map((v) => {
+      <div style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: 4 }}>
+        {PRIMARY_VIEWS.map((v) => {
           const active = view === v && activeListId == null;
           return (
             <button
@@ -139,6 +138,75 @@ export default function Sidebar({
             </button>
           );
         })}
+      </div>
+
+      <div ref={moreViewsRef} style={{ position: "relative", marginBottom: 16 }}>
+        {(() => {
+          const moreActive = MORE_VIEWS.includes(view) && activeListId == null;
+          return (
+            <button
+              type="button"
+              onClick={() => setShowMoreViews((v) => !v)}
+              style={{
+                width: "100%",
+                textAlign: "left",
+                padding: "8px 10px",
+                border: "none",
+                borderRadius: "var(--radius-sm)",
+                background: moreActive ? "var(--color-accent-soft)" : "none",
+                color: moreActive ? "var(--color-accent)" : "var(--color-text-muted)",
+                fontSize: 13,
+                fontWeight: 500,
+              }}
+            >
+              {moreActive ? VIEW_LABELS[view] : "More"} ▾
+            </button>
+          );
+        })()}
+        {showMoreViews && (
+          <div
+            style={{
+              position: "absolute",
+              top: "calc(100% + 4px)",
+              left: 0,
+              right: 0,
+              zIndex: 30,
+              padding: 4,
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              background: "var(--color-surface)",
+              boxShadow: "var(--shadow-card)",
+            }}
+          >
+            {MORE_VIEWS.map((v) => {
+              const active = view === v && activeListId == null;
+              return (
+                <button
+                  key={v}
+                  onClick={() => {
+                    setView(v);
+                    setActiveListId(null);
+                    setShowMoreViews(() => false);
+                  }}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "6px 8px",
+                    border: "none",
+                    borderRadius: "var(--radius-sm)",
+                    background: active ? "var(--color-accent-soft)" : "none",
+                    color: active ? "var(--color-accent)" : "var(--color-text-muted)",
+                    fontSize: 13,
+                    fontWeight: 500,
+                  }}
+                >
+                  {VIEW_LABELS[v]}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div
