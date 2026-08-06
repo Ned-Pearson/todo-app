@@ -31,7 +31,7 @@ interface Props {
   showCompletedDate?: boolean;
   showDeletedDate?: boolean;
   deleteLabel?: string;
-  onReorder?: (draggedId: number, targetId: number) => void;
+  onReorder?: (draggedId: number, targetId: number, position: "before" | "after") => void;
   selectable?: boolean;
   selectedIds?: Set<number>;
   onToggleSelect?: (id: number) => void;
@@ -96,7 +96,12 @@ export default function TaskRow({
     const interval = setInterval(() => forceTick((n) => n + 1), 1000);
     return () => clearInterval(interval);
   }, [task.timerStartedAt]);
-  const [dragOver, setDragOver] = useState(false);
+  // Which half of this row the dragged item is currently hovering over —
+  // "before" inserts above it (top half), "after" inserts below it (bottom
+  // half), so dropping on the bottom half of the last row is the only way
+  // to land at the very end of a sibling group (splice-inserting "before" a
+  // target can never place something after the last item in the list).
+  const [dragOverPosition, setDragOverPosition] = useState<"before" | "after" | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   useClickOutside(menuRef, menuOpen, () => setMenuOpen(false));
@@ -221,18 +226,21 @@ export default function TaskRow({
             ? (e) => {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = "move";
-                setDragOver(true);
+                const rect = e.currentTarget.getBoundingClientRect();
+                const isAfter = e.clientY > rect.top + rect.height / 2;
+                setDragOverPosition(isAfter ? "after" : "before");
               }
             : undefined
         }
-        onDragLeave={onReorder ? () => setDragOver(false) : undefined}
+        onDragLeave={onReorder ? () => setDragOverPosition(null) : undefined}
         onDrop={
           onReorder
             ? (e) => {
                 e.preventDefault();
-                setDragOver(false);
+                const position = dragOverPosition ?? "before";
+                setDragOverPosition(null);
                 const draggedId = Number(e.dataTransfer.getData("text/plain"));
-                if (!Number.isNaN(draggedId)) onReorder(draggedId, task.id);
+                if (!Number.isNaN(draggedId)) onReorder(draggedId, task.id, position);
               }
             : undefined
         }
@@ -242,9 +250,14 @@ export default function TaskRow({
           gap: 4,
           padding: hasDescription ? "10px 14px 4px" : "10px 14px",
           paddingLeft: 14 + depth * 24,
-          borderBottom: hasDescription ? "none" : "1px solid var(--color-border)",
+          borderBottom:
+            dragOverPosition === "after"
+              ? "2px solid var(--color-accent)"
+              : hasDescription
+                ? "none"
+                : "1px solid var(--color-border)",
           borderLeft: overdueBorder,
-          borderTop: dragOver ? "2px solid var(--color-accent)" : "2px solid transparent",
+          borderTop: dragOverPosition === "before" ? "2px solid var(--color-accent)" : "2px solid transparent",
           background: highlightBg,
           cursor: "pointer",
         }}

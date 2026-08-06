@@ -895,7 +895,7 @@ export default function App() {
   // is how a subtask gets promoted to top-level, since a top-level task's
   // parentId is already null. Dropping onto anything inside the dragged
   // task's own subtree is rejected — that would make it its own ancestor.
-  async function handleReorder(draggedId: number, targetId: number) {
+  async function handleReorder(draggedId: number, targetId: number, position: "before" | "after" = "before") {
     if (draggedId === targetId) return;
     const dragged = tasks.find((t) => t.id === draggedId);
     const target = tasks.find((t) => t.id === targetId);
@@ -907,13 +907,13 @@ export default function App() {
       const siblings = tasks.filter((t) => t.parentId === dragged.parentId);
       const reordered = siblings.filter((t) => t.id !== draggedId);
       const targetIndex = reordered.findIndex((t) => t.id === targetId);
-      reordered.splice(targetIndex, 0, dragged);
+      reordered.splice(position === "after" ? targetIndex + 1 : targetIndex, 0, dragged);
       await Promise.all(reordered.map((t, i) => updateTaskSortOrder(t.id, i)));
     } else {
       const oldSiblings = tasks.filter((t) => t.parentId === dragged.parentId && t.id !== draggedId);
       const newSiblings = tasks.filter((t) => t.parentId === newParentId && t.id !== draggedId);
       const targetIndex = newSiblings.findIndex((t) => t.id === targetId);
-      newSiblings.splice(targetIndex, 0, dragged);
+      newSiblings.splice(position === "after" ? targetIndex + 1 : targetIndex, 0, dragged);
 
       await updateTaskParent(draggedId, newParentId);
       await Promise.all([
