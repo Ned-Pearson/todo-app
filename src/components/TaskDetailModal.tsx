@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { convertFileSrc } from "@tauri-apps/api/core";
@@ -14,6 +14,7 @@ import {
 } from "../lib/recurrence";
 import { pickUnusedColor } from "../lib/tagColor";
 import { renderMarkdown } from "../lib/markdown";
+import { useClickOutside } from "../lib/useClickOutside";
 
 interface Props {
   task: Task;
@@ -148,6 +149,15 @@ export default function TaskDetailModal({
     }
   }
 
+  // Escape (handled globally in App.tsx) discards whatever's been typed and
+  // just closes, same as it always has — nothing here is written until Save
+  // runs. Clicking outside the panel instead behaves like clicking Save
+  // itself: same title-required guard, same batched onSave call, so the two
+  // dismissal gestures stay meaningfully different (cancel vs. commit)
+  // instead of both silently discarding.
+  const panelRef = useRef<HTMLDivElement>(null);
+  useClickOutside(panelRef, true, handleSave);
+
   async function handleBrowseAttachments() {
     const selected = await open({ multiple: true });
     if (!selected) return;
@@ -175,6 +185,7 @@ export default function TaskDetailModal({
 
   return (
     <div
+      ref={panelRef}
       className="detail-panel"
       style={{
         position: "fixed",

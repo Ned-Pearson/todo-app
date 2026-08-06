@@ -2485,7 +2485,14 @@ export default function App() {
           task={selectedTask}
           allTags={tags}
           allTasks={tasks}
-          onClose={() => setSelectedTask(null)}
+          // A functional updater rather than a bare `setSelectedTask(null)`:
+          // this modal's own outside-click handler saves-then-closes
+          // asynchronously, so by the time it resolves the user may have
+          // already clicked a *different* task open (a new instance of this
+          // component, with its own onClose closing over that task instead).
+          // Comparing against the id this closure was created for stops a
+          // slow save from clobbering whatever's actually selected by then.
+          onClose={() => setSelectedTask((prev) => (prev?.id === selectedTask.id ? null : prev))}
           onSave={(title, description, dueDate, dueTime, priority, recurrence, reminderAt, highlightColor) => {
             const id = selectedTask.id;
             const before = toEditSnapshot(selectedTask);
