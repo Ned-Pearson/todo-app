@@ -13,9 +13,6 @@
   --radius-sm: 6px;
   --radius-md: 10px;
   --shadow-card: 0 1px 2px rgba(28, 30, 27, 0.04), 0 1px 1px rgba(28, 30, 27, 0.03);
-
-  --sidebar-width: 260px;
-  --panel-width: 380px;
 }
 
 [data-theme="dark"] {
@@ -41,6 +38,13 @@ body,
 #root {
   height: 100%;
   margin: 0;
+  /* A safety net, not the intended scroll mechanism — the main column
+     handles its own vertical scrolling internally (overflowY: auto below),
+     and every panel width is clamped to a sane minimum. This just stops an
+     extreme case (an aggressively narrowed window) from putting scrollbars
+     on the whole document instead of clipping, since fixed-position
+     elements (the detail panel, popovers) aren't affected by it either way. */
+  overflow: hidden;
 }
 
 body {

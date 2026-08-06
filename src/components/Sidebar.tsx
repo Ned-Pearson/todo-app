@@ -1,13 +1,25 @@
 import { useEffect, useRef, useState } from "react";
 import type { CustomTab } from "../types";
-import { type View, VIEW_LABELS, type Theme, DEFAULT_ACCENT, SNOOZE_OPTIONS_MINUTES, SNOOZE_LABELS } from "../lib/appConstants";
+import {
+  type View,
+  VIEW_LABELS,
+  type Theme,
+  DEFAULT_ACCENT,
+  SNOOZE_OPTIONS_MINUTES,
+  SNOOZE_LABELS,
+  SIDEBAR_WIDTH_MIN,
+  SIDEBAR_WIDTH_MAX,
+} from "../lib/appConstants";
 import { useClickOutside } from "../lib/useClickOutside";
+import { startResize } from "../lib/resize";
 
 interface Props {
   view: View;
   setView: (view: View) => void;
   showMoreViews: boolean;
   setShowMoreViews: (updater: (v: boolean) => boolean) => void;
+  width: number;
+  setWidth: (width: number) => void;
   customTabs: CustomTab[];
   activeListId: number | null;
   setActiveListId: (id: number | null) => void;
@@ -40,6 +52,12 @@ const PRIMARY_VIEWS: View[] = ["all", "today", "this-week", "no-date", "calendar
 // "More" dropdown instead of permanently taking up sidebar space.
 const MORE_VIEWS: View[] = ["history", "stats", "archive", "backlog", "trash"];
 
+const LIST_MENU_WIDTH = 220;
+// A generous estimate (color row + reset button + description textarea),
+// used only to keep a right-click-opened panel from running off the bottom
+// of the window — doesn't need to match the real rendered height exactly.
+const LIST_MENU_HEIGHT_ESTIMATE = 280;
+
 // The app's left navigation rail — every built-in view plus custom tabs
 // (project-bound tag shortcuts), with a single "Config ▾" button pinned to
 // the bottom holding everything reached for far less often (export/import,
@@ -52,6 +70,8 @@ export default function Sidebar({
   setView,
   showMoreViews,
   setShowMoreViews,
+  width,
+  setWidth,
   customTabs,
   activeListId,
   setActiveListId,
@@ -117,7 +137,8 @@ export default function Sidebar({
   return (
     <div
       style={{
-        width: "var(--sidebar-width)",
+        position: "relative",
+        width,
         flexShrink: 0,
         display: "flex",
         flexDirection: "column",
@@ -128,6 +149,19 @@ export default function Sidebar({
         overflowY: "auto",
       }}
     >
+      <div
+        onMouseDown={(e) => startResize(e, width, setWidth, { min: SIDEBAR_WIDTH_MIN, max: SIDEBAR_WIDTH_MAX, direction: "grow-right" })}
+        title="Drag to resize"
+        style={{
+          position: "absolute",
+          top: 0,
+          right: -3,
+          bottom: 0,
+          width: 6,
+          cursor: "col-resize",
+          zIndex: 5,
+        }}
+      />
       <div style={{ fontSize: 16, fontWeight: 700, margin: "0 8px 16px" }}>Tasks</div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: 4 }}>
@@ -247,7 +281,14 @@ export default function Sidebar({
               onContextMenu={(e) => {
                 e.preventDefault();
                 commitDescriptionDraft();
-                setListMenuPos({ x: e.clientX, y: e.clientY });
+                // Clamped against the window, not just the sidebar — a
+                // right-click near the bottom of a tall Lists section could
+                // otherwise open a panel that runs off the bottom of the
+                // screen just as easily as off the right edge.
+                setListMenuPos({
+                  x: Math.min(e.clientX, window.innerWidth - LIST_MENU_WIDTH - 8),
+                  y: Math.min(e.clientY, window.innerHeight - LIST_MENU_HEIGHT_ESTIMATE - 8),
+                });
                 setColorPickerTabId(() => tab.id);
               }}
               style={{
@@ -300,9 +341,16 @@ export default function Sidebar({
                     style={{
                       position: listMenuPos ? "fixed" : "absolute",
                       top: listMenuPos ? listMenuPos.y : "calc(100% + 6px)",
-                      left: listMenuPos ? listMenuPos.x : 0,
+                      left: listMenuPos ? listMenuPos.x : undefined,
+                      // Anchored to the wrapper's *right* edge (extending
+                      // leftward) rather than its left edge when opened via
+                      // the color dot — that button sits near the right end
+                      // of a narrow sidebar, so a fixed-width panel opening
+                      // further rightward from there would spill out of the
+                      // sidebar and over the main column.
+                      right: listMenuPos ? undefined : 0,
                       zIndex: 30,
-                      width: 220,
+                      width: LIST_MENU_WIDTH,
                       padding: "10px 12px",
                       border: "1px solid var(--color-border)",
                       borderRadius: "var(--radius-sm)",

@@ -39,3 +39,15 @@ export const SNOOZE_LABELS: Record<number, string> = {
   120: "2 hours",
   240: "4 hours",
 };
+
+// The Config dropdown (see Sidebar.tsx) is a fixed 240px wide, inset 20px
+// from the sidebar's left edge (12px root padding + 8px wrapper padding) —
+// so it needs at least 260px of sidebar to avoid touching the right edge at
+// all, and 280px to have the same 20px of breathing room on both sides.
+export const SIDEBAR_WIDTH_DEFAULT = 280;
+export const SIDEBAR_WIDTH_MIN = 200;
+export const SIDEBAR_WIDTH_MAX = 500;
+
+export const PANEL_WIDTH_DEFAULT = 380;
+export const PANEL_WIDTH_MIN = 300;
+export const PANEL_WIDTH_MAX = 700;

@@ -15,9 +15,13 @@ import {
 import { pickUnusedColor } from "../lib/tagColor";
 import { renderMarkdown } from "../lib/markdown";
 import { useClickOutside } from "../lib/useClickOutside";
+import { startResize } from "../lib/resize";
+import { PANEL_WIDTH_MIN, PANEL_WIDTH_MAX } from "../lib/appConstants";
 
 interface Props {
   task: Task;
+  width: number;
+  setWidth: (width: number) => void;
   allTags: Tag[];
   allTasks: Task[];
   onClose: () => void;
@@ -46,6 +50,8 @@ interface Props {
 
 export default function TaskDetailModal({
   task,
+  width,
+  setWidth,
   allTags,
   allTasks,
   onClose,
@@ -192,7 +198,7 @@ export default function TaskDetailModal({
         top: 0,
         right: 0,
         bottom: 0,
-        width: "var(--panel-width)",
+        width,
         background: "var(--color-surface)",
         borderLeft: "1px solid var(--color-border)",
         boxShadow: "var(--shadow-card)",
@@ -201,6 +207,19 @@ export default function TaskDetailModal({
         zIndex: 10,
       }}
     >
+      <div
+        onMouseDown={(e) => startResize(e, width, setWidth, { min: PANEL_WIDTH_MIN, max: PANEL_WIDTH_MAX, direction: "grow-left" })}
+        title="Drag to resize"
+        style={{
+          position: "absolute",
+          top: 0,
+          left: -3,
+          bottom: 0,
+          width: 6,
+          cursor: "col-resize",
+          zIndex: 5,
+        }}
+      />
       <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 12 }}>
         <input
           autoFocus

@@ -79,6 +79,12 @@ import {
   VIEW_LABELS,
   type Theme,
   SNOOZE_OPTIONS_MINUTES,
+  SIDEBAR_WIDTH_DEFAULT,
+  SIDEBAR_WIDTH_MIN,
+  SIDEBAR_WIDTH_MAX,
+  PANEL_WIDTH_DEFAULT,
+  PANEL_WIDTH_MIN,
+  PANEL_WIDTH_MAX,
 } from "./lib/appConstants";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "./lib/priority";
 import { buildTaskTree } from "./lib/tree";
@@ -139,6 +145,16 @@ function getInitialWeekStartsOn(): 0 | 1 {
   return localStorage.getItem("weekStartsOn") === "1" ? 1 : 0;
 }
 
+function getInitialSidebarWidth(): number {
+  const stored = Number(localStorage.getItem("sidebarWidth"));
+  return stored >= SIDEBAR_WIDTH_MIN && stored <= SIDEBAR_WIDTH_MAX ? stored : SIDEBAR_WIDTH_DEFAULT;
+}
+
+function getInitialPanelWidth(): number {
+  const stored = Number(localStorage.getItem("panelWidth"));
+  return stored >= PANEL_WIDTH_MIN && stored <= PANEL_WIDTH_MAX ? stored : PANEL_WIDTH_DEFAULT;
+}
+
 export default function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [archivedTasks, setArchivedTasks] = useState<Task[]>([]);
@@ -168,6 +184,8 @@ export default function App() {
   const [showConfigMenu, setShowConfigMenu] = useState(false);
   const [notifySnoozeMinutes, setNotifySnoozeMinutes] = useState<number>(getInitialSnoozeMinutes);
   const [weekStartsOn, setWeekStartsOn] = useState<0 | 1>(getInitialWeekStartsOn);
+  const [sidebarWidth, setSidebarWidth] = useState<number>(getInitialSidebarWidth);
+  const [panelWidth, setPanelWidth] = useState<number>(getInitialPanelWidth);
   const [dndEnabled, setDndEnabled] = useState<boolean>(() => localStorage.getItem("notifyDnd") === "true");
   const [pendingDelete, setPendingDelete] = useState<{ rootIds: number[]; allIds: number[]; label: string } | null>(
     null
@@ -233,6 +251,14 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("weekStartsOn", String(weekStartsOn));
   }, [weekStartsOn]);
+
+  useEffect(() => {
+    localStorage.setItem("sidebarWidth", String(sidebarWidth));
+  }, [sidebarWidth]);
+
+  useEffect(() => {
+    localStorage.setItem("panelWidth", String(panelWidth));
+  }, [panelWidth]);
 
   useEffect(() => {
     localStorage.setItem("notifyDnd", String(dndEnabled));
@@ -1412,6 +1438,8 @@ export default function App() {
         setView={setView}
         showMoreViews={showMoreViews}
         setShowMoreViews={setShowMoreViews}
+        width={sidebarWidth}
+        setWidth={setSidebarWidth}
         customTabs={customTabs}
         activeListId={activeListId}
         setActiveListId={setActiveListId}
@@ -1437,7 +1465,21 @@ export default function App() {
         weekStartsOn={weekStartsOn}
         setWeekStartsOn={setWeekStartsOn}
       />
-      <div style={{ flex: "1 1 0", overflowY: "auto", minWidth: 0 }}>
+      <div
+        style={{
+          flex: "1 1 0",
+          overflowY: "auto",
+          overflowX: "hidden",
+          minWidth: 0,
+          // Reserves room for the detail panel (fixed-positioned, so it
+          // wouldn't otherwise affect this flex item's own size) so it can
+          // never end up covering a task row underneath it — same reason
+          // the sidebar never covers anything, just achieved differently
+          // since that one's a normal flex sibling instead of a fixed panel.
+          marginRight: selectedTask ? panelWidth : 0,
+          transition: "margin-right 0.18s ease-out",
+        }}
+      >
         <div
           style={{
             maxWidth: view === "calendar" || view === "stats" ? 880 : 560,
@@ -2505,6 +2547,8 @@ export default function App() {
           // task's id instead.
           key={selectedTask.id}
           task={selectedTask}
+          width={panelWidth}
+          setWidth={setPanelWidth}
           allTags={tags}
           allTasks={tasks}
           // A functional updater rather than a bare `setSelectedTask(null)`:
