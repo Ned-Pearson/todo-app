@@ -23,6 +23,7 @@ interface Props {
   onArchive: (id: number) => void;
   onToggleInProgress: (id: number) => void;
   onToggleTimer: (id: number) => void;
+  onResetTimer: (id: number) => void;
   onBacklog: (id: number) => void;
   onUnbacklog: (id: number) => void;
 }
@@ -69,6 +70,7 @@ export default function CalendarView({
   onArchive,
   onToggleInProgress,
   onToggleTimer,
+  onResetTimer,
   onBacklog,
   onUnbacklog,
   weekStartsOn,
@@ -316,6 +318,7 @@ export default function CalendarView({
             onArchive={onArchive}
             onToggleInProgress={onToggleInProgress}
             onToggleTimer={onToggleTimer}
+            onResetTimer={onResetTimer}
             onBacklog={onBacklog}
             onUnbacklog={onUnbacklog}
           />

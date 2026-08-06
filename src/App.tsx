@@ -24,6 +24,7 @@ import {
   emptyTrash,
   startTaskTimer,
   stopTaskTimer,
+  resetTaskTimer,
   updateTaskTitle,
   updateTaskDescription,
   updateTaskDueDate,
@@ -835,6 +836,12 @@ export default function App() {
     await reload();
   }
 
+  async function handleResetTimer(id: number) {
+    if (!window.confirm("Reset this task's logged time back to 0:00? This can't be undone.")) return;
+    await resetTaskTimer(id);
+    await reload();
+  }
+
   async function handleArchive(id: number) {
     await updateTaskArchived(id, true);
     await reload();
@@ -1554,6 +1561,7 @@ export default function App() {
                 onArchive={handleArchive}
                 onToggleInProgress={handleToggleInProgress}
                 onToggleTimer={handleToggleTimer}
+                onResetTimer={handleResetTimer}
                 onBacklog={handleBacklog}
                 onUnbacklog={handleUnbacklog}
               />
@@ -2086,6 +2094,7 @@ export default function App() {
           onArchive={handleArchive}
           onToggleInProgress={handleToggleInProgress}
           onToggleTimer={handleToggleTimer}
+          onResetTimer={handleResetTimer}
           onBacklog={handleBacklog}
           onUnbacklog={handleUnbacklog}
         />
@@ -2106,6 +2115,7 @@ export default function App() {
           onArchive={handleArchive}
           onToggleInProgress={handleToggleInProgress}
           onToggleTimer={handleToggleTimer}
+          onResetTimer={handleResetTimer}
           onBacklog={handleBacklog}
           onUnbacklog={handleUnbacklog}
         />
@@ -2142,6 +2152,7 @@ export default function App() {
           onArchive={handleArchive}
           onToggleInProgress={handleToggleInProgress}
           onToggleTimer={handleToggleTimer}
+          onResetTimer={handleResetTimer}
           onUnbacklog={handleUnbacklog}
         />
       ) : view === "trash" ? (
@@ -2193,6 +2204,7 @@ export default function App() {
                     onArchive={handleArchive}
                     onToggleInProgress={handleToggleInProgress}
                     onToggleTimer={handleToggleTimer}
+                    onResetTimer={handleResetTimer}
                     onBacklog={handleBacklog}
                     onUnbacklog={handleUnbacklog}
                   />
@@ -2249,6 +2261,7 @@ export default function App() {
                 onArchive={handleArchive}
                 onToggleInProgress={handleToggleInProgress}
                 onToggleTimer={handleToggleTimer}
+                onResetTimer={handleResetTimer}
                 onBacklog={handleBacklog}
                 onUnbacklog={handleUnbacklog}
               />

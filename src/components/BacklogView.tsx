@@ -18,6 +18,7 @@ interface Props {
   onArchive: (id: number) => void;
   onToggleInProgress: (id: number) => void;
   onToggleTimer: (id: number) => void;
+  onResetTimer: (id: number) => void;
   onUnbacklog: (id: number) => void;
 }
 
@@ -43,6 +44,7 @@ export default function BacklogView({
   onArchive,
   onToggleInProgress,
   onToggleTimer,
+  onResetTimer,
   onUnbacklog,
 }: Props) {
   const { topLevel, childrenByParent } = buildTaskTree(tasks);
@@ -94,6 +96,7 @@ export default function BacklogView({
           onArchive={onArchive}
           onToggleInProgress={onToggleInProgress}
           onToggleTimer={onToggleTimer}
+          onResetTimer={onResetTimer}
           onUnbacklog={onUnbacklog}
         />
       ))}

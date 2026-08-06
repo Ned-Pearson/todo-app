@@ -346,6 +346,14 @@ export async function stopTaskTimer(id: number): Promise<void> {
   ]);
 }
 
+// A full reset, not just zeroing the accumulated total — if a run happens to
+// be in progress when this is called, it's discarded rather than folded in
+// first, since "reset" means back to a clean slate, not "stop and then zero."
+export async function resetTaskTimer(id: number): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE tasks SET time_spent_seconds = 0, timer_started_at = NULL WHERE id = ?", [id]);
+}
+
 export async function getAllTags(): Promise<Tag[]> {
   const db = await getDb();
   return db.select<Tag[]>("SELECT * FROM tags ORDER BY name");

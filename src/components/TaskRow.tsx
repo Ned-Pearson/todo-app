@@ -48,6 +48,7 @@ interface Props {
   onUnbacklog?: (id: number) => void;
   onRestore?: (id: number) => void;
   onToggleTimer?: (id: number) => void;
+  onResetTimer?: (id: number) => void;
 }
 
 export default function TaskRow({
@@ -81,6 +82,7 @@ export default function TaskRow({
   onUnbacklog,
   onRestore,
   onToggleTimer,
+  onResetTimer,
 }: Props) {
   const selected = selectable && (selectedIds?.has(task.id) ?? false);
   const [addingSubtask, setAddingSubtask] = useState(false);
@@ -545,6 +547,15 @@ export default function TaskRow({
                     style={menuItemStyle}
                   >
                     Unarchive
+                  </button>
+                )}
+                {hasTimeLogged && onResetTimer && (
+                  <button
+                    onClick={() => runMenuAction(onResetTimer)}
+                    title="Reset this task's logged time back to 0:00"
+                    style={menuItemStyle}
+                  >
+                    Reset timer
                   </button>
                 )}
                 <button
