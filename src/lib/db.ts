@@ -373,8 +373,9 @@ export async function deleteTag(id: number): Promise<void> {
   await db.execute("UPDATE saved_views SET tag_id = NULL WHERE tag_id = ?", [id]);
   // A list is independent of tags now (its old tag_id binding is legacy —
   // see CustomTab.tagId), so deleting a tag just drops that binding rather
-  // than taking the list down with it.
+  // than taking the list down with it. Same for a list's default tag.
   await db.execute("UPDATE custom_tabs SET tag_id = NULL WHERE tag_id = ?", [id]);
+  await db.execute("UPDATE custom_tabs SET default_tag_id = NULL WHERE default_tag_id = ?", [id]);
   await db.execute("DELETE FROM tags WHERE id = ?", [id]);
 }
 
@@ -414,7 +415,14 @@ export async function deleteSavedView(id: number): Promise<void> {
 }
 
 function rowToCustomTab(row: any): CustomTab {
-  return { id: row.id, name: row.name, tagId: row.tag_id, color: row.color, description: row.description };
+  return {
+    id: row.id,
+    name: row.name,
+    tagId: row.tag_id,
+    color: row.color,
+    description: row.description,
+    defaultTagId: row.default_tag_id,
+  };
 }
 
 export async function getAllCustomTabs(): Promise<CustomTab[]> {
@@ -451,6 +459,22 @@ export async function updateCustomTabColor(id: number, color: string | null): Pr
 export async function updateCustomTabDescription(id: number, description: string | null): Promise<void> {
   const db = await getDb();
   await db.execute("UPDATE custom_tabs SET description = ? WHERE id = ?", [description, id]);
+}
+
+export async function updateCustomTabDefaultTag(id: number, tagId: number | null): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE custom_tabs SET default_tag_id = ? WHERE id = ?", [tagId, id]);
+}
+
+// The on-demand counterpart to a list's default tag only auto-applying to
+// *new* tasks going forward — this is what actually re-tags whatever's
+// already sitting in the list.
+export async function applyTagToAllTasksInList(listId: number, tagId: number): Promise<void> {
+  const db = await getDb();
+  await db.execute("INSERT OR IGNORE INTO task_tags (task_id, tag_id) SELECT id, ? FROM tasks WHERE list_id = ?", [
+    tagId,
+    listId,
+  ]);
 }
 
 export async function updateTagName(id: number, name: string): Promise<void> {

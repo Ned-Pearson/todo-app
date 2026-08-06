@@ -42,6 +42,8 @@ import {
   deleteCustomTab,
   updateCustomTabColor,
   updateCustomTabDescription,
+  updateCustomTabDefaultTag,
+  applyTagToAllTasksInList,
   getAllTaskTemplates,
   saveTaskAsTemplate,
   createTaskFromTemplate,
@@ -548,7 +550,7 @@ export default function App() {
         : undefined;
       // Adding a task while a list is open should land it directly in that
       // list, not just in the untagged everyday view.
-      await createTask(
+      const newTaskId = await createTask(
         title,
         taskDueDate,
         undefined,
@@ -557,6 +559,12 @@ export default function App() {
         taskDueDate ? dueTime : undefined,
         activeListId ?? undefined
       );
+      // A list's default tag (distinct from list membership itself) applies
+      // the same way — only to new tasks added while that list is open, not
+      // retroactively; that's what the explicit "apply to all" action is for.
+      if (activeList?.defaultTagId != null) {
+        await addTagToTask(newTaskId, activeList.defaultTagId);
+      }
       // Today keeps defaulting to today's date, Calendar keeps whatever day is
       // selected — only clear the field when neither has a sensible default
       // to fall back to.
@@ -1219,6 +1227,16 @@ export default function App() {
     await reload();
   }
 
+  async function handleUpdateCustomTabDefaultTag(id: number, tagId: number | null) {
+    await updateCustomTabDefaultTag(id, tagId);
+    await reload();
+  }
+
+  async function handleApplyTagToAllTasksInList(listId: number, tagId: number) {
+    await applyTagToAllTasksInList(listId, tagId);
+    await reload();
+  }
+
   async function handleChangeTaskList(taskId: number, listId: number | null) {
     await updateTaskList(taskId, listId);
     await reload();
@@ -1448,6 +1466,9 @@ export default function App() {
         setColorPickerTabId={setColorPickerTabId}
         handleUpdateCustomTabColor={handleUpdateCustomTabColor}
         handleUpdateCustomTabDescription={handleUpdateCustomTabDescription}
+        handleUpdateCustomTabDefaultTag={handleUpdateCustomTabDefaultTag}
+        handleApplyTagToAllTasksInList={handleApplyTagToAllTasksInList}
+        tags={tags}
         handleDeleteCustomTab={handleDeleteCustomTab}
         setShowAddTabModal={setShowAddTabModal}
         theme={theme}

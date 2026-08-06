@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { CustomTab } from "../types";
+import type { CustomTab, Tag } from "../types";
 import {
   type View,
   VIEW_LABELS,
@@ -28,6 +28,9 @@ interface Props {
   setColorPickerTabId: (updater: (id: number | null) => number | null) => void;
   handleUpdateCustomTabColor: (id: number, color: string | null) => void;
   handleUpdateCustomTabDescription: (id: number, description: string | null) => void;
+  handleUpdateCustomTabDefaultTag: (id: number, tagId: number | null) => void;
+  handleApplyTagToAllTasksInList: (listId: number, tagId: number) => void;
+  tags: Tag[];
   handleDeleteCustomTab: (id: number) => void;
   setShowAddTabModal: (show: boolean) => void;
   theme: Theme;
@@ -80,6 +83,9 @@ export default function Sidebar({
   setColorPickerTabId,
   handleUpdateCustomTabColor,
   handleUpdateCustomTabDescription,
+  handleUpdateCustomTabDefaultTag,
+  handleApplyTagToAllTasksInList,
+  tags,
   handleDeleteCustomTab,
   setShowAddTabModal,
   theme,
@@ -407,6 +413,43 @@ export default function Sidebar({
                         resize: "vertical",
                       }}
                     />
+
+                    <div style={{ fontWeight: 600, color: "var(--color-text)", marginTop: 12, marginBottom: 6 }}>
+                      Default tag
+                    </div>
+                    <select
+                      value={tab.defaultTagId ?? ""}
+                      onChange={(e) =>
+                        handleUpdateCustomTabDefaultTag(tab.id, e.target.value === "" ? null : Number(e.target.value))
+                      }
+                      style={{
+                        width: "100%",
+                        marginBottom: 6,
+                        padding: "6px 8px",
+                        border: "1px solid var(--color-border)",
+                        borderRadius: "var(--radius-sm)",
+                        background: "var(--color-surface)",
+                        color: "var(--color-text)",
+                        fontSize: 12,
+                      }}
+                    >
+                      <option value="">No default tag</option>
+                      {tags.map((tag) => (
+                        <option key={tag.id} value={tag.id}>
+                          {tag.name}
+                        </option>
+                      ))}
+                    </select>
+                    {tab.defaultTagId != null && (
+                      <button
+                        type="button"
+                        onClick={() => handleApplyTagToAllTasksInList(tab.id, tab.defaultTagId as number)}
+                        title="Tag every task currently in this list with the default tag — new tasks get it automatically already"
+                        style={{ border: "none", background: "none", color: "var(--color-accent)", fontSize: 12, padding: 0 }}
+                      >
+                        Apply to all tasks in this list
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

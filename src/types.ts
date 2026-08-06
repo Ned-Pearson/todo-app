@@ -53,6 +53,10 @@ export interface CustomTab {
   // General free-text info about the list itself (what it's for, conventions
   // to follow, etc.) — independent of any task in it.
   description: string | null;
+  // Applied automatically to a new task added while this list is open, and
+  // available to bulk-apply to every task already in it — distinct from the
+  // legacy `tagId` above, which never meant this and is never read anymore.
+  defaultTagId: number | null;
 }
 
 // The stored blueprint for a task template — a static tree (title/priority/

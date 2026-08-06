@@ -182,6 +182,12 @@ fn main() {
             sql: include_str!("../migrations/030_list_description.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 31,
+            description: "add custom_tabs.default_tag_id",
+            sql: include_str!("../migrations/031_list_default_tag.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()
