@@ -202,6 +202,15 @@ export default function TaskRow({
       <div
         onClick={() => (selectable ? onToggleSelect?.(task.id) : onSelect(task))}
         onKeyDown={(e) => {
+          // Shift+Enter for "add a subtask" pairs with plain Enter already
+          // meaning "open this row" — same key, held differently, for a
+          // related-but-distinct action on whichever row currently has
+          // keyboard focus (via ↑/↓ row navigation).
+          if (e.key === "Enter" && e.shiftKey) {
+            e.preventDefault();
+            setAddingSubtask(true);
+            return;
+          }
           if (e.key === "Enter") (selectable ? onToggleSelect?.(task.id) : onSelect(task));
         }}
         tabIndex={0}
