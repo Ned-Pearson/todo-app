@@ -50,6 +50,9 @@ export interface CustomTab {
   // taking precedence over the app-wide custom accent — gives each project
   // tab its own visual identity instead of sharing one global accent.
   color: string | null;
+  // General free-text info about the list itself (what it's for, conventions
+  // to follow, etc.) — independent of any task in it.
+  description: string | null;
 }
 
 // The stored blueprint for a task template — a static tree (title/priority/

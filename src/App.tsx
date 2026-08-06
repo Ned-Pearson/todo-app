@@ -41,6 +41,7 @@ import {
   createCustomTab,
   deleteCustomTab,
   updateCustomTabColor,
+  updateCustomTabDescription,
   getAllTaskTemplates,
   saveTaskAsTemplate,
   createTaskFromTemplate,
@@ -1187,6 +1188,11 @@ export default function App() {
     await reload();
   }
 
+  async function handleUpdateCustomTabDescription(id: number, description: string | null) {
+    await updateCustomTabDescription(id, description);
+    await reload();
+  }
+
   async function handleChangeTaskList(taskId: number, listId: number | null) {
     await updateTaskList(taskId, listId);
     await reload();
@@ -1413,6 +1419,7 @@ export default function App() {
         colorPickerTabId={colorPickerTabId}
         setColorPickerTabId={setColorPickerTabId}
         handleUpdateCustomTabColor={handleUpdateCustomTabColor}
+        handleUpdateCustomTabDescription={handleUpdateCustomTabDescription}
         handleDeleteCustomTab={handleDeleteCustomTab}
         setShowAddTabModal={setShowAddTabModal}
         theme={theme}
@@ -1557,6 +1564,12 @@ export default function App() {
               </button>
             </div>
           </div>
+
+      {activeList?.description && (
+        <div style={{ fontSize: 13, color: "var(--color-text-muted)", marginTop: -12, marginBottom: 20 }}>
+          {activeList.description}
+        </div>
+      )}
 
       {activeListId == null && (activeTagFilter != null || priorityFilter != null || searchQuery.trim() !== "") && (
         <div

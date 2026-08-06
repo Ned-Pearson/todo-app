@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CustomTab } from "../types";
 import { type View, VIEW_LABELS, type Theme, DEFAULT_ACCENT, SNOOZE_OPTIONS_MINUTES, SNOOZE_LABELS } from "../lib/appConstants";
 import { useClickOutside } from "../lib/useClickOutside";
@@ -15,6 +15,7 @@ interface Props {
   colorPickerTabId: number | null;
   setColorPickerTabId: (updater: (id: number | null) => number | null) => void;
   handleUpdateCustomTabColor: (id: number, color: string | null) => void;
+  handleUpdateCustomTabDescription: (id: number, description: string | null) => void;
   handleDeleteCustomTab: (id: number) => void;
   setShowAddTabModal: (show: boolean) => void;
   theme: Theme;
@@ -58,6 +59,7 @@ export default function Sidebar({
   colorPickerTabId,
   setColorPickerTabId,
   handleUpdateCustomTabColor,
+  handleUpdateCustomTabDescription,
   handleDeleteCustomTab,
   setShowAddTabModal,
   theme,
@@ -81,6 +83,17 @@ export default function Sidebar({
   useClickOutside(colorPickerRef, colorPickerTabId !== null, () => setColorPickerTabId(() => null));
   useClickOutside(configMenuRef, showConfigMenu, () => setShowConfigMenu(() => false));
   useClickOutside(moreViewsRef, showMoreViews, () => setShowMoreViews(() => false));
+
+  // A local draft rather than writing to the DB on every keystroke (unlike
+  // the color input, which only fires onChange once a pick is finalized) —
+  // committed on blur instead. Resyncs whenever a different tab's popover
+  // opens, since only one can ever be open at a time.
+  const [descriptionDraft, setDescriptionDraft] = useState("");
+  useEffect(() => {
+    if (colorPickerTabId != null) {
+      setDescriptionDraft(customTabs.find((t) => t.id === colorPickerTabId)?.description ?? "");
+    }
+  }, [colorPickerTabId]);
 
   return (
     <div
@@ -260,7 +273,7 @@ export default function Sidebar({
                       top: "calc(100% + 6px)",
                       left: 0,
                       zIndex: 30,
-                      width: 180,
+                      width: 220,
                       padding: "10px 12px",
                       border: "1px solid var(--color-border)",
                       borderRadius: "var(--radius-sm)",
@@ -271,9 +284,9 @@ export default function Sidebar({
                     }}
                   >
                     <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 6 }}>
-                      "{tab.name}" tab color
+                      "{tab.name}" settings
                     </div>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: tab.color ? 6 : 0 }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: tab.color ? 6 : 12 }}>
                       <input
                         type="color"
                         value={tab.color ?? DEFAULT_ACCENT[theme]}
@@ -293,11 +306,30 @@ export default function Sidebar({
                       <button
                         type="button"
                         onClick={() => handleUpdateCustomTabColor(tab.id, null)}
-                        style={{ border: "none", background: "none", color: "var(--color-accent)", fontSize: 12 }}
+                        style={{ border: "none", background: "none", color: "var(--color-accent)", fontSize: 12, marginBottom: 12 }}
                       >
                         Reset to app accent
                       </button>
                     )}
+                    <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 6 }}>Description</div>
+                    <textarea
+                      value={descriptionDraft}
+                      onChange={(e) => setDescriptionDraft(e.target.value)}
+                      onBlur={() => handleUpdateCustomTabDescription(tab.id, descriptionDraft.trim() || null)}
+                      placeholder="What's this list for?"
+                      rows={3}
+                      style={{
+                        width: "100%",
+                        padding: "6px 8px",
+                        border: "1px solid var(--color-border)",
+                        borderRadius: "var(--radius-sm)",
+                        background: "var(--color-surface)",
+                        color: "var(--color-text)",
+                        fontSize: 12,
+                        fontFamily: "inherit",
+                        resize: "vertical",
+                      }}
+                    />
                   </div>
                 )}
               </div>
