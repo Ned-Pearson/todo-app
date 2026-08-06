@@ -2482,6 +2482,15 @@ export default function App() {
 
       {selectedTask && (
         <TaskDetailModal
+          // Forces React to treat each different task as a genuinely new
+          // component instance (full unmount/remount) instead of reusing
+          // this one and just patching its `task` prop — every field below
+          // is local `useState` seeded from `task` only on first mount, so
+          // without this, clicking a different task while one was already
+          // open left every field showing the *previous* task's data, and
+          // Save would then write that stale data onto the newly-clicked
+          // task's id instead.
+          key={selectedTask.id}
           task={selectedTask}
           allTags={tags}
           allTasks={tasks}
