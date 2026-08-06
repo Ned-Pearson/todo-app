@@ -103,6 +103,11 @@ export default function TaskRow({
   // target can never place something after the last item in the list).
   const [dragOverPosition, setDragOverPosition] = useState<"before" | "after" | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  // Set only when the menu was opened via right-click — anchors it at the
+  // cursor instead of the "⋯" button's usual spot. Cleared on every other
+  // way of opening it, so a stale cursor position never lingers into the
+  // next left-click open.
+  const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   useClickOutside(menuRef, menuOpen, () => setMenuOpen(false));
   const children = childrenByParent.get(task.id) ?? [];
@@ -221,6 +226,11 @@ export default function TaskRow({
         tabIndex={0}
         data-task-row
         data-task-id={task.id}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setContextMenuPos({ x: e.clientX, y: e.clientY });
+          setMenuOpen(true);
+        }}
         onDragOver={
           onReorder
             ? (e) => {
@@ -451,9 +461,10 @@ export default function TaskRow({
             <button
               onClick={(e) => {
                 e.stopPropagation();
+                setContextMenuPos(null);
                 setMenuOpen((v) => !v);
               }}
-              title="More actions"
+              title="More actions (or right-click the row)"
               style={{
                 border: "none",
                 background: "none",
@@ -469,9 +480,10 @@ export default function TaskRow({
               <div
                 onClick={(e) => e.stopPropagation()}
                 style={{
-                  position: "absolute",
-                  top: "calc(100% + 4px)",
-                  right: 0,
+                  position: contextMenuPos ? "fixed" : "absolute",
+                  top: contextMenuPos ? contextMenuPos.y : "calc(100% + 4px)",
+                  left: contextMenuPos ? contextMenuPos.x : undefined,
+                  right: contextMenuPos ? undefined : 0,
                   zIndex: 30,
                   minWidth: 170,
                   padding: 4,

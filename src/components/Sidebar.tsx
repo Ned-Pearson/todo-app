@@ -80,7 +80,6 @@ export default function Sidebar({
   const colorPickerRef = useRef<HTMLDivElement>(null);
   const configMenuRef = useRef<HTMLDivElement>(null);
   const moreViewsRef = useRef<HTMLDivElement>(null);
-  useClickOutside(colorPickerRef, colorPickerTabId !== null, () => setColorPickerTabId(() => null));
   useClickOutside(configMenuRef, showConfigMenu, () => setShowConfigMenu(() => false));
   useClickOutside(moreViewsRef, showMoreViews, () => setShowMoreViews(() => false));
 
@@ -89,6 +88,26 @@ export default function Sidebar({
   // committed on blur instead. Resyncs whenever a different tab's popover
   // opens, since only one can ever be open at a time.
   const [descriptionDraft, setDescriptionDraft] = useState("");
+  // Set only when the list's settings popover was opened via right-click —
+  // anchors it at the cursor instead of under the color dot. Cleared on
+  // every other way of opening it, same pattern TaskRow's context menu uses.
+  const [listMenuPos, setListMenuPos] = useState<{ x: number; y: number } | null>(null);
+
+  // useClickOutside closes the popover via a state update rather than a
+  // direct DOM/focus change, so the textarea's own onBlur can't be counted
+  // on to fire before it's unmounted (React removing a still-focused element
+  // from the DOM doesn't reliably blur it first) — every path that closes
+  // the popover has to commit the draft itself instead of assuming blur
+  // already did.
+  function commitDescriptionDraft() {
+    if (colorPickerTabId != null) {
+      handleUpdateCustomTabDescription(colorPickerTabId, descriptionDraft.trim() || null);
+    }
+  }
+  useClickOutside(colorPickerRef, colorPickerTabId !== null, () => {
+    commitDescriptionDraft();
+    setColorPickerTabId(() => null);
+  });
   useEffect(() => {
     if (colorPickerTabId != null) {
       setDescriptionDraft(customTabs.find((t) => t.id === colorPickerTabId)?.description ?? "");
@@ -225,6 +244,12 @@ export default function Sidebar({
           return (
             <div
               key={tab.id}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                commitDescriptionDraft();
+                setListMenuPos({ x: e.clientX, y: e.clientY });
+                setColorPickerTabId(() => tab.id);
+              }}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -255,8 +280,12 @@ export default function Sidebar({
               >
                 <button
                   type="button"
-                  onClick={() => setColorPickerTabId((id) => (id === tab.id ? null : tab.id))}
-                  title="This tab's accent color — overrides the app-wide accent while it's active"
+                  onClick={() => {
+                    commitDescriptionDraft();
+                    setListMenuPos(null);
+                    setColorPickerTabId((id) => (id === tab.id ? null : tab.id));
+                  }}
+                  title="This tab's accent color — overrides the app-wide accent while it's active (or right-click the list)"
                   style={{
                     width: 14,
                     height: 14,
@@ -269,9 +298,9 @@ export default function Sidebar({
                 {colorPickerTabId === tab.id && (
                   <div
                     style={{
-                      position: "absolute",
-                      top: "calc(100% + 6px)",
-                      left: 0,
+                      position: listMenuPos ? "fixed" : "absolute",
+                      top: listMenuPos ? listMenuPos.y : "calc(100% + 6px)",
+                      left: listMenuPos ? listMenuPos.x : 0,
                       zIndex: 30,
                       width: 220,
                       padding: "10px 12px",
