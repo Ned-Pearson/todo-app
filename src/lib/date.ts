@@ -25,6 +25,22 @@ export function datePartOf(timestamp: string): string {
   return timestamp.split(" ")[0];
 }
 
+// Converts an internal "YYYY-MM-DD" (optionally followed by " HH:MM[:SS]",
+// e.g. a completedAt/deletedAt/reminderAt timestamp) into the display format
+// "DD:MM:YYYY", leaving any trailing time portion untouched. This is purely
+// a rendering concern — every comparison, sort, and `<input type="date">`
+// value in the app stays on the raw ISO string above, since that's what
+// makes plain string comparison equivalent to chronological comparison
+// (today/this-week filtering, Trash retention, etc. all depend on it).
+// Anything that doesn't start with an ISO date (e.g. the "Unknown date"
+// group-header sentinel) passes through unchanged.
+export function formatDateDisplay(value: string): string {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})(.*)$/);
+  if (!match) return value;
+  const [, y, m, d, rest] = match;
+  return `${d}:${m}:${y}${rest}`;
+}
+
 export function isOverdue(dueDate: string | null, dueTime: string | null, completed: boolean): boolean {
   if (dueDate == null || completed) return false;
   const today = todayStr();

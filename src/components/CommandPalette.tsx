@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, KeyboardEvent } from "react";
 import type { Task } from "../types";
 import { fuzzyScore } from "../lib/fuzzy";
+import { formatDateDisplay } from "../lib/date";
 
 export interface PaletteCommand {
   id: string;
@@ -50,7 +51,17 @@ export default function CommandPalette({ tasks, commands, onSelectTask, onClose 
     ? [
         ...tasks.flatMap((t): Entry[] => {
           const score = fuzzyScore(trimmed, t.title);
-          return score == null ? [] : [{ key: `task-${t.id}`, label: t.title, sublabel: t.dueDate ?? undefined, score, run: () => onSelectTask(t) }];
+          return score == null
+            ? []
+            : [
+                {
+                  key: `task-${t.id}`,
+                  label: t.title,
+                  sublabel: t.dueDate ? formatDateDisplay(t.dueDate) : undefined,
+                  score,
+                  run: () => onSelectTask(t),
+                },
+              ];
         }),
         ...commands.flatMap((c): Entry[] => {
           const score = fuzzyScore(trimmed, c.label);

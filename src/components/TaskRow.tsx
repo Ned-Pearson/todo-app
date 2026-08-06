@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, FocusEvent, KeyboardEvent, CSSProperties } from "react";
 import type { Priority, Task } from "../types";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "../lib/priority";
-import { isOverdue } from "../lib/date";
+import { isOverdue, formatDateDisplay } from "../lib/date";
 import { fileNameFromPath } from "../lib/attachments";
 import { renderInlineMarkdown } from "../lib/markdown";
 import { hexToRgba } from "../lib/color";
@@ -629,7 +629,7 @@ export default function TaskRow({
                 }}
               >
                 {overdue ? "⚠ " : ""}
-                {task.dueDate}
+                {formatDateDisplay(task.dueDate)}
                 {task.dueTime ? ` ${task.dueTime}` : ""}
               </span>
             )}
@@ -684,7 +684,7 @@ export default function TaskRow({
                   opacity: task.reminderNotified ? 0.55 : 1,
                 }}
               >
-                🔔 {task.reminderAt}
+                🔔 {formatDateDisplay(task.reminderAt)}
               </span>
             )}
             {showCompletedDate && task.completedAt && (
@@ -699,7 +699,7 @@ export default function TaskRow({
                   whiteSpace: "nowrap",
                 }}
               >
-                Completed {task.completedAt}
+                Completed {formatDateDisplay(task.completedAt)}
               </span>
             )}
             {showDeletedDate && task.deletedAt && (
@@ -714,12 +714,12 @@ export default function TaskRow({
                   whiteSpace: "nowrap",
                 }}
               >
-                Deleted {task.deletedAt}
+                Deleted {formatDateDisplay(task.deletedAt)}
               </span>
             )}
             {task.recurrence && (
               <span
-                title={`Repeats every ${task.recurrence.interval > 1 ? task.recurrence.interval + " " : ""}${task.recurrence.frequency}${task.recurrence.interval > 1 ? "s" : ""}${task.recurrence.endDate ? ` until ${task.recurrence.endDate}` : ""}`}
+                title={`Repeats every ${task.recurrence.interval > 1 ? task.recurrence.interval + " " : ""}${task.recurrence.frequency}${task.recurrence.interval > 1 ? "s" : ""}${task.recurrence.endDate ? ` until ${formatDateDisplay(task.recurrence.endDate)}` : ""}`}
                 style={{ fontSize: 13, color: "var(--color-text-faint)" }}
               >
                 ⟳

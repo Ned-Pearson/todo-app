@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { Priority, Task } from "../types";
-import { formatDate, todayStr } from "../lib/date";
+import { formatDate, todayStr, formatDateDisplay } from "../lib/date";
 import { nextRecurrenceDate } from "../lib/recurrence";
 import { PRIORITY_COLORS } from "../lib/priority";
 import TaskRow from "./TaskRow";
@@ -293,7 +293,7 @@ export default function CalendarView({
             color: "var(--color-text-muted)",
           }}
         >
-          {selectedDate}
+          {formatDateDisplay(selectedDate)}
         </div>
         {selectedTasks.length === 0 && virtualSelectedTasks.length === 0 && (
           <div style={{ padding: 20, color: "var(--color-text-faint)", fontSize: 13 }}>No tasks due this day.</div>

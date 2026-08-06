@@ -17,6 +17,7 @@ import { renderMarkdown } from "../lib/markdown";
 import { useClickOutside } from "../lib/useClickOutside";
 import { startResize } from "../lib/resize";
 import { PANEL_WIDTH_MIN, PANEL_WIDTH_MAX } from "../lib/appConstants";
+import { formatDateDisplay } from "../lib/date";
 
 interface Props {
   task: Task;
@@ -487,7 +488,7 @@ export default function TaskDetailModal({
                       whiteSpace: "nowrap",
                     }}
                   >
-                    {d}
+                    {formatDateDisplay(d)}
                   </span>
                 ))}
               </div>
@@ -999,7 +1000,7 @@ export default function TaskDetailModal({
         </button>
 
         <div style={{ fontSize: 11, color: "var(--color-text-faint)", marginBottom: 16 }}>
-          Created on {task.createdAt}
+          Created on {formatDateDisplay(task.createdAt)}
         </div>
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>

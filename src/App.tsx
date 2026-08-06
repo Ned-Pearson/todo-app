@@ -75,7 +75,7 @@ import TrashView from "./components/TrashView";
 import StatsView from "./components/StatsView";
 import ManageTagsModal from "./components/ManageTagsModal";
 import Sidebar from "./components/Sidebar";
-import { addInterval, getWeekRange, isOverdue, nowTimestamp, todayStr } from "./lib/date";
+import { addInterval, getWeekRange, isOverdue, nowTimestamp, todayStr, formatDateDisplay } from "./lib/date";
 import {
   type View,
   VIEW_LABELS,
@@ -440,8 +440,8 @@ export default function App() {
             sendNotification({
               title: "Task overdue",
               body: task.dueTime
-                ? `${task.title} — was due ${task.dueDate} ${task.dueTime}`
-                : `${task.title} — was due ${task.dueDate}`,
+                ? `${task.title} — was due ${formatDateDisplay(task.dueDate ?? "")} ${task.dueTime}`
+                : `${task.title} — was due ${formatDateDisplay(task.dueDate ?? "")}`,
             });
           }
         } else if (lastNotifiedAt.current.has(task.id)) {

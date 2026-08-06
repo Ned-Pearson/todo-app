@@ -1,6 +1,6 @@
 import type { Priority, Task } from "../types";
 import { buildTaskTree } from "../lib/tree";
-import { datePartOf } from "../lib/date";
+import { datePartOf, formatDateDisplay } from "../lib/date";
 import TaskRow from "./TaskRow";
 
 interface Props {
@@ -75,7 +75,7 @@ export default function ArchiveView({
         return (
           <div key={date}>
             <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted)", marginBottom: 6 }}>
-              {date} ({byDate.get(date)?.length})
+              {formatDateDisplay(date)} ({byDate.get(date)?.length})
             </div>
             <div
               style={{

@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import type { Task } from "../types";
-import { formatDate, datePartOf, todayStr } from "../lib/date";
+import { formatDate, datePartOf, todayStr, formatDateDisplay } from "../lib/date";
 
 interface Props {
   tasks: Task[];
@@ -158,7 +158,7 @@ export default function StatsView({ tasks }: Props) {
         }}
       >
         <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Last {DAILY_CHART_DAYS} days</div>
-        <BarChart entries={dailyEntries} barTitle={(date, count) => `${count} completed on ${date}`} />
+        <BarChart entries={dailyEntries} barTitle={(date, count) => `${count} completed on ${formatDateDisplay(date)}`} />
       </div>
 
       <div
@@ -171,7 +171,7 @@ export default function StatsView({ tasks }: Props) {
         }}
       >
         <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Last 12 weeks</div>
-        <BarChart entries={weeklyEntries} barTitle={(week, count) => `${count} completed the week of ${week}`} />
+        <BarChart entries={weeklyEntries} barTitle={(week, count) => `${count} completed the week of ${formatDateDisplay(week)}`} />
       </div>
     </div>
   );

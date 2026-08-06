@@ -9,6 +9,7 @@ import {
   type RecurrenceInput,
 } from "../lib/recurrence";
 import { parseNaturalDate } from "../lib/naturalDate";
+import { formatDateDisplay } from "../lib/date";
 
 interface Props {
   defaultDueDate: string;
@@ -128,7 +129,7 @@ export default function AddTaskModal({ defaultDueDate, onClose, onAdd }: Props) 
         />
         {detectedDate && (
           <div style={{ fontSize: 12, color: "var(--color-accent)", marginBottom: 12 }}>
-            📅 Due {detectedDate.date}
+            📅 Due {formatDateDisplay(detectedDate.date)}
             {detectedDate.time ? ` ${detectedDate.time}` : ""} — will be set automatically from "
             {detectedDate.dateMatch}
             {detectedDate.timeMatch ? ` ${detectedDate.timeMatch}` : ""}"
@@ -363,7 +364,7 @@ export default function AddTaskModal({ defaultDueDate, onClose, onAdd }: Props) 
                       whiteSpace: "nowrap",
                     }}
                   >
-                    {d}
+                    {formatDateDisplay(d)}
                   </span>
                 ))}
               </div>
