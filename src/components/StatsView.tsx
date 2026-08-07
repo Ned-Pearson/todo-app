@@ -1,9 +1,11 @@
 import type { CSSProperties } from "react";
-import type { Task } from "../types";
+import type { CustomTab, Tag, Task } from "../types";
 import { formatDate, datePartOf, todayStr, formatDateDisplay } from "../lib/date";
 
 interface Props {
   tasks: Task[];
+  customTabs: CustomTab[];
+  tags: Tag[];
 }
 
 const WINDOW_DAYS = 84; // 12 weeks, so the weekly chart and the streak
@@ -96,7 +98,62 @@ function BarChart({ entries, barTitle }: { entries: [string, number][]; barTitle
   );
 }
 
-export default function StatsView({ tasks }: Props) {
+interface BreakdownEntry {
+  key: string;
+  label: string;
+  count: number;
+  color: string | null;
+}
+
+// Horizontal, since list/tag names vary a lot in length and there can be
+// more of them than would fit as readable vertical bars (unlike the fixed
+// 30/12-wide daily/weekly charts above, which are always the same length).
+function BreakdownBars({ entries }: { entries: BreakdownEntry[] }) {
+  const max = Math.max(1, ...entries.map((e) => e.count));
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {entries.map((e) => (
+        <div key={e.key} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div
+            title={e.label}
+            style={{
+              width: 110,
+              flexShrink: 0,
+              fontSize: 12,
+              color: "var(--color-text-muted)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {e.label}
+          </div>
+          <div
+            style={{
+              flex: 1,
+              height: 8,
+              background: "var(--color-surface-sunken)",
+              borderRadius: 4,
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                width: `${(e.count / max) * 100}%`,
+                height: "100%",
+                background: e.color ?? "var(--color-accent)",
+                borderRadius: 4,
+              }}
+            />
+          </div>
+          <div style={{ width: 24, textAlign: "right", fontSize: 12, fontWeight: 600, flexShrink: 0 }}>{e.count}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export default function StatsView({ tasks, customTabs, tags }: Props) {
   const days = lastNDays(WINDOW_DAYS);
   const dailyCounts = buildDailyCounts(tasks);
   const weeklyCounts = buildWeeklyCounts(dailyCounts, days);
@@ -111,6 +168,49 @@ export default function StatsView({ tasks }: Props) {
   const weekStarts: string[] = [];
   for (let i = 0; i < WINDOW_DAYS; i += 7) weekStarts.push(weekStartOf(days[i]));
   const weeklyEntries: [string, number][] = weekStarts.map((w) => [w, weeklyCounts.get(w) ?? 0]);
+
+  // All-time (not windowed like the two charts above), matching "Total
+  // completed" — these are a snapshot of where completions have landed, not
+  // a recent-activity view. A task counts toward every tag it carries
+  // (directly or via an ancestor), same as the tag filter chips elsewhere,
+  // so the per-tag total can exceed the per-list/overall total.
+  const listBreakdown: BreakdownEntry[] =
+    customTabs.length === 0
+      ? []
+      : [
+          ...customTabs.map((tab) => ({
+            key: `list-${tab.id}`,
+            label: tab.icon ? `${tab.icon} ${tab.name}` : tab.name,
+            count: tasks.filter((t) => t.completed && t.listId === tab.id).length,
+            color: tab.color,
+          })),
+          {
+            key: "list-none",
+            label: "No list",
+            count: tasks.filter((t) => t.completed && t.listId == null).length,
+            color: null,
+          },
+        ].sort((a, b) => b.count - a.count);
+
+  const tagBreakdown: BreakdownEntry[] =
+    tags.length === 0
+      ? []
+      : [
+          ...tags.map((tag) => ({
+            key: `tag-${tag.id}`,
+            label: tag.name,
+            count: tasks.filter(
+              (t) => t.completed && (t.tags.some((x) => x.id === tag.id) || t.inheritedTags.some((x) => x.id === tag.id))
+            ).length,
+            color: tag.color,
+          })),
+          {
+            key: "tag-none",
+            label: "Untagged",
+            count: tasks.filter((t) => t.completed && t.tags.length === 0 && t.inheritedTags.length === 0).length,
+            color: null,
+          },
+        ].sort((a, b) => b.count - a.count);
 
   const statCardStyle: CSSProperties = {
     flex: 1,
@@ -164,6 +264,7 @@ export default function StatsView({ tasks }: Props) {
       <div
         style={{
           padding: 16,
+          marginBottom: listBreakdown.length > 0 || tagBreakdown.length > 0 ? 20 : 0,
           background: "var(--color-surface)",
           border: "1px solid var(--color-border)",
           borderRadius: "var(--radius-md)",
@@ -173,6 +274,37 @@ export default function StatsView({ tasks }: Props) {
         <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Last 12 weeks</div>
         <BarChart entries={weeklyEntries} barTitle={(week, count) => `${count} completed the week of ${formatDateDisplay(week)}`} />
       </div>
+
+      {listBreakdown.length > 0 && (
+        <div
+          style={{
+            padding: 16,
+            marginBottom: tagBreakdown.length > 0 ? 20 : 0,
+            background: "var(--color-surface)",
+            border: "1px solid var(--color-border)",
+            borderRadius: "var(--radius-md)",
+            boxShadow: "var(--shadow-card)",
+          }}
+        >
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Completed by list (all-time)</div>
+          <BreakdownBars entries={listBreakdown} />
+        </div>
+      )}
+
+      {tagBreakdown.length > 0 && (
+        <div
+          style={{
+            padding: 16,
+            background: "var(--color-surface)",
+            border: "1px solid var(--color-border)",
+            borderRadius: "var(--radius-md)",
+            boxShadow: "var(--shadow-card)",
+          }}
+        >
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Completed by tag (all-time)</div>
+          <BreakdownBars entries={tagBreakdown} />
+        </div>
+      )}
     </div>
   );
 }

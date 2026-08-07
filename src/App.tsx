@@ -2361,7 +2361,7 @@ export default function App() {
           onUnbacklog={handleUnbacklog}
         />
       ) : view === "stats" ? (
-        <StatsView tasks={searchFilteredTasks} />
+        <StatsView tasks={searchFilteredTasks} customTabs={customTabs} tags={tags} />
       ) : view === "archive" ? (
         <ArchiveView
           tasks={archivedSearchFilteredTasks}
