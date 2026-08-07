@@ -62,7 +62,10 @@ function rowToTask(
     dependsOn,
     relatedTasks,
     listId: row.list_id,
-    list: row.list_name != null ? { id: row.list_id, name: row.list_name, color: row.list_color } : null,
+    list:
+      row.list_name != null
+        ? { id: row.list_id, name: row.list_name, color: row.list_color, icon: row.list_icon }
+        : null,
     archived: !!row.archived,
     reminderAt: row.reminder_at,
     reminderNotified: !!row.reminder_notified,
@@ -106,7 +109,8 @@ const TASKS_WITH_RECURRENCE_SELECT = `
          recurrence_rules.occurrences_remaining AS recurrence_occurrences_remaining,
          recurrence_rules.weekdays AS recurrence_weekdays,
          custom_tabs.name AS list_name,
-         custom_tabs.color AS list_color
+         custom_tabs.color AS list_color,
+         custom_tabs.icon AS list_icon
   FROM tasks
   LEFT JOIN recurrence_rules ON tasks.recurrence_id = recurrence_rules.id
   LEFT JOIN custom_tabs ON tasks.list_id = custom_tabs.id
@@ -422,6 +426,7 @@ function rowToCustomTab(row: any): CustomTab {
     color: row.color,
     description: row.description,
     defaultTagId: row.default_tag_id,
+    icon: row.icon,
   };
 }
 
@@ -469,6 +474,11 @@ export async function updateCustomTabDefaultTag(id: number, tagId: number | null
 export async function updateCustomTabSortOrder(id: number, sortOrder: number): Promise<void> {
   const db = await getDb();
   await db.execute("UPDATE custom_tabs SET sort_order = ? WHERE id = ?", [sortOrder, id]);
+}
+
+export async function updateCustomTabIcon(id: number, icon: string | null): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE custom_tabs SET icon = ? WHERE id = ?", [icon, id]);
 }
 
 // The on-demand counterpart to a list's default tag only auto-applying to

@@ -802,7 +802,7 @@ export default function TaskRow({
                   whiteSpace: "nowrap",
                 }}
               >
-                📋 {task.list.name}
+                {task.list.icon ?? "📋"} {task.list.name}
               </span>
             )}
           </div>

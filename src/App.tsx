@@ -43,6 +43,7 @@ import {
   updateCustomTabColor,
   updateCustomTabDescription,
   updateCustomTabDefaultTag,
+  updateCustomTabIcon,
   updateCustomTabSortOrder,
   applyTagToAllTasksInList,
   getAllTaskTemplates,
@@ -1262,6 +1263,11 @@ export default function App() {
     await reload();
   }
 
+  async function handleUpdateCustomTabIcon(id: number, icon: string | null) {
+    await updateCustomTabIcon(id, icon);
+    await reload();
+  }
+
   async function handleApplyTagToAllTasksInList(listId: number, tagId: number) {
     await applyTagToAllTasksInList(listId, tagId);
     await reload();
@@ -1498,6 +1504,7 @@ export default function App() {
         handleUpdateCustomTabColor={handleUpdateCustomTabColor}
         handleUpdateCustomTabDescription={handleUpdateCustomTabDescription}
         handleUpdateCustomTabDefaultTag={handleUpdateCustomTabDefaultTag}
+        handleUpdateCustomTabIcon={handleUpdateCustomTabIcon}
         handleApplyTagToAllTasksInList={handleApplyTagToAllTasksInList}
         tags={tags}
         handleDeleteCustomTab={handleDeleteCustomTab}

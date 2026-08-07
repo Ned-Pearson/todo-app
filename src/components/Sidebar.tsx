@@ -30,6 +30,7 @@ interface Props {
   handleUpdateCustomTabColor: (id: number, color: string | null) => void;
   handleUpdateCustomTabDescription: (id: number, description: string | null) => void;
   handleUpdateCustomTabDefaultTag: (id: number, tagId: number | null) => void;
+  handleUpdateCustomTabIcon: (id: number, icon: string | null) => void;
   handleApplyTagToAllTasksInList: (listId: number, tagId: number) => void;
   tags: Tag[];
   handleDeleteCustomTab: (id: number) => void;
@@ -66,6 +67,15 @@ const LIST_MENU_HEIGHT_ESTIMATE = 280;
 // the two id sequences are independent and could otherwise collide.
 const LIST_DRAG_MIME = "application/x-todo-list-id";
 
+// A small curated set covering common list categories — not exhaustive
+// (there's no native emoji-picker input to defer to), just enough variety
+// that most lists can find something fitting without leaving the popover.
+const LIST_ICON_OPTIONS = [
+  "📋", "🏠", "💼", "🛒", "✈️", "🎓", "💪", "🎨",
+  "📚", "🍔", "🎮", "❤️", "⭐", "🔥", "💰", "🐾",
+  "🌱", "🎵", "🧹", "🏋️", "🧾", "📅", "🎯", "💡",
+];
+
 // The app's left navigation rail — every built-in view plus custom tabs
 // (project-bound tag shortcuts), with a single "Config ▾" button pinned to
 // the bottom holding everything reached for far less often (export/import,
@@ -90,6 +100,7 @@ export default function Sidebar({
   handleUpdateCustomTabColor,
   handleUpdateCustomTabDescription,
   handleUpdateCustomTabDefaultTag,
+  handleUpdateCustomTabIcon,
   handleApplyTagToAllTasksInList,
   tags,
   handleDeleteCustomTab,
@@ -376,6 +387,7 @@ export default function Sidebar({
                   padding: "4px 0",
                 }}
               >
+                {tab.icon && <span style={{ marginRight: 5 }}>{tab.icon}</span>}
                 {tab.name}
               </button>
               <div
@@ -449,6 +461,40 @@ export default function Sidebar({
                         style={{ border: "none", background: "none", color: "var(--color-accent)", fontSize: 12, marginBottom: 12 }}
                       >
                         Reset to app accent
+                      </button>
+                    )}
+                    <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 6 }}>Icon</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: tab.icon ? 6 : 12 }}>
+                      {LIST_ICON_OPTIONS.map((icon) => (
+                        <button
+                          key={icon}
+                          type="button"
+                          onClick={() => handleUpdateCustomTabIcon(tab.id, icon)}
+                          title={icon}
+                          style={{
+                            width: 22,
+                            height: 22,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            border: tab.icon === icon ? "1px solid var(--color-accent)" : "1px solid transparent",
+                            borderRadius: "var(--radius-sm)",
+                            background: tab.icon === icon ? "var(--color-accent-soft)" : "none",
+                            fontSize: 13,
+                            padding: 0,
+                          }}
+                        >
+                          {icon}
+                        </button>
+                      ))}
+                    </div>
+                    {tab.icon && (
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateCustomTabIcon(tab.id, null)}
+                        style={{ border: "none", background: "none", color: "var(--color-accent)", fontSize: 12, marginBottom: 12 }}
+                      >
+                        Remove icon
                       </button>
                     )}
                     <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 6 }}>Description</div>

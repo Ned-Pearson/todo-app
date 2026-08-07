@@ -57,6 +57,9 @@ export interface CustomTab {
   // available to bulk-apply to every task already in it — distinct from the
   // legacy `tagId` above, which never meant this and is never read anymore.
   defaultTagId: number | null;
+  // A single emoji shown next to the list's name, alongside its color dot.
+  // Purely cosmetic — nothing else reads it.
+  icon: string | null;
 }
 
 // The stored blueprint for a task template — a static tree (title/priority/
@@ -102,6 +105,7 @@ export interface TaskListRef {
   id: number;
   name: string;
   color: string | null;
+  icon: string | null;
 }
 
 export interface Task {

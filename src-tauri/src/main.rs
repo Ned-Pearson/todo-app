@@ -188,6 +188,12 @@ fn main() {
             sql: include_str!("../migrations/031_list_default_tag.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 32,
+            description: "add custom_tabs.icon",
+            sql: include_str!("../migrations/032_list_icon.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()
