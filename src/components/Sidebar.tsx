@@ -52,7 +52,8 @@ interface Props {
 }
 
 // Kept as top-level sidebar buttons — the views reached for constantly.
-const PRIMARY_VIEWS: View[] = ["all", "today", "this-week", "no-date", "calendar"];
+// "My Day" leads, matching where a daily-dashboard view conventionally sits.
+const PRIMARY_VIEWS: View[] = ["my-day", "all", "today", "this-week", "no-date", "calendar"];
 // Reviewed/housekeeping views, reached for far less often — tucked behind a
 // "More" dropdown instead of permanently taking up sidebar space.
 const MORE_VIEWS: View[] = ["history", "stats", "archive", "backlog", "trash"];

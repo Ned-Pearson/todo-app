@@ -88,6 +88,7 @@ import {
   todayStr,
   formatDateDisplay,
 } from "./lib/date";
+import { lastNDays, buildDailyCounts, computeStreaks, weekStartOf, buildWeeklyCounts } from "./lib/stats";
 import {
   type View,
   VIEW_LABELS,
@@ -510,7 +511,7 @@ export default function App() {
   }, [tasks, dndEnabled]);
 
   useEffect(() => {
-    if (view === "today") setDueDate(todayStr());
+    if (view === "today" || view === "my-day") setDueDate(todayStr());
     // Bulk select only applies to the list views, not Calendar/History/Stats/Archive/Backlog/Trash.
     if (
       view === "calendar" ||
@@ -597,7 +598,7 @@ export default function App() {
       // Today keeps defaulting to today's date, Calendar keeps whatever day is
       // selected — only clear the field when neither has a sensible default
       // to fall back to.
-      if (view === "today") {
+      if (view === "today" || view === "my-day") {
         setDueDate(todayStr());
       } else if (view !== "calendar") {
         setDueDate("");
@@ -1482,7 +1483,7 @@ export default function App() {
   // have a due date or are completed. Someday-with-a-date isn't a
   // contradiction, and a completed task's backlog flag is moot history.
   const visibleTasks =
-    view === "today"
+    view === "today" || view === "my-day"
       ? searchFilteredTasks.filter((t) => t.dueDate === todayStr() && !t.backlog)
       : view === "this-week"
         ? searchFilteredTasks.filter(
@@ -1508,7 +1509,7 @@ export default function App() {
   // disappear once their due date passes, since Today only shows dueDate ===
   // today. Surface them in their own section above the Today list instead.
   const overdueTasks =
-    view === "today"
+    view === "today" || view === "my-day"
       ? searchFilteredTasks.filter((t) => isOverdue(t.dueDate, t.dueTime, t.completed) && !t.backlog)
       : [];
 
@@ -1516,6 +1517,17 @@ export default function App() {
   const { topLevel: overdueTopLevel, childrenByParent: overdueChildrenByParent } = buildTaskTree(
     sortTasks(overdueTasks)
   );
+
+  // My Day's stats glance deliberately reads from activeTasks (every
+  // non-archived, non-trashed task) rather than searchFilteredTasks, so an
+  // active tag/priority/search filter never makes a daily streak look like
+  // it's changed — it's meant to be a stable overview, not one more thing
+  // subject to whatever's currently being searched for.
+  const myDayDays = lastNDays(84);
+  const myDayDailyCounts = buildDailyCounts(activeTasks);
+  const myDayStreak = computeStreaks(myDayDailyCounts, myDayDays).current;
+  const myDayCompletedToday = myDayDailyCounts.get(todayStr()) ?? 0;
+  const myDayCompletedThisWeek = buildWeeklyCounts(myDayDailyCounts, myDayDays).get(weekStartOf(todayStr())) ?? 0;
 
   return (
     <div style={{ display: "flex", height: "100%" }}>
@@ -1785,6 +1797,39 @@ export default function App() {
         </div>
       )}
 
+      {view === "my-day" && (
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12, marginBottom: 20 }}>
+          {[
+            ["Current streak", `${myDayStreak}d`],
+            ["Completed today", String(myDayCompletedToday)],
+            ["This week", String(myDayCompletedThisWeek)],
+          ].map(([label, value]) => (
+            <div
+              key={label}
+              style={{
+                flex: 1,
+                minWidth: 110,
+                padding: "10px 14px",
+                background: "var(--color-surface)",
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-md)",
+                boxShadow: "var(--shadow-card)",
+              }}
+            >
+              <div style={{ fontSize: 12, color: "var(--color-text-muted)", marginBottom: 2 }}>{label}</div>
+              <div style={{ fontSize: 20, fontWeight: 600 }}>{value}</div>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() => setView("stats")}
+            style={{ border: "none", background: "none", color: "var(--color-accent)", fontSize: 12, fontWeight: 600 }}
+          >
+            Full stats →
+          </button>
+        </div>
+      )}
+
       {pinnedTasks.length > 0 && (
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: "#f2994a", marginBottom: 6 }}>★ Pinned</div>
@@ -2028,7 +2073,7 @@ export default function App() {
         </div>
       )}
 
-      {(view === "today" || view === "this-week") && (
+      {(view === "today" || view === "my-day" || view === "this-week") && (
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontSize: 12, color: "var(--color-text-muted)", marginBottom: 6 }}>
             {completedCount} / {visibleTasks.length} completed
@@ -2501,7 +2546,7 @@ export default function App() {
                   ? "No tasks match your search."
                   : priorityFilter
                     ? `No ${priorityFilter} priority tasks.`
-                    : view === "today"
+                    : view === "today" || view === "my-day"
                       ? "No tasks due today."
                       : view === "this-week"
                         ? "No tasks due this week."

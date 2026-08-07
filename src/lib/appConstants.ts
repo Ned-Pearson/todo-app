@@ -1,4 +1,5 @@
 export type View =
+  | "my-day"
   | "all"
   | "today"
   | "this-week"
@@ -11,6 +12,7 @@ export type View =
   | "trash";
 
 export const VIEW_LABELS: Record<View, string> = {
+  "my-day": "My Day",
   all: "All",
   today: "Today",
   "this-week": "This Week",
