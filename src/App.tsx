@@ -107,7 +107,7 @@ import { PRIORITY_COLORS, PRIORITY_LABELS } from "./lib/priority";
 import { buildTaskTree } from "./lib/tree";
 import { hexToRgba } from "./lib/color";
 import { exportToFile, importFromFile, exportTaskAsMarkdown } from "./lib/backup";
-import { taskToMarkdown } from "./lib/taskMarkdown";
+import { taskToMarkdown, listToMarkdown } from "./lib/taskMarkdown";
 import { nextRecurrenceDate, type RecurrenceInput } from "./lib/recurrence";
 import { useClickOutside } from "./lib/useClickOutside";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -1386,6 +1386,37 @@ export default function App() {
     }
   }
 
+  // The whole-list counterpart to handleExportTaskMarkdown above — same
+  // "list membership" rule the app itself uses when the list is open
+  // (filterByTagPriorityAndSearch's own listId + descendants walk), just
+  // duplicated here rather than shared, since that one is scoped to
+  // whichever list is *currently active* while this needs to work for
+  // whatever list's popover the export was triggered from.
+  async function handleExportListMarkdown(listId: number) {
+    const list = customTabs.find((t) => t.id === listId);
+    if (!list) return;
+    const everyTask = [...tasks, ...archivedTasks, ...trashedTasks];
+    const visibleIdSet = new Set(everyTask.filter((t) => t.listId === listId).map((t) => t.id));
+    function addDescendants(id: number) {
+      for (const t of everyTask) {
+        if (t.parentId === id && !visibleIdSet.has(t.id)) {
+          visibleIdSet.add(t.id);
+          addDescendants(t.id);
+        }
+      }
+    }
+    for (const id of [...visibleIdSet]) addDescendants(id);
+    const listTasks = everyTask.filter((t) => visibleIdSet.has(t.id));
+    const markdown = listToMarkdown(list.name, list.description, listTasks);
+    try {
+      const exported = await exportTaskAsMarkdown(list.name, markdown);
+      if (exported) window.alert("List exported.");
+    } catch (err) {
+      console.error("Failed to export list as Markdown:", err);
+      window.alert(`Couldn't export list: ${err}`);
+    }
+  }
+
   async function handleImport() {
     if (
       !window.confirm(
@@ -1595,6 +1626,7 @@ export default function App() {
         handleUpdateCustomTabDefaultTag={handleUpdateCustomTabDefaultTag}
         handleUpdateCustomTabIcon={handleUpdateCustomTabIcon}
         handleApplyTagToAllTasksInList={handleApplyTagToAllTasksInList}
+        handleExportListMarkdown={handleExportListMarkdown}
         tags={tags}
         handleDeleteCustomTab={handleDeleteCustomTab}
         setShowAddTabModal={setShowAddTabModal}

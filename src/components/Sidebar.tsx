@@ -34,6 +34,7 @@ interface Props {
   handleUpdateCustomTabDefaultTag: (id: number, tagId: number | null) => void;
   handleUpdateCustomTabIcon: (id: number, icon: string | null) => void;
   handleApplyTagToAllTasksInList: (listId: number, tagId: number) => void;
+  handleExportListMarkdown: (listId: number) => void;
   tags: Tag[];
   handleDeleteCustomTab: (id: number) => void;
   setShowAddTabModal: (show: boolean) => void;
@@ -112,6 +113,7 @@ export default function Sidebar({
   handleUpdateCustomTabDefaultTag,
   handleUpdateCustomTabIcon,
   handleApplyTagToAllTasksInList,
+  handleExportListMarkdown,
   tags,
   handleDeleteCustomTab,
   setShowAddTabModal,
@@ -604,11 +606,21 @@ export default function Sidebar({
                         type="button"
                         onClick={() => handleApplyTagToAllTasksInList(tab.id, tab.defaultTagId as number)}
                         title="Tag every task currently in this list with the default tag — new tasks get it automatically already"
-                        style={{ border: "none", background: "none", color: "var(--color-accent)", fontSize: 12, padding: 0 }}
+                        style={{ border: "none", background: "none", color: "var(--color-accent)", fontSize: 12, padding: 0, marginBottom: 8 }}
                       >
                         Apply to all tasks in this list
                       </button>
                     )}
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => handleExportListMarkdown(tab.id)}
+                        title="Save every task in this list as one Markdown checklist file"
+                        style={{ border: "none", background: "none", color: "var(--color-accent)", fontSize: 12, padding: 0 }}
+                      >
+                        Export as Markdown
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
