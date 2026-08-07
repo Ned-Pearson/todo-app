@@ -43,6 +43,7 @@ import {
   updateCustomTabColor,
   updateCustomTabDescription,
   updateCustomTabDefaultTag,
+  updateCustomTabSortOrder,
   applyTagToAllTasksInList,
   getAllTaskTemplates,
   saveTaskAsTemplate,
@@ -962,6 +963,21 @@ export default function App() {
     await reload();
   }
 
+  // Same before/after splice-insertion shape as handleReorder above, just
+  // without the reparent branch — lists are always a single flat group, no
+  // hierarchy to worry about.
+  async function handleReorderCustomTab(draggedId: number, targetId: number, position: "before" | "after") {
+    if (draggedId === targetId) return;
+    const dragged = customTabs.find((t) => t.id === draggedId);
+    if (!dragged) return;
+    const reordered = customTabs.filter((t) => t.id !== draggedId);
+    const targetIndex = reordered.findIndex((t) => t.id === targetId);
+    if (targetIndex === -1) return;
+    reordered.splice(position === "after" ? targetIndex + 1 : targetIndex, 0, dragged);
+    await Promise.all(reordered.map((t, i) => updateCustomTabSortOrder(t.id, i)));
+    await reload();
+  }
+
   async function handleSaveTitle(id: number, title: string) {
     await updateTaskTitle(id, title);
     await reload();
@@ -1476,6 +1492,7 @@ export default function App() {
         activeListId={activeListId}
         setActiveListId={setActiveListId}
         handleSelectCustomTab={handleSelectCustomTab}
+        handleReorderCustomTab={handleReorderCustomTab}
         colorPickerTabId={colorPickerTabId}
         setColorPickerTabId={setColorPickerTabId}
         handleUpdateCustomTabColor={handleUpdateCustomTabColor}

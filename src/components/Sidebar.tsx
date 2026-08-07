@@ -24,6 +24,7 @@ interface Props {
   activeListId: number | null;
   setActiveListId: (id: number | null) => void;
   handleSelectCustomTab: (tab: CustomTab) => void;
+  handleReorderCustomTab: (draggedId: number, targetId: number, position: "before" | "after") => void;
   colorPickerTabId: number | null;
   setColorPickerTabId: (updater: (id: number | null) => number | null) => void;
   handleUpdateCustomTabColor: (id: number, color: string | null) => void;
@@ -60,6 +61,10 @@ const LIST_MENU_WIDTH = 220;
 // used only to keep a right-click-opened panel from running off the bottom
 // of the window — doesn't need to match the real rendered height exactly.
 const LIST_MENU_HEIGHT_ESTIMATE = 280;
+// Distinct from tasks' "text/plain" drag payload so a list can never be
+// misread as a task id (or vice versa) if a drag somehow crosses contexts —
+// the two id sequences are independent and could otherwise collide.
+const LIST_DRAG_MIME = "application/x-todo-list-id";
 
 // The app's left navigation rail — every built-in view plus custom tabs
 // (project-bound tag shortcuts), with a single "Config ▾" button pinned to
@@ -79,6 +84,7 @@ export default function Sidebar({
   activeListId,
   setActiveListId,
   handleSelectCustomTab,
+  handleReorderCustomTab,
   colorPickerTabId,
   setColorPickerTabId,
   handleUpdateCustomTabColor,
@@ -118,6 +124,11 @@ export default function Sidebar({
   // anchors it at the cursor instead of under the color dot. Cleared on
   // every other way of opening it, same pattern TaskRow's context menu uses.
   const [listMenuPos, setListMenuPos] = useState<{ x: number; y: number } | null>(null);
+  // Which list is currently being dragged over, and which half of it —
+  // mirrors TaskRow's own before/after drag-reorder indicator, but lifted up
+  // here since the Lists section is one flat `.map()` in this component
+  // rather than each row managing its own local state.
+  const [dragOverList, setDragOverList] = useState<{ id: number; position: "before" | "after" } | null>(null);
 
   // useClickOutside closes the popover via a state update rather than a
   // direct DOM/focus change, so the textarea's own onBlur can't be counted
@@ -297,6 +308,21 @@ export default function Sidebar({
                 });
                 setColorPickerTabId(() => tab.id);
               }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                const rect = e.currentTarget.getBoundingClientRect();
+                const isAfter = e.clientY > rect.top + rect.height / 2;
+                setDragOverList({ id: tab.id, position: isAfter ? "after" : "before" });
+              }}
+              onDragLeave={() => setDragOverList((cur) => (cur?.id === tab.id ? null : cur))}
+              onDrop={(e) => {
+                e.preventDefault();
+                const position = dragOverList?.id === tab.id ? dragOverList.position : "before";
+                setDragOverList(null);
+                const draggedId = Number(e.dataTransfer.getData(LIST_DRAG_MIME));
+                if (!Number.isNaN(draggedId)) handleReorderCustomTab(draggedId, tab.id, position);
+              }}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -304,8 +330,39 @@ export default function Sidebar({
                 padding: "4px 6px 4px 10px",
                 borderRadius: "var(--radius-sm)",
                 background: active ? "var(--color-accent-soft)" : "none",
+                borderTop:
+                  dragOverList?.id === tab.id && dragOverList.position === "before"
+                    ? "2px solid var(--color-accent)"
+                    : "2px solid transparent",
+                borderBottom:
+                  dragOverList?.id === tab.id && dragOverList.position === "after"
+                    ? "2px solid var(--color-accent)"
+                    : "2px solid transparent",
               }}
             >
+              <span
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData(LIST_DRAG_MIME, String(tab.id));
+                  e.dataTransfer.effectAllowed = "move";
+                }}
+                onClick={(e) => e.stopPropagation()}
+                title="Drag to reorder"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 16,
+                  height: 16,
+                  cursor: "grab",
+                  color: "var(--color-text-faint)",
+                  fontSize: 14,
+                  flexShrink: 0,
+                  userSelect: "none",
+                }}
+              >
+                ⠿
+              </span>
               <button
                 onClick={() => handleSelectCustomTab(tab)}
                 style={{

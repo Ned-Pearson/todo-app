@@ -466,6 +466,11 @@ export async function updateCustomTabDefaultTag(id: number, tagId: number | null
   await db.execute("UPDATE custom_tabs SET default_tag_id = ? WHERE id = ?", [tagId, id]);
 }
 
+export async function updateCustomTabSortOrder(id: number, sortOrder: number): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE custom_tabs SET sort_order = ? WHERE id = ?", [sortOrder, id]);
+}
+
 // The on-demand counterpart to a list's default tag only auto-applying to
 // *new* tasks going forward — this is what actually re-tags whatever's
 // already sitting in the list.
