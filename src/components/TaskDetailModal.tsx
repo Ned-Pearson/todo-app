@@ -14,6 +14,7 @@ import {
 } from "../lib/recurrence";
 import { pickUnusedColor } from "../lib/tagColor";
 import { renderMarkdown } from "../lib/markdown";
+import { formatDuration } from "../lib/duration";
 import { useClickOutside } from "../lib/useClickOutside";
 import { startResize } from "../lib/resize";
 import { PANEL_WIDTH_MIN, PANEL_WIDTH_MAX } from "../lib/appConstants";
@@ -35,7 +36,8 @@ interface Props {
     recurrence: RecurrenceInput | null,
     reminderAt: string | null,
     reminderRepeat: RecurrenceFrequency | null,
-    highlightColor: string | null
+    highlightColor: string | null,
+    estimatedMinutes: number | null
   ) => Promise<unknown>;
   onToggleTag: (tagId: number, assign: boolean) => void;
   onCreateTag: (name: string, color: string) => void;
@@ -86,6 +88,9 @@ export default function TaskDetailModal({
   const [reminderTime, setReminderTime] = useState(task.reminderAt?.split(" ")[1] ?? "");
   const [reminderRepeat, setReminderRepeat] = useState<RepeatOption>(task.reminderRepeat ?? "none");
   const [highlightColor, setHighlightColor] = useState(task.highlightColor ?? "");
+  const [estimatedMinutes, setEstimatedMinutes] = useState(
+    task.estimatedMinutes != null ? String(task.estimatedMinutes) : ""
+  );
   const [saving, setSaving] = useState(false);
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState(() => pickUnusedColor(allTags.map((t) => t.color)));
@@ -151,7 +156,8 @@ export default function TaskDetailModal({
         buildRecurrenceInput(),
         reminderAt,
         reminderAt && reminderRepeat !== "none" ? reminderRepeat : null,
-        highlightColor || null
+        highlightColor || null,
+        estimatedMinutes.trim() ? Math.max(0, Math.round(Number(estimatedMinutes))) : null
       );
       onClose();
     } finally {
@@ -551,6 +557,44 @@ export default function TaskDetailModal({
               </button>
             );
           })}
+        </div>
+
+        <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
+          Time estimate
+        </label>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}>
+          <input
+            type="number"
+            min={0}
+            value={estimatedMinutes}
+            onChange={(e) => setEstimatedMinutes(e.target.value)}
+            placeholder="e.g. 30"
+            style={{
+              width: 90,
+              padding: "8px 10px",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              background: "var(--color-surface)",
+              color: "var(--color-text)",
+              fontSize: 14,
+            }}
+          />
+          <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>minutes</span>
+          {estimatedMinutes.trim() && (
+            <button
+              type="button"
+              onClick={() => setEstimatedMinutes("")}
+              title="Clear estimate"
+              style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 12 }}
+            >
+              ✕
+            </button>
+          )}
+          {(task.timeSpentSeconds > 0 || task.timerStartedAt) && (
+            <span style={{ fontSize: 11, color: "var(--color-text-faint)" }}>
+              Logged so far: {formatDuration(task.timeSpentSeconds)}
+            </span>
+          )}
         </div>
 
         <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>

@@ -212,7 +212,8 @@ export default function TaskRow({
     hasTags ||
     showListBadge ||
     hasTimeLogged ||
-    showTimerControl;
+    showTimerControl ||
+    task.estimatedMinutes != null;
 
   // Runs an action-menu handler and closes the menu, so picking an item
   // doesn't leave a stale popover open behind whatever it triggered.
@@ -647,8 +648,13 @@ export default function TaskRow({
                 {task.dueTime ? ` ${task.dueTime}` : ""}
               </span>
             )}
-            {(hasTimeLogged || showTimerControl) && (
+            {(hasTimeLogged || showTimerControl || task.estimatedMinutes != null) && (
               <span
+                title={
+                  task.estimatedMinutes != null
+                    ? `Logged ${formatDuration(liveElapsedSeconds)} of an estimated ${formatDuration(task.estimatedMinutes * 60)}`
+                    : undefined
+                }
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -682,6 +688,16 @@ export default function TaskRow({
                   </button>
                 )}
                 ⏱ {formatDuration(liveElapsedSeconds)}
+                {task.estimatedMinutes != null && (
+                  <span
+                    style={{
+                      color:
+                        liveElapsedSeconds > task.estimatedMinutes * 60 ? OVERDUE_COLOR : "var(--color-text-faint)",
+                    }}
+                  >
+                    / {formatDuration(task.estimatedMinutes * 60)}
+                  </span>
+                )}
               </span>
             )}
             {task.reminderAt && (

@@ -60,6 +60,7 @@ import {
   markReminderNotified,
   advanceTaskReminder,
   updateTaskHighlightColor,
+  updateTaskEstimate,
   updateTaskInProgress,
   updateTaskParent,
   updateTaskBacklog,
@@ -128,6 +129,7 @@ interface EditSnapshot {
   reminderAt: string | null;
   reminderRepeat: RecurrenceFrequency | null;
   highlightColor: string | null;
+  estimatedMinutes: number | null;
 }
 
 interface EditHistoryEntry {
@@ -1031,6 +1033,11 @@ export default function App() {
     await reload();
   }
 
+  async function handleSaveEstimate(id: number, estimatedMinutes: number | null) {
+    await updateTaskEstimate(id, estimatedMinutes);
+    await reload();
+  }
+
   function toEditSnapshot(task: Task): EditSnapshot {
     return {
       title: task.title,
@@ -1050,6 +1057,7 @@ export default function App() {
       reminderAt: task.reminderAt,
       reminderRepeat: task.reminderRepeat,
       highlightColor: task.highlightColor,
+      estimatedMinutes: task.estimatedMinutes,
     };
   }
 
@@ -1062,6 +1070,7 @@ export default function App() {
       handleSaveRecurrence(id, snap.recurrence),
       handleSaveReminder(id, snap.reminderAt, snap.reminderRepeat),
       handleSaveHighlightColor(id, snap.highlightColor),
+      handleSaveEstimate(id, snap.estimatedMinutes),
     ]);
   }
 
@@ -2661,7 +2670,18 @@ export default function App() {
           // Comparing against the id this closure was created for stops a
           // slow save from clobbering whatever's actually selected by then.
           onClose={() => setSelectedTask((prev) => (prev?.id === selectedTask.id ? null : prev))}
-          onSave={(title, description, dueDate, dueTime, priority, recurrence, reminderAt, reminderRepeat, highlightColor) => {
+          onSave={(
+            title,
+            description,
+            dueDate,
+            dueTime,
+            priority,
+            recurrence,
+            reminderAt,
+            reminderRepeat,
+            highlightColor,
+            estimatedMinutes
+          ) => {
             const id = selectedTask.id;
             const before = toEditSnapshot(selectedTask);
             const after: EditSnapshot = {
@@ -2674,6 +2694,7 @@ export default function App() {
               reminderAt,
               reminderRepeat,
               highlightColor,
+              estimatedMinutes,
             };
             return applyEditSnapshot(id, after).then(() => {
               if (JSON.stringify(before) !== JSON.stringify(after)) {

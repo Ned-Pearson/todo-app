@@ -170,4 +170,9 @@ export interface Task {
   // (Date.now() vs. this timestamp), not app uptime, so it stays correct
   // across the app being closed and reopened mid-timer.
   timerStartedAt: string | null;
+  // How long this task is expected to take, set by hand — independent of
+  // timeSpentSeconds above (the actual logged time), so the two can be
+  // compared. Minute granularity, unlike the second-precision timer, since
+  // nobody estimates to the second.
+  estimatedMinutes: number | null;
 }

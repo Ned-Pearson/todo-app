@@ -200,6 +200,12 @@ fn main() {
             sql: include_str!("../migrations/033_reminder_repeat.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 34,
+            description: "add tasks.estimated_minutes",
+            sql: include_str!("../migrations/034_time_estimate.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

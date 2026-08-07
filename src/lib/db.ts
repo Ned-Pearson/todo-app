@@ -76,6 +76,7 @@ function rowToTask(
     deletedAt: row.deleted_at,
     timeSpentSeconds: row.time_spent_seconds,
     timerStartedAt: row.timer_started_at,
+    estimatedMinutes: row.estimated_minutes,
   };
 }
 
@@ -375,6 +376,11 @@ export async function stopTaskTimer(id: number): Promise<void> {
 export async function resetTaskTimer(id: number): Promise<void> {
   const db = await getDb();
   await db.execute("UPDATE tasks SET time_spent_seconds = 0, timer_started_at = NULL WHERE id = ?", [id]);
+}
+
+export async function updateTaskEstimate(id: number, estimatedMinutes: number | null): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE tasks SET estimated_minutes = ? WHERE id = ?", [estimatedMinutes, id]);
 }
 
 export async function getAllTags(): Promise<Tag[]> {
