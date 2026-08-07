@@ -3,6 +3,13 @@
 Tauri + React + TypeScript + SQLite
 
 TODO:
+- Set up a test runner (Vitest) — no automated tests exist yet
+- Add unit tests for the pure `lib/` helpers (date, recurrence, tree, taskMarkdown, stats, duration) — each was only ever verified with a disposable one-off Node script during development, not real regression coverage
+- Extract `App.tsx`'s reminder-checking effect into a `useReminders` hook (it's grown to ~2700 lines in one component)
+- Extract `App.tsx`'s keyboard shortcut handling into a `useKeyboardShortcuts` hook
+- Extract `App.tsx`'s tag/priority/search filtering into a `useTaskFilters` hook
+- Add a baseline ESLint config, especially `react-hooks/exhaustive-deps` (no lint config exists in the project at all right now)
+- Extract repeated inline popover/menu-item/card styles into shared style constants (currently copy-pasted per component, e.g. every popover panel repeats the same border/radius/background/shadow block)
 
 ## Project structure~
 

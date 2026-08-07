@@ -104,8 +104,8 @@ import {
   TRASH_RETENTION_OPTIONS_DAYS,
 } from "./lib/appConstants";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "./lib/priority";
-import { buildTaskTree } from "./lib/tree";
-import { hexToRgba } from "./lib/color";
+import { buildTaskTree, withDescendants } from "./lib/tree";
+import { hexToRgba, DANGER_COLOR } from "./lib/color";
 import { exportToFile, importFromFile, exportTaskAsMarkdown } from "./lib/backup";
 import { taskToMarkdown, listToMarkdown } from "./lib/taskMarkdown";
 import { nextRecurrenceDate, type RecurrenceInput } from "./lib/recurrence";
@@ -1388,25 +1388,16 @@ export default function App() {
 
   // The whole-list counterpart to handleExportTaskMarkdown above — same
   // "list membership" rule the app itself uses when the list is open
-  // (filterByTagPriorityAndSearch's own listId + descendants walk), just
-  // duplicated here rather than shared, since that one is scoped to
-  // whichever list is *currently active* while this needs to work for
-  // whatever list's popover the export was triggered from.
+  // (filterByTagPriorityAndSearch's own listId + descendants rule, via the
+  // shared withDescendants() helper), just recomputed here rather than
+  // reused directly, since that one is scoped to whichever list is
+  // *currently active* while this needs to work for whatever list's
+  // popover the export was triggered from.
   async function handleExportListMarkdown(listId: number) {
     const list = customTabs.find((t) => t.id === listId);
     if (!list) return;
     const everyTask = [...tasks, ...archivedTasks, ...trashedTasks];
-    const visibleIdSet = new Set(everyTask.filter((t) => t.listId === listId).map((t) => t.id));
-    function addDescendants(id: number) {
-      for (const t of everyTask) {
-        if (t.parentId === id && !visibleIdSet.has(t.id)) {
-          visibleIdSet.add(t.id);
-          addDescendants(t.id);
-        }
-      }
-    }
-    for (const id of [...visibleIdSet]) addDescendants(id);
-    const listTasks = everyTask.filter((t) => visibleIdSet.has(t.id));
+    const listTasks = withDescendants(everyTask, (t) => t.listId === listId);
     const markdown = listToMarkdown(list.name, list.description, listTasks);
     try {
       const exported = await exportTaskAsMarkdown(list.name, markdown);
@@ -1467,20 +1458,8 @@ export default function App() {
     // at creation time (not live-inherited like tags), so without this a
     // subtask added before this feature, or dragged in from elsewhere,
     // would otherwise silently vanish from its own parent's list.
-    const listFiltered = (() => {
-      if (activeListId == null) return list;
-      const visibleIdSet = new Set(list.filter((t) => t.listId === activeListId).map((t) => t.id));
-      function addDescendants(id: number) {
-        for (const t of list) {
-          if (t.parentId === id && !visibleIdSet.has(t.id)) {
-            visibleIdSet.add(t.id);
-            addDescendants(t.id);
-          }
-        }
-      }
-      for (const id of [...visibleIdSet]) addDescendants(id);
-      return list.filter((t) => visibleIdSet.has(t.id));
-    })();
+    const listFiltered =
+      activeListId == null ? list : withDescendants(list, (t) => t.listId === activeListId);
 
     const tagFiltered =
       activeTagFilter == null
@@ -1496,20 +1475,9 @@ export default function App() {
     // a matching task's subtree stays intact. Tasks with no priority set
     // (and no matching ancestor) are dropped entirely rather than just
     // reordered.
-    const priorityFiltered = (() => {
-      if (!priorityFilter) return tagFiltered;
-      const visibleIdSet = new Set(tagFiltered.filter((t) => t.priority === priorityFilter).map((t) => t.id));
-      function addDescendants(id: number) {
-        for (const t of tagFiltered) {
-          if (t.parentId === id && !visibleIdSet.has(t.id)) {
-            visibleIdSet.add(t.id);
-            addDescendants(t.id);
-          }
-        }
-      }
-      for (const id of [...visibleIdSet]) addDescendants(id);
-      return tagFiltered.filter((t) => visibleIdSet.has(t.id));
-    })();
+    const priorityFiltered = !priorityFilter
+      ? tagFiltered
+      : withDescendants(tagFiltered, (t) => t.priority === priorityFilter);
 
     const q = searchQuery.trim().toLowerCase();
     if (!q) return priorityFiltered;
@@ -2482,7 +2450,7 @@ export default function App() {
               border: "1px solid var(--color-border)",
               borderRadius: "var(--radius-sm)",
               background: "none",
-              color: "#c9184a",
+              color: DANGER_COLOR,
               fontSize: 13,
               opacity: selectedIds.size === 0 ? 0.5 : 1,
             }}
@@ -2587,11 +2555,11 @@ export default function App() {
         <>
           {overdueTopLevel.length > 0 && (
             <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#c9184a", marginBottom: 6 }}>Overdue</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: DANGER_COLOR, marginBottom: 6 }}>Overdue</div>
               <div
                 style={{
                   background: "var(--color-surface)",
-                  border: "1px solid #c9184a",
+                  border: `1px solid ${DANGER_COLOR}`,
                   borderRadius: "var(--radius-md)",
                   boxShadow: "var(--shadow-card)",
                 }}

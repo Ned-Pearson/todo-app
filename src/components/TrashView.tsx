@@ -1,6 +1,7 @@
 import type { Priority, Task } from "../types";
 import { buildTaskTree } from "../lib/tree";
 import { datePartOf, formatDateDisplay } from "../lib/date";
+import { DANGER_COLOR } from "../lib/color";
 import TaskRow from "./TaskRow";
 
 interface Props {
@@ -74,10 +75,10 @@ export default function TrashView({
           title="Permanently delete everything in Trash right now"
           style={{
             padding: "6px 12px",
-            border: "1px solid #c9184a",
+            border: `1px solid ${DANGER_COLOR}`,
             borderRadius: "var(--radius-sm)",
             background: "none",
-            color: "#c9184a",
+            color: DANGER_COLOR,
             fontSize: 13,
             fontWeight: 500,
           }}

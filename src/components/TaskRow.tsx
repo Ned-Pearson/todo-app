@@ -4,12 +4,12 @@ import { PRIORITY_COLORS, PRIORITY_LABELS } from "../lib/priority";
 import { isOverdue, formatDateDisplay } from "../lib/date";
 import { fileNameFromPath } from "../lib/attachments";
 import { renderInlineMarkdown } from "../lib/markdown";
-import { hexToRgba } from "../lib/color";
+import { hexToRgba, DANGER_COLOR } from "../lib/color";
 import { formatDuration } from "../lib/duration";
 import { REPEAT_LABELS } from "../lib/recurrence";
 import { useClickOutside } from "../lib/useClickOutside";
 
-const OVERDUE_COLOR = "#c9184a";
+const OVERDUE_COLOR = DANGER_COLOR;
 // Aligns the subtitle line under the title text, past the leading cluster of
 // icons (collapse caret, checkbox, blocked/in-progress/priority icons) on
 // line 1 — matches the offset the description preview below already uses.
@@ -643,7 +643,7 @@ export default function TaskRow({
                 <button
                   onClick={() => runMenuAction(onDelete)}
                   role="menuitem"
-                  style={{ ...menuItemStyle, color: "#c9184a" }}
+                  style={{ ...menuItemStyle, color: DANGER_COLOR }}
                 >
                   {deleteLabel}
                 </button>
