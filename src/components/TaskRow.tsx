@@ -241,6 +241,7 @@ export default function TaskRow({
         tabIndex={0}
         data-task-row
         data-task-id={task.id}
+        aria-label={`${task.title}${task.completed ? " (completed)" : ""}`}
         onContextMenu={(e) => {
           e.preventDefault();
           setContextMenuPos({ x: e.clientX, y: e.clientY });
@@ -313,6 +314,10 @@ export default function TaskRow({
               }}
               onClick={(e) => e.stopPropagation()}
               title="Drag to reorder"
+              // Decorative for screen readers — Alt+↑/↓ on the focused row
+              // (see App.tsx's global keydown handler) is the keyboard-
+              // operable equivalent of this mouse-only drag handle.
+              aria-hidden="true"
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -337,6 +342,8 @@ export default function TaskRow({
                 setCollapsed((v) => !v);
               }}
               title={collapsed ? "Expand subtasks" : "Collapse subtasks"}
+              aria-label={collapsed ? "Expand subtasks" : "Collapse subtasks"}
+              aria-expanded={!collapsed}
               style={{
                 width: 16,
                 height: 16,
@@ -361,6 +368,11 @@ export default function TaskRow({
             checked={task.completed}
             disabled={readOnly || blocked}
             title={blocked ? `Blocked by: ${blockingDeps.map((d) => d.title).join(", ")}` : undefined}
+            aria-label={
+              blocked
+                ? `"${task.title}" is blocked by: ${blockingDeps.map((d) => d.title).join(", ")}`
+                : `Mark "${task.title}" complete`
+            }
             onClick={(e) => e.stopPropagation()}
             onChange={(e) => onToggle(task.id, e.target.checked)}
             style={{
@@ -386,6 +398,8 @@ export default function TaskRow({
                 onToggleInProgress(task.id);
               }}
               title={task.inProgress ? "Mark as not started" : "Mark as in progress"}
+              aria-label={task.inProgress ? "Mark as not started" : "Mark as in progress"}
+              aria-pressed={task.inProgress}
               style={{
                 border: "none",
                 background: "none",
@@ -441,6 +455,7 @@ export default function TaskRow({
               setAddingSubtask((v) => !v);
             }}
             title="Add subtask"
+            aria-label="Add subtask"
             style={{
               border: "none",
               background: "none",
@@ -460,6 +475,8 @@ export default function TaskRow({
                 onTogglePin(task.id);
               }}
               title={task.pinned ? "Unpin" : "Pin to shortlist"}
+              aria-label={task.pinned ? "Unpin" : "Pin to shortlist"}
+              aria-pressed={task.pinned}
               style={{
                 border: "none",
                 background: "none",
@@ -480,6 +497,9 @@ export default function TaskRow({
                 setMenuOpen((v) => !v);
               }}
               title="More actions (or right-click the row)"
+              aria-label="More actions"
+              aria-haspopup="true"
+              aria-expanded={menuOpen}
               style={{
                 border: "none",
                 background: "none",
@@ -494,6 +514,8 @@ export default function TaskRow({
             {menuOpen && (
               <div
                 onClick={(e) => e.stopPropagation()}
+                role="menu"
+                aria-label="Task actions"
                 style={{
                   position: contextMenuPos ? "fixed" : "absolute",
                   top: contextMenuPos ? contextMenuPos.y : "calc(100% + 4px)",
@@ -512,6 +534,7 @@ export default function TaskRow({
                   <button
                     onClick={() => runMenuAction(onSkipOccurrence)}
                     title="Skip this occurrence and advance to the next one, without marking it complete"
+                    role="menuitem"
                     style={menuItemStyle}
                   >
                     Skip
@@ -521,6 +544,7 @@ export default function TaskRow({
                   <button
                     onClick={() => runMenuAction(onPostpone)}
                     title="Push this task's due date forward by a day"
+                    role="menuitem"
                     style={menuItemStyle}
                   >
                     Postpone
@@ -530,6 +554,7 @@ export default function TaskRow({
                   <button
                     onClick={() => runMenuAction(onDuplicate)}
                     title="Duplicate this task (and its subtasks)"
+                    role="menuitem"
                     style={menuItemStyle}
                   >
                     Duplicate
@@ -539,6 +564,7 @@ export default function TaskRow({
                   <button
                     onClick={() => runMenuAction(onSaveAsTemplate)}
                     title="Save this task's title/priority/tags and subtasks as a reusable template"
+                    role="menuitem"
                     style={menuItemStyle}
                   >
                     Save as template
@@ -548,6 +574,7 @@ export default function TaskRow({
                   <button
                     onClick={() => runMenuAction(onExportMarkdown)}
                     title="Save this task (and its subtasks) as a Markdown file"
+                    role="menuitem"
                     style={menuItemStyle}
                   >
                     Export .md
@@ -557,6 +584,7 @@ export default function TaskRow({
                   <button
                     onClick={() => runMenuAction(onBacklog)}
                     title="Move to Backlog — hide from All/Today/This Week until you're ready for it"
+                    role="menuitem"
                     style={menuItemStyle}
                   >
                     Backlog
@@ -566,6 +594,7 @@ export default function TaskRow({
                   <button
                     onClick={() => runMenuAction(onUnbacklog)}
                     title="Bring back into the everyday views"
+                    role="menuitem"
                     style={menuItemStyle}
                   >
                     Unbacklog
@@ -575,6 +604,7 @@ export default function TaskRow({
                   <button
                     onClick={() => runMenuAction(onRestore)}
                     title="Restore this task out of the trash"
+                    role="menuitem"
                     style={menuItemStyle}
                   >
                     Restore
@@ -584,6 +614,7 @@ export default function TaskRow({
                   <button
                     onClick={() => runMenuAction(onArchive)}
                     title="Move this task to the archive, out of History and the main list"
+                    role="menuitem"
                     style={menuItemStyle}
                   >
                     Archive
@@ -593,6 +624,7 @@ export default function TaskRow({
                   <button
                     onClick={() => runMenuAction(onUnarchive)}
                     title="Restore this task out of the archive"
+                    role="menuitem"
                     style={menuItemStyle}
                   >
                     Unarchive
@@ -602,6 +634,7 @@ export default function TaskRow({
                   <button
                     onClick={() => runMenuAction(onResetTimer)}
                     title="Reset this task's logged time back to 0:00"
+                    role="menuitem"
                     style={menuItemStyle}
                   >
                     Reset timer
@@ -609,6 +642,7 @@ export default function TaskRow({
                 )}
                 <button
                   onClick={() => runMenuAction(onDelete)}
+                  role="menuitem"
                   style={{ ...menuItemStyle, color: "#c9184a" }}
                 >
                   {deleteLabel}
@@ -675,6 +709,8 @@ export default function TaskRow({
                       onToggleTimer?.(task.id);
                     }}
                     title={task.timerStartedAt ? "Stop timer" : "Start timer"}
+                    aria-label={task.timerStartedAt ? "Stop timer" : "Start timer"}
+                    aria-pressed={!!task.timerStartedAt}
                     style={{
                       border: "none",
                       background: "none",
@@ -900,6 +936,7 @@ export default function TaskRow({
             type="button"
             onClick={cancelSubtask}
             title="Cancel"
+            aria-label="Cancel adding subtask"
             style={{
               border: "none",
               background: "none",

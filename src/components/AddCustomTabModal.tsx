@@ -39,6 +39,9 @@ export default function AddCustomTabModal({ onClose, onCreate }: Props) {
       <form
         onSubmit={handleSubmit}
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="add-list-heading"
         style={{
           width: "100%",
           maxWidth: 400,
@@ -49,12 +52,15 @@ export default function AddCustomTabModal({ onClose, onCreate }: Props) {
           padding: 20,
         }}
       >
-        <h2 style={{ fontSize: 16, fontWeight: 600, marginTop: 0, marginBottom: 12 }}>New list</h2>
+        <h2 id="add-list-heading" style={{ fontSize: 16, fontWeight: 600, marginTop: 0, marginBottom: 12 }}>
+          New list
+        </h2>
 
-        <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
+        <label htmlFor="add-list-name" style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
           List name
         </label>
         <input
+          id="add-list-name"
           autoFocus
           value={tabName}
           onChange={(e) => setTabName(e.target.value)}

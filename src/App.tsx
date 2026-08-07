@@ -370,6 +370,20 @@ export default function App() {
       if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
       if (isTextEntry(e.target)) return;
 
+      // Alt+↑/↓ is the keyboard-operable equivalent of dragging a row's ⠿
+      // handle — moves the focused row among its true siblings instead of
+      // moving focus itself, so reordering (manual sort only, same as the
+      // drag handle's own gate) doesn't require a mouse.
+      if (e.altKey) {
+        if (sortBy !== "manual") return;
+        const focused = document.activeElement as HTMLElement | null;
+        const taskId = focused?.dataset.taskId ? Number(focused.dataset.taskId) : null;
+        if (taskId == null) return;
+        e.preventDefault();
+        handleMoveTask(taskId, e.key === "ArrowDown" ? "down" : "up");
+        return;
+      }
+
       const rows = Array.from(document.querySelectorAll<HTMLElement>("[data-task-row]"));
       if (rows.length === 0) return;
       const currentIndex = rows.indexOf(document.activeElement as HTMLElement);
@@ -383,7 +397,7 @@ export default function App() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedTask, showManageTags, showAddModal, showCommandPalette, searchQuery, undoStack, redoStack]);
+  }, [selectedTask, showManageTags, showAddModal, showCommandPalette, searchQuery, undoStack, redoStack, sortBy, tasks]);
 
   // A global (OS-level) shortcut so quick-add works even when the app isn't
   // focused — pressing it brings the window to the front and opens the Add
@@ -987,6 +1001,21 @@ export default function App() {
       ]);
     }
     await reload();
+  }
+
+  // The keyboard-operable equivalent of dragging a row's ⠿ handle — Alt+↑/↓
+  // on a focused row (wired below, alongside the plain ↑/↓ row-navigation
+  // shortcut) swaps it with its immediate sibling instead of requiring a
+  // mouse drag. Reuses handleReorder's own same-parent branch (never
+  // reparents, since the target here is always a true sibling already).
+  async function handleMoveTask(id: number, direction: "up" | "down") {
+    const task = tasks.find((t) => t.id === id);
+    if (!task) return;
+    const siblings = tasks.filter((t) => t.parentId === task.parentId);
+    const index = siblings.findIndex((t) => t.id === id);
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= siblings.length) return;
+    await handleReorder(id, siblings[targetIndex].id, direction === "up" ? "before" : "after");
   }
 
   // Same before/after splice-insertion shape as handleReorder above, just
@@ -1600,6 +1629,9 @@ export default function App() {
               >
                 <button
                   type="button"
+                  aria-label="Keyboard shortcuts"
+                  aria-haspopup="true"
+                  aria-expanded={showShortcuts}
                   style={{
                     width: 28,
                     height: 28,
@@ -1618,6 +1650,7 @@ export default function App() {
                 </button>
                 {showShortcuts && (
                   <div
+                    role="tooltip"
                     style={{
                       position: "absolute",
                       top: "calc(100% + 6px)",
@@ -1645,6 +1678,10 @@ export default function App() {
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                       <span>↑ / ↓</span>
                       <span>Move between tasks</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                      <span>Alt+↑ / Alt+↓</span>
+                      <span>Reorder focused task</span>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                       <span>Enter</span>
@@ -1677,6 +1714,7 @@ export default function App() {
                 onClick={handleUndo}
                 disabled={undoStack.length === 0}
                 title="Undo the last edit (Ctrl/⌘+Z)"
+                aria-label="Undo the last edit"
                 style={{
                   padding: "6px 10px",
                   border: "1px solid var(--color-border)",
@@ -1694,6 +1732,7 @@ export default function App() {
                 onClick={handleRedo}
                 disabled={redoStack.length === 0}
                 title="Redo the last undone edit (Ctrl/⌘+Shift+Z)"
+                aria-label="Redo the last undone edit"
                 style={{
                   padding: "6px 10px",
                   border: "1px solid var(--color-border)",
@@ -1878,6 +1917,7 @@ export default function App() {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search tasks… (/)"
+          aria-label="Search tasks"
           style={{
             width: "100%",
             padding: "8px 30px 8px 10px",
@@ -1893,6 +1933,7 @@ export default function App() {
             type="button"
             onClick={() => setSearchQuery("")}
             title="Clear search"
+            aria-label="Clear search"
             style={{
               position: "absolute",
               right: 6,
@@ -2054,6 +2095,7 @@ export default function App() {
                   type="button"
                   onClick={() => handleDeleteSavedView(savedView.id)}
                   title="Delete this saved view"
+                  aria-label={`Delete saved view "${savedView.name}"`}
                   style={{ border: "none", background: "none", color: "inherit", fontSize: 11, padding: 0, opacity: 0.7 }}
                 >
                   ✕
@@ -2124,6 +2166,8 @@ export default function App() {
           <button
             type="button"
             onClick={() => setShowTemplatesPicker((v) => !v)}
+            aria-haspopup="true"
+            aria-expanded={showTemplatesPicker}
             style={{
               padding: "8px 14px",
               border: "1px solid var(--color-border)",
@@ -2180,6 +2224,7 @@ export default function App() {
                     type="button"
                     onClick={() => handleDeleteTemplate(template.id)}
                     title="Delete this template"
+                    aria-label={`Delete template "${template.name}"`}
                     style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 11 }}
                   >
                     ✕
@@ -2249,6 +2294,8 @@ export default function App() {
               type="button"
               disabled={selectedIds.size === 0}
               onClick={() => setShowBulkTagPicker((v) => !v)}
+              aria-haspopup="true"
+              aria-expanded={showBulkTagPicker}
               style={{
                 padding: "6px 10px",
                 border: "1px solid var(--color-border)",
@@ -2310,6 +2357,8 @@ export default function App() {
               disabled={selectedIds.size === 0}
               onClick={() => setShowBulkPostponePicker((v) => !v)}
               title="Push every selected overdue task's due date forward by N days"
+              aria-haspopup="true"
+              aria-expanded={showBulkPostponePicker}
               style={{
                 padding: "6px 10px",
                 border: "1px solid var(--color-border)",
@@ -2593,6 +2642,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => setShowCompleted((v) => !v)}
+                aria-expanded={showCompleted}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -2606,7 +2656,9 @@ export default function App() {
                   marginBottom: showCompleted ? 6 : 0,
                 }}
               >
-                <span style={{ fontSize: 10 }}>{showCompleted ? "▾" : "▸"}</span>
+                <span style={{ fontSize: 10 }} aria-hidden="true">
+                  {showCompleted ? "▾" : "▸"}
+                </span>
                 Completed ({completedTopLevel.length})
               </button>
               {showCompleted && (

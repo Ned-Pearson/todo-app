@@ -20,6 +20,10 @@ import { startResize } from "../lib/resize";
 import { PANEL_WIDTH_MIN, PANEL_WIDTH_MAX } from "../lib/appConstants";
 import { formatDateDisplay } from "../lib/date";
 
+// Keyboard-operable equivalent of dragging the resize handle below — ←/→
+// while it has focus, mirroring Sidebar's own handle (same step size).
+const RESIZE_STEP = 20;
+
 interface Props {
   task: Task;
   width: number;
@@ -203,6 +207,8 @@ export default function TaskDetailModal({
     <div
       ref={panelRef}
       className="detail-panel"
+      role="dialog"
+      aria-label={`Edit task: ${task.title}`}
       style={{
         position: "fixed",
         top: 0,
@@ -220,6 +226,21 @@ export default function TaskDetailModal({
       <div
         onMouseDown={(e) => startResize(e, width, setWidth, { min: PANEL_WIDTH_MIN, max: PANEL_WIDTH_MAX, direction: "grow-left" })}
         title="Drag to resize"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize detail panel"
+        aria-valuenow={width}
+        aria-valuemin={PANEL_WIDTH_MIN}
+        aria-valuemax={PANEL_WIDTH_MAX}
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+          e.preventDefault();
+          // Grows toward the left (docked on the right edge), so ← grows and
+          // → shrinks — the opposite mapping from Sidebar's own handle.
+          const delta = e.key === "ArrowLeft" ? RESIZE_STEP : -RESIZE_STEP;
+          setWidth(Math.min(PANEL_WIDTH_MAX, Math.max(PANEL_WIDTH_MIN, width + delta)));
+        }}
         style={{
           position: "absolute",
           top: 0,
@@ -236,6 +257,7 @@ export default function TaskDetailModal({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Task title…"
+          aria-label="Task title"
           style={{
             flex: 1,
             padding: "4px 0",
@@ -251,6 +273,7 @@ export default function TaskDetailModal({
           type="button"
           onClick={onClose}
           title="Close"
+          aria-label="Close"
           style={{
             border: "none",
             background: "none",
@@ -362,6 +385,7 @@ export default function TaskDetailModal({
                 setReminderRepeat("none");
               }}
               title="Clear reminder"
+              aria-label="Clear reminder"
               style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 12 }}
             >
               ✕
@@ -585,6 +609,7 @@ export default function TaskDetailModal({
               type="button"
               onClick={() => setEstimatedMinutes("")}
               title="Clear estimate"
+              aria-label="Clear estimate"
               style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 12 }}
             >
               ✕
@@ -606,6 +631,7 @@ export default function TaskDetailModal({
             value={highlightColor || "#f2d95c"}
             onChange={(e) => setHighlightColor(e.target.value)}
             title="Row highlight color"
+            aria-label="Row highlight color"
             style={{
               width: 36,
               height: 28,
@@ -620,6 +646,7 @@ export default function TaskDetailModal({
               type="button"
               onClick={() => setHighlightColor("")}
               title="Clear highlight"
+              aria-label="Clear highlight"
               style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 12 }}
             >
               ✕
@@ -663,6 +690,7 @@ export default function TaskDetailModal({
                   type="button"
                   onClick={() => onRemoveDependency(dep.id)}
                   title="Remove this dependency"
+                  aria-label={`Remove dependency on "${dep.title}"`}
                   style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 12 }}
                 >
                   ✕
@@ -755,6 +783,7 @@ export default function TaskDetailModal({
                   type="button"
                   onClick={() => onRemoveRelatedTask(rel.id)}
                   title="Remove this link"
+                  aria-label={`Remove link to "${rel.title}"`}
                   style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 12 }}
                 >
                   ✕
@@ -843,6 +872,7 @@ export default function TaskDetailModal({
                 key={tag.id}
                 type="button"
                 onClick={() => onToggleTag(tag.id, !assigned)}
+                aria-pressed={assigned}
                 style={{
                   fontSize: 12,
                   fontWeight: 500,
@@ -991,6 +1021,7 @@ export default function TaskDetailModal({
                     type="button"
                     onClick={() => onRemoveAttachment(a.id)}
                     title="Remove"
+                    aria-label={`Remove attachment "${fileNameFromPath(a.path)}"`}
                     style={{
                       position: "absolute",
                       top: -6,
@@ -1044,6 +1075,7 @@ export default function TaskDetailModal({
                     type="button"
                     onClick={() => onRemoveAttachment(a.id)}
                     title="Remove"
+                    aria-label={`Remove attachment "${fileNameFromPath(a.path)}"`}
                     style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 12 }}
                   >
                     ✕
@@ -1111,6 +1143,9 @@ export default function TaskDetailModal({
             e.stopPropagation();
             setPreviewPath(null);
           }}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Image preview"
           style={{
             position: "fixed",
             inset: 0,

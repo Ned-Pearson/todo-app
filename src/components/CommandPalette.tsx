@@ -107,6 +107,9 @@ export default function CommandPalette({ tasks, commands, onSelectTask, onClose 
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Command palette"
         style={{
           width: "100%",
           maxWidth: 480,
@@ -123,6 +126,12 @@ export default function CommandPalette({ tasks, commands, onSelectTask, onClose 
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Jump to a task or run a command…"
+          aria-label="Jump to a task or run a command"
+          role="combobox"
+          aria-expanded={entries.length > 0}
+          aria-controls="command-palette-listbox"
+          aria-autocomplete="list"
+          aria-activedescendant={entries[activeIndex]?.key}
           style={{
             width: "100%",
             padding: "14px 16px",
@@ -134,13 +143,16 @@ export default function CommandPalette({ tasks, commands, onSelectTask, onClose 
             fontFamily: "inherit",
           }}
         />
-        <div style={{ maxHeight: 360, overflowY: "auto" }}>
+        <div id="command-palette-listbox" role="listbox" style={{ maxHeight: 360, overflowY: "auto" }}>
           {entries.length === 0 && (
             <div style={{ padding: "14px 16px", color: "var(--color-text-faint)", fontSize: 13 }}>No matches.</div>
           )}
           {entries.map((entry, i) => (
             <div
               key={entry.key}
+              id={entry.key}
+              role="option"
+              aria-selected={i === activeIndex}
               onClick={() => runEntry(entry)}
               onMouseEnter={() => setActiveIndex(i)}
               style={{

@@ -179,6 +179,7 @@ export default function CalendarView({
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
         <button
           onClick={() => setCursor(new Date(year, month - 1, 1))}
+          aria-label="Previous month"
           style={{ border: "none", background: "none", color: "var(--color-text-muted)", fontSize: 20, padding: 4 }}
         >
           ‹
@@ -188,6 +189,7 @@ export default function CalendarView({
         </div>
         <button
           onClick={() => setCursor(new Date(year, month + 1, 1))}
+          aria-label="Next month"
           style={{ border: "none", background: "none", color: "var(--color-text-muted)", fontSize: 20, padding: 4 }}
         >
           ›
@@ -219,6 +221,8 @@ export default function CalendarView({
             <button
               key={dateStr}
               onClick={() => selectDate(dateStr)}
+              aria-current={isToday ? "date" : undefined}
+              aria-pressed={isSelected}
               style={{
                 display: "flex",
                 flexDirection: "column",

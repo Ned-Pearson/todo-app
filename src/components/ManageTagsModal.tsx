@@ -27,6 +27,7 @@ function TagEditRow({ tag, onRename, onRecolor, onDelete }: Omit<Props, "tags" |
         type="color"
         value={tag.color}
         onChange={(e) => onRecolor(tag.id, e.target.value)}
+        aria-label={`Color for tag "${tag.name}"`}
         style={{
           width: 28,
           height: 28,
@@ -42,6 +43,7 @@ function TagEditRow({ tag, onRename, onRecolor, onDelete }: Omit<Props, "tags" |
         onChange={(e) => setName(e.target.value)}
         onBlur={commitName}
         onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+        aria-label={`Name for tag "${tag.name}"`}
         style={{
           flex: 1,
           padding: "6px 8px",
@@ -55,6 +57,7 @@ function TagEditRow({ tag, onRename, onRecolor, onDelete }: Omit<Props, "tags" |
       <button
         type="button"
         onClick={() => onDelete(tag.id)}
+        aria-label={`Delete tag "${tag.name}"`}
         style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 13 }}
       >
         Delete
@@ -80,6 +83,9 @@ export default function ManageTagsModal({ tags, onClose, onRename, onRecolor, on
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="manage-tags-heading"
         style={{
           width: "100%",
           maxWidth: 400,
@@ -90,7 +96,9 @@ export default function ManageTagsModal({ tags, onClose, onRename, onRecolor, on
           padding: 20,
         }}
       >
-        <h2 style={{ fontSize: 16, fontWeight: 600, marginTop: 0, marginBottom: 12 }}>Manage tags</h2>
+        <h2 id="manage-tags-heading" style={{ fontSize: 16, fontWeight: 600, marginTop: 0, marginBottom: 12 }}>
+          Manage tags
+        </h2>
 
         {tags.length === 0 && (
           <div style={{ color: "var(--color-text-faint)", fontSize: 13, marginBottom: 16 }}>No tags yet.</div>

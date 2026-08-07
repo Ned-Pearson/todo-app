@@ -100,6 +100,9 @@ export default function AddTaskModal({ defaultDueDate, onClose, onAdd }: Props) 
       <form
         onSubmit={handleSubmit}
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Add task"
         style={{
           width: "100%",
           maxWidth: 440,
@@ -115,6 +118,7 @@ export default function AddTaskModal({ defaultDueDate, onClose, onAdd }: Props) 
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Task title… (try “tomorrow at 3pm” or “next friday”)"
+          aria-label="Task title"
           style={{
             width: "100%",
             marginBottom: detectedDate ? 4 : 12,
@@ -140,6 +144,7 @@ export default function AddTaskModal({ defaultDueDate, onClose, onAdd }: Props) 
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Description… (optional)"
+          aria-label="Description"
           rows={2}
           style={{
             width: "100%",
@@ -201,6 +206,7 @@ export default function AddTaskModal({ defaultDueDate, onClose, onAdd }: Props) 
                 key={level}
                 type="button"
                 onClick={() => setPriority(selected ? null : level)}
+                aria-pressed={selected}
                 style={{
                   fontSize: 12,
                   fontWeight: 500,
@@ -320,6 +326,7 @@ export default function AddTaskModal({ defaultDueDate, onClose, onAdd }: Props) 
                     )
                   }
                   title={selected ? `Don't repeat on ${label}` : `Also repeat on ${label}`}
+                  aria-pressed={selected}
                   style={{
                     fontSize: 12,
                     fontWeight: 500,

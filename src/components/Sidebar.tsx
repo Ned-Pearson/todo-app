@@ -58,6 +58,11 @@ const PRIMARY_VIEWS: View[] = ["my-day", "all", "today", "this-week", "no-date",
 // "More" dropdown instead of permanently taking up sidebar space.
 const MORE_VIEWS: View[] = ["history", "stats", "archive", "backlog", "trash"];
 
+// Keyboard-operable equivalent of dragging a resize handle (Sidebar's own,
+// and TaskDetailModal's matching one) — ←/→ while it has focus, since a
+// mouse drag has no keyboard equivalent otherwise.
+const RESIZE_STEP = 20;
+
 const LIST_MENU_WIDTH = 220;
 // A generous estimate (color row + reset button + description textarea),
 // used only to keep a right-click-opened panel from running off the bottom
@@ -153,6 +158,17 @@ export default function Sidebar({
       handleUpdateCustomTabDescription(colorPickerTabId, descriptionDraft.trim() || null);
     }
   }
+
+  // The keyboard-operable equivalent of dragging a list's ⠿ handle — Alt+↑/↓
+  // while its name button has focus (wired below) swaps it with its
+  // immediate neighbor, same as TaskRow's own Alt+↑/↓ handling in App.tsx.
+  function handleMoveList(id: number, direction: "up" | "down") {
+    const index = customTabs.findIndex((t) => t.id === id);
+    if (index === -1) return;
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= customTabs.length) return;
+    handleReorderCustomTab(id, customTabs[targetIndex].id, direction === "up" ? "before" : "after");
+  }
   useClickOutside(colorPickerRef, colorPickerTabId !== null, () => {
     commitDescriptionDraft();
     setColorPickerTabId(() => null);
@@ -181,6 +197,19 @@ export default function Sidebar({
       <div
         onMouseDown={(e) => startResize(e, width, setWidth, { min: SIDEBAR_WIDTH_MIN, max: SIDEBAR_WIDTH_MAX, direction: "grow-right" })}
         title="Drag to resize"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize sidebar"
+        aria-valuenow={width}
+        aria-valuemin={SIDEBAR_WIDTH_MIN}
+        aria-valuemax={SIDEBAR_WIDTH_MAX}
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+          e.preventDefault();
+          const delta = e.key === "ArrowRight" ? RESIZE_STEP : -RESIZE_STEP;
+          setWidth(Math.min(SIDEBAR_WIDTH_MAX, Math.max(SIDEBAR_WIDTH_MIN, width + delta)));
+        }}
         style={{
           position: "absolute",
           top: 0,
@@ -227,6 +256,8 @@ export default function Sidebar({
             <button
               type="button"
               onClick={() => setShowMoreViews((v) => !v)}
+              aria-haspopup="true"
+              aria-expanded={showMoreViews}
               style={{
                 width: "100%",
                 textAlign: "left",
@@ -245,6 +276,8 @@ export default function Sidebar({
         })()}
         {showMoreViews && (
           <div
+            role="menu"
+            aria-label="More views"
             style={{
               position: "absolute",
               top: "calc(100% + 4px)",
@@ -263,6 +296,7 @@ export default function Sidebar({
               return (
                 <button
                   key={v}
+                  role="menuitem"
                   onClick={() => {
                     setView(v);
                     setActiveListId(null);
@@ -360,6 +394,9 @@ export default function Sidebar({
                 }}
                 onClick={(e) => e.stopPropagation()}
                 title="Drag to reorder"
+                // Decorative for screen readers — Alt+↑/↓ on the list's name
+                // button below is the keyboard-operable equivalent.
+                aria-hidden="true"
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -377,6 +414,11 @@ export default function Sidebar({
               </span>
               <button
                 onClick={() => handleSelectCustomTab(tab)}
+                onKeyDown={(e) => {
+                  if (!e.altKey || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
+                  e.preventDefault();
+                  handleMoveList(tab.id, e.key === "ArrowDown" ? "down" : "up");
+                }}
                 style={{
                   flex: 1,
                   textAlign: "left",
@@ -403,6 +445,9 @@ export default function Sidebar({
                     setColorPickerTabId((id) => (id === tab.id ? null : tab.id));
                   }}
                   title="This tab's accent color — overrides the app-wide accent while it's active (or right-click the list)"
+                  aria-label={`"${tab.name}" list settings`}
+                  aria-haspopup="true"
+                  aria-expanded={colorPickerTabId === tab.id}
                   style={{
                     width: 14,
                     height: 14,
@@ -414,6 +459,8 @@ export default function Sidebar({
                 />
                 {colorPickerTabId === tab.id && (
                   <div
+                    role="dialog"
+                    aria-label={`"${tab.name}" list settings`}
                     style={{
                       position: listMenuPos ? "fixed" : "absolute",
                       top: listMenuPos ? listMenuPos.y : "calc(100% + 6px)",
@@ -472,6 +519,8 @@ export default function Sidebar({
                           type="button"
                           onClick={() => handleUpdateCustomTabIcon(tab.id, icon)}
                           title={icon}
+                          aria-label={`Use icon ${icon}`}
+                          aria-pressed={tab.icon === icon}
                           style={{
                             width: 22,
                             height: 22,
@@ -561,6 +610,7 @@ export default function Sidebar({
                 type="button"
                 onClick={() => handleDeleteCustomTab(tab.id)}
                 title="Delete this tab"
+                aria-label={`Delete list "${tab.name}"`}
                 style={{
                   border: "none",
                   background: "none",
@@ -599,6 +649,8 @@ export default function Sidebar({
           <button
             type="button"
             onClick={() => setShowConfigMenu((v) => !v)}
+            aria-haspopup="true"
+            aria-expanded={showConfigMenu}
             style={{
               width: "100%",
               textAlign: "left",
@@ -615,6 +667,8 @@ export default function Sidebar({
           </button>
           {showConfigMenu && (
             <div
+              role="dialog"
+              aria-label="Configuration"
               style={{
                 position: "absolute",
                 bottom: "calc(100% + 6px)",
@@ -717,6 +771,7 @@ export default function Sidebar({
                 value={weekStartsOn}
                 onChange={(e) => setWeekStartsOn(Number(e.target.value) === 1 ? 1 : 0)}
                 title="Week starts on — affects This Week and Calendar"
+                aria-label="Week starts on"
                 style={{
                   width: "100%",
                   marginBottom: 12,
@@ -757,6 +812,7 @@ export default function Sidebar({
                   type="color"
                   value={customAccent ?? DEFAULT_ACCENT[theme]}
                   onChange={(e) => setCustomAccent(e.target.value)}
+                  aria-label="Accent color"
                   style={{
                     width: 40,
                     height: 28,
