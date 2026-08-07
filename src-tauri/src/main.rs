@@ -194,6 +194,12 @@ fn main() {
             sql: include_str!("../migrations/032_list_icon.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 33,
+            description: "add tasks.reminder_repeat",
+            sql: include_str!("../migrations/033_reminder_repeat.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

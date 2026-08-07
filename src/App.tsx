@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { CustomTab, Priority, SavedView, Tag, Task, TaskTemplate } from "./types";
+import type { CustomTab, Priority, RecurrenceFrequency, SavedView, Tag, Task, TaskTemplate } from "./types";
 import {
   getAllTasks,
   getAllTags,
@@ -58,6 +58,7 @@ import {
   updateTaskArchived,
   updateTaskReminder,
   markReminderNotified,
+  advanceTaskReminder,
   updateTaskHighlightColor,
   updateTaskInProgress,
   updateTaskParent,
@@ -77,7 +78,15 @@ import TrashView from "./components/TrashView";
 import StatsView from "./components/StatsView";
 import ManageTagsModal from "./components/ManageTagsModal";
 import Sidebar from "./components/Sidebar";
-import { addInterval, getWeekRange, isOverdue, nowTimestamp, todayStr, formatDateDisplay } from "./lib/date";
+import {
+  addInterval,
+  getWeekRange,
+  isOverdue,
+  nextReminderAfter,
+  nowTimestamp,
+  todayStr,
+  formatDateDisplay,
+} from "./lib/date";
 import {
   type View,
   VIEW_LABELS,
@@ -117,6 +126,7 @@ interface EditSnapshot {
   priority: Priority | null;
   recurrence: RecurrenceInput | null;
   reminderAt: string | null;
+  reminderRepeat: RecurrenceFrequency | null;
   highlightColor: string | null;
 }
 
@@ -458,11 +468,17 @@ export default function App() {
     return () => window.clearInterval(interval);
   }, [tasks, notifySnoozeMinutes, dndEnabled]);
 
-  // Standalone reminders: a one-shot nudge at reminderAt, independent of the
+  // Standalone reminders: a nudge at reminderAt, independent of the
   // due-date/overdue machinery above — it never implies the task is "due",
-  // so it doesn't touch lastNotifiedAt or the snooze loop. Once fired it's
-  // marked reminder_notified so it never re-fires; changing the reminder
-  // time (via updateTaskReminder) resets that flag to schedule a fresh one.
+  // so it doesn't touch lastNotifiedAt or the snooze loop. A one-shot
+  // reminder (no reminderRepeat) is marked reminder_notified so it never
+  // re-fires, same as before; a repeating one instead rolls reminderAt
+  // forward to its next occurrence (via nextReminderAfter, which also
+  // catches up in one step if the app was closed past more than one
+  // interval, rather than replaying every missed occurrence) and leaves
+  // reminder_notified at 0 so it fires again next time. Changing the
+  // reminder (via updateTaskReminder) always resets reminder_notified to
+  // schedule a fresh one.
   useEffect(() => {
     async function checkReminders() {
       if (dndEnabled) return;
@@ -476,7 +492,13 @@ export default function App() {
       for (const task of due) {
         sendNotification({ title: "Reminder", body: task.title });
       }
-      await Promise.all(due.map((t) => markReminderNotified(t.id)));
+      await Promise.all(
+        due.map((t) =>
+          t.reminderRepeat
+            ? advanceTaskReminder(t.id, nextReminderAfter(t.reminderAt as string, t.reminderRepeat, now))
+            : markReminderNotified(t.id)
+        )
+      );
       await reload();
     }
 
@@ -999,8 +1021,8 @@ export default function App() {
     await reload();
   }
 
-  async function handleSaveReminder(id: number, reminderAt: string | null) {
-    await updateTaskReminder(id, reminderAt);
+  async function handleSaveReminder(id: number, reminderAt: string | null, reminderRepeat: RecurrenceFrequency | null) {
+    await updateTaskReminder(id, reminderAt, reminderRepeat);
     await reload();
   }
 
@@ -1026,6 +1048,7 @@ export default function App() {
           }
         : null,
       reminderAt: task.reminderAt,
+      reminderRepeat: task.reminderRepeat,
       highlightColor: task.highlightColor,
     };
   }
@@ -1037,7 +1060,7 @@ export default function App() {
       handleSaveDueDate(id, snap.dueDate, snap.dueTime),
       handleSavePriority(id, snap.priority),
       handleSaveRecurrence(id, snap.recurrence),
-      handleSaveReminder(id, snap.reminderAt),
+      handleSaveReminder(id, snap.reminderAt, snap.reminderRepeat),
       handleSaveHighlightColor(id, snap.highlightColor),
     ]);
   }
@@ -2638,7 +2661,7 @@ export default function App() {
           // Comparing against the id this closure was created for stops a
           // slow save from clobbering whatever's actually selected by then.
           onClose={() => setSelectedTask((prev) => (prev?.id === selectedTask.id ? null : prev))}
-          onSave={(title, description, dueDate, dueTime, priority, recurrence, reminderAt, highlightColor) => {
+          onSave={(title, description, dueDate, dueTime, priority, recurrence, reminderAt, reminderRepeat, highlightColor) => {
             const id = selectedTask.id;
             const before = toEditSnapshot(selectedTask);
             const after: EditSnapshot = {
@@ -2649,6 +2672,7 @@ export default function App() {
               priority,
               recurrence,
               reminderAt,
+              reminderRepeat,
               highlightColor,
             };
             return applyEditSnapshot(id, after).then(() => {

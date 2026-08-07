@@ -6,6 +6,7 @@ import { fileNameFromPath } from "../lib/attachments";
 import { renderInlineMarkdown } from "../lib/markdown";
 import { hexToRgba } from "../lib/color";
 import { formatDuration } from "../lib/duration";
+import { REPEAT_LABELS } from "../lib/recurrence";
 import { useClickOutside } from "../lib/useClickOutside";
 
 const OVERDUE_COLOR = "#c9184a";
@@ -685,7 +686,13 @@ export default function TaskRow({
             )}
             {task.reminderAt && (
               <span
-                title={task.reminderNotified ? "Reminder already sent" : "Reminder set — independent of the due date"}
+                title={
+                  task.reminderRepeat
+                    ? `Reminder set — repeats ${REPEAT_LABELS[task.reminderRepeat].toLowerCase()}, independent of the due date`
+                    : task.reminderNotified
+                      ? "Reminder already sent"
+                      : "Reminder set — independent of the due date"
+                }
                 style={{
                   fontSize: 12,
                   color: "var(--color-text-muted)",
@@ -694,10 +701,11 @@ export default function TaskRow({
                   borderRadius: "var(--radius-sm)",
                   padding: "2px 6px",
                   whiteSpace: "nowrap",
-                  opacity: task.reminderNotified ? 0.55 : 1,
+                  opacity: !task.reminderRepeat && task.reminderNotified ? 0.55 : 1,
                 }}
               >
                 🔔 {formatDateDisplay(task.reminderAt)}
+                {task.reminderRepeat && " ⟳"}
               </span>
             )}
             {showCompletedDate && task.completedAt && (

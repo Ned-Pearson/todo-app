@@ -138,6 +138,12 @@ export interface Task {
   // moment. Same "<date> <time>" format as completedAt.
   reminderAt: string | null;
   reminderNotified: boolean;
+  // Optional repeat for the reminder above — independent of the due date's
+  // own `recurrence_rules` row (a reminder can repeat on its own schedule,
+  // or not at all, regardless of whether the due date repeats). Deliberately
+  // just a bare frequency, not a full recurrence rule (no end date/occurrence
+  // cap/weekdays) — a standalone nudge doesn't need that much machinery.
+  reminderRepeat: RecurrenceFrequency | null;
   // A per-task row tint, independent of tags/priority — purely a personal
   // visual marker, not tied to any filtering/grouping logic.
   highlightColor: string | null;

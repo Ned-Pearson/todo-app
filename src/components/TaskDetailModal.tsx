@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { convertFileSrc } from "@tauri-apps/api/core";
-import type { CustomTab, Priority, Tag, Task } from "../types";
+import type { CustomTab, Priority, RecurrenceFrequency, Tag, Task } from "../types";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "../lib/priority";
 import { fileNameFromPath, isImagePath } from "../lib/attachments";
 import {
@@ -34,6 +34,7 @@ interface Props {
     priority: Priority | null,
     recurrence: RecurrenceInput | null,
     reminderAt: string | null,
+    reminderRepeat: RecurrenceFrequency | null,
     highlightColor: string | null
   ) => Promise<unknown>;
   onToggleTag: (tagId: number, assign: boolean) => void;
@@ -83,6 +84,7 @@ export default function TaskDetailModal({
   const [repeatWeekdays, setRepeatWeekdays] = useState<number[]>(task.recurrence?.weekdays ?? []);
   const [reminderDate, setReminderDate] = useState(task.reminderAt?.split(" ")[0] ?? "");
   const [reminderTime, setReminderTime] = useState(task.reminderAt?.split(" ")[1] ?? "");
+  const [reminderRepeat, setReminderRepeat] = useState<RepeatOption>(task.reminderRepeat ?? "none");
   const [highlightColor, setHighlightColor] = useState(task.highlightColor ?? "");
   const [saving, setSaving] = useState(false);
   const [newTagName, setNewTagName] = useState("");
@@ -148,6 +150,7 @@ export default function TaskDetailModal({
         priority,
         buildRecurrenceInput(),
         reminderAt,
+        reminderAt && reminderRepeat !== "none" ? reminderRepeat : null,
         highlightColor || null
       );
       onClose();
@@ -323,12 +326,34 @@ export default function TaskDetailModal({
               opacity: reminderDate ? 1 : 0.5,
             }}
           />
+          <select
+            value={reminderRepeat}
+            onChange={(e) => setReminderRepeat(e.target.value as RepeatOption)}
+            disabled={!reminderDate}
+            title={!reminderDate ? "Set a reminder date first" : undefined}
+            style={{
+              padding: "8px 10px",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              background: "var(--color-surface)",
+              color: "var(--color-text)",
+              fontSize: 13,
+              opacity: reminderDate ? 1 : 0.5,
+            }}
+          >
+            {(["none", "daily", "weekly", "monthly", "yearly"] as RepeatOption[]).map((opt) => (
+              <option key={opt} value={opt}>
+                {REPEAT_LABELS[opt]}
+              </option>
+            ))}
+          </select>
           {reminderDate && (
             <button
               type="button"
               onClick={() => {
                 setReminderDate("");
                 setReminderTime("");
+                setReminderRepeat("none");
               }}
               title="Clear reminder"
               style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 12 }}
@@ -338,7 +363,8 @@ export default function TaskDetailModal({
           )}
         </div>
         <div style={{ fontSize: 11, color: "var(--color-text-faint)", marginBottom: 16 }}>
-          A plain time-based nudge — independent of the due date above, and doesn't mark the task as "due".
+          A plain time-based nudge — independent of the due date above, and doesn't mark the task as "due". Set to
+          repeat, it re-schedules itself to the next occurrence each time it fires instead of firing once.
         </div>
 
         <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>

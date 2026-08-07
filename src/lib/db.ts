@@ -69,6 +69,7 @@ function rowToTask(
     archived: !!row.archived,
     reminderAt: row.reminder_at,
     reminderNotified: !!row.reminder_notified,
+    reminderRepeat: row.reminder_repeat,
     highlightColor: row.highlight_color,
     inProgress: !!row.in_progress,
     backlog: !!row.backlog,
@@ -302,15 +303,33 @@ export async function emptyTrash(): Promise<void> {
 
 // Setting/changing/clearing a reminder always resets reminder_notified back
 // to 0, so a re-scheduled reminder fires again rather than staying silenced
-// by a notification sent for its previous time.
-export async function updateTaskReminder(id: number, reminderAt: string | null): Promise<void> {
+// by a notification sent for its previous time. Clearing the reminder itself
+// (reminderAt null) also clears any repeat, since a repeat with nothing to
+// repeat would be meaningless.
+export async function updateTaskReminder(
+  id: number,
+  reminderAt: string | null,
+  reminderRepeat: RecurrenceFrequency | null
+): Promise<void> {
   const db = await getDb();
-  await db.execute("UPDATE tasks SET reminder_at = ?, reminder_notified = 0 WHERE id = ?", [reminderAt, id]);
+  await db.execute(
+    "UPDATE tasks SET reminder_at = ?, reminder_notified = 0, reminder_repeat = ? WHERE id = ?",
+    [reminderAt, reminderAt ? reminderRepeat : null, id]
+  );
 }
 
 export async function markReminderNotified(id: number): Promise<void> {
   const db = await getDb();
   await db.execute("UPDATE tasks SET reminder_notified = 1 WHERE id = ?", [id]);
+}
+
+// The repeating counterpart to markReminderNotified above — instead of
+// silencing the reminder for good, rolls reminder_at forward to its next
+// occurrence and leaves reminder_notified at 0, so the background check
+// picks it up again once that time arrives.
+export async function advanceTaskReminder(id: number, nextReminderAt: string): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE tasks SET reminder_at = ? WHERE id = ?", [nextReminderAt, id]);
 }
 
 export async function updateTaskHighlightColor(id: number, color: string | null): Promise<void> {

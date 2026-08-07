@@ -78,6 +78,21 @@ export function nextWeekdayOccurrence(dateStr: string, weekdays: number[]): stri
   return formatDate(date);
 }
 
+// Advances a just-fired "<date> <time>" reminder to its next occurrence at
+// least strictly after `now` — looping past any occurrences missed while the
+// app was closed instead of replaying each one as a separate notification
+// on the next 60-second tick, which is what a single `addInterval` step
+// would otherwise do if the gap since the last fire is more than one
+// interval. Always terminates since every step strictly advances the date.
+export function nextReminderAfter(reminderAt: string, frequency: RecurrenceFrequency, now: string): string {
+  const time = reminderAt.split(" ")[1] ?? "09:00";
+  let next = reminderAt;
+  do {
+    next = `${addInterval(datePartOf(next), frequency, 1)} ${time}`;
+  } while (next <= now);
+  return next;
+}
+
 export function addInterval(dateStr: string, frequency: RecurrenceFrequency, interval: number): string {
   const [y, m, d] = dateStr.split("-").map(Number);
   const date = new Date(y, m - 1, d);
