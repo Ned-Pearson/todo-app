@@ -42,6 +42,17 @@ export const SNOOZE_LABELS: Record<number, string> = {
   240: "4 hours",
 };
 
+export const TRASH_RETENTION_DEFAULT_DAYS = 30;
+export const TRASH_RETENTION_OPTIONS_DAYS = [7, 14, 30, 60, 90];
+
+export const TRASH_RETENTION_LABELS: Record<number, string> = {
+  7: "7 days",
+  14: "14 days",
+  30: "30 days",
+  60: "60 days",
+  90: "90 days",
+};
+
 // The Config dropdown (see Sidebar.tsx) is a fixed 240px wide, inset 20px
 // from the sidebar's left edge (12px root padding + 8px wrapper padding) —
 // so it needs at least 260px of sidebar to avoid touching the right edge at

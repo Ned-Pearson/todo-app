@@ -9,6 +9,8 @@ import {
   SNOOZE_LABELS,
   SIDEBAR_WIDTH_MIN,
   SIDEBAR_WIDTH_MAX,
+  TRASH_RETENTION_OPTIONS_DAYS,
+  TRASH_RETENTION_LABELS,
 } from "../lib/appConstants";
 import { useClickOutside } from "../lib/useClickOutside";
 import { startResize } from "../lib/resize";
@@ -49,6 +51,8 @@ interface Props {
   setNotifySnoozeMinutes: (minutes: number) => void;
   weekStartsOn: 0 | 1;
   setWeekStartsOn: (value: 0 | 1) => void;
+  trashRetentionDays: number;
+  setTrashRetentionDays: (days: number) => void;
 }
 
 // Kept as top-level sidebar buttons — the views reached for constantly.
@@ -125,6 +129,8 @@ export default function Sidebar({
   setNotifySnoozeMinutes,
   weekStartsOn,
   setWeekStartsOn,
+  trashRetentionDays,
+  setTrashRetentionDays,
 }: Props) {
   const colorPickerRef = useRef<HTMLDivElement>(null);
   const configMenuRef = useRef<HTMLDivElement>(null);
@@ -786,6 +792,33 @@ export default function Sidebar({
                 <option value={0}>Sun</option>
                 <option value={1}>Mon</option>
               </select>
+
+              <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 6 }}>Trash retention</div>
+              <select
+                value={trashRetentionDays}
+                onChange={(e) => setTrashRetentionDays(Number(e.target.value))}
+                title="How long a deleted task stays in Trash before being purged for good"
+                aria-label="Trash retention"
+                style={{
+                  width: "100%",
+                  marginBottom: 6,
+                  padding: "6px 8px",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-sm)",
+                  background: "var(--color-surface)",
+                  color: "var(--color-text-muted)",
+                  fontSize: 13,
+                }}
+              >
+                {TRASH_RETENTION_OPTIONS_DAYS.map((days) => (
+                  <option key={days} value={days}>
+                    {TRASH_RETENTION_LABELS[days]}
+                  </option>
+                ))}
+              </select>
+              <div style={{ marginBottom: 12, color: "var(--color-text-faint)" }}>
+                Applies the next time the app opens, not immediately — changing this won't purge anything right now.
+              </div>
 
               <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 6 }}>Theme</div>
               <button

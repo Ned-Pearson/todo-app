@@ -100,6 +100,8 @@ import {
   PANEL_WIDTH_DEFAULT,
   PANEL_WIDTH_MIN,
   PANEL_WIDTH_MAX,
+  TRASH_RETENTION_DEFAULT_DAYS,
+  TRASH_RETENTION_OPTIONS_DAYS,
 } from "./lib/appConstants";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "./lib/priority";
 import { buildTaskTree } from "./lib/tree";
@@ -114,7 +116,6 @@ import { isPermissionGranted, requestPermission, sendNotification } from "@tauri
 
 const GLOBAL_QUICK_ADD_SHORTCUT = "CommandOrControl+Shift+N";
 const OVERDUE_CHECK_INTERVAL_MS = 60_000;
-const TRASH_RETENTION_DAYS = 30;
 
 // The full set of fields the task detail modal's Save button commits at
 // once — undo/redo for edits treats that whole click as a single step
@@ -172,6 +173,11 @@ function getInitialPanelWidth(): number {
   return stored >= PANEL_WIDTH_MIN && stored <= PANEL_WIDTH_MAX ? stored : PANEL_WIDTH_DEFAULT;
 }
 
+function getInitialTrashRetentionDays(): number {
+  const stored = Number(localStorage.getItem("trashRetentionDays"));
+  return TRASH_RETENTION_OPTIONS_DAYS.includes(stored) ? stored : TRASH_RETENTION_DEFAULT_DAYS;
+}
+
 export default function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [archivedTasks, setArchivedTasks] = useState<Task[]>([]);
@@ -204,6 +210,7 @@ export default function App() {
   const [weekStartsOn, setWeekStartsOn] = useState<0 | 1>(getInitialWeekStartsOn);
   const [sidebarWidth, setSidebarWidth] = useState<number>(getInitialSidebarWidth);
   const [panelWidth, setPanelWidth] = useState<number>(getInitialPanelWidth);
+  const [trashRetentionDays, setTrashRetentionDays] = useState<number>(getInitialTrashRetentionDays);
   const [dndEnabled, setDndEnabled] = useState<boolean>(() => localStorage.getItem("notifyDnd") === "true");
   const [pendingDelete, setPendingDelete] = useState<{ rootIds: number[]; allIds: number[]; label: string } | null>(
     null
@@ -277,6 +284,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("panelWidth", String(panelWidth));
   }, [panelWidth]);
+
+  useEffect(() => {
+    localStorage.setItem("trashRetentionDays", String(trashRetentionDays));
+  }, [trashRetentionDays]);
 
   useEffect(() => {
     localStorage.setItem("notifyDnd", String(dndEnabled));
@@ -568,9 +579,14 @@ export default function App() {
 
   // Trash is purged once on startup rather than on a timer — a local
   // desktop app only needs to catch up on retention whenever it's actually
-  // opened, not continuously while running.
+  // opened, not continuously while running. Deliberately still a one-time,
+  // mount-only effect even though trashRetentionDays is configurable now —
+  // changing the setting mid-session takes effect on the *next* launch
+  // rather than immediately purging a batch of trash the moment you lower
+  // it, which would be a surprising side effect of just changing a setting.
   useEffect(() => {
-    purgeExpiredTrash(TRASH_RETENTION_DAYS).then(reload);
+    purgeExpiredTrash(trashRetentionDays).then(reload);
+    // Deliberately empty deps — see comment above.
   }, []);
 
   async function handleAddTask(
@@ -1596,6 +1612,8 @@ export default function App() {
         setNotifySnoozeMinutes={setNotifySnoozeMinutes}
         weekStartsOn={weekStartsOn}
         setWeekStartsOn={setWeekStartsOn}
+        trashRetentionDays={trashRetentionDays}
+        setTrashRetentionDays={setTrashRetentionDays}
       />
       <div
         style={{
