@@ -1,5 +1,6 @@
 import type { Priority, Task } from "../types";
 import { buildTaskTree } from "../lib/tree";
+import { CARD_STYLE } from "../lib/sharedStyles";
 import TaskRow from "./TaskRow";
 
 interface Props {
@@ -53,10 +54,7 @@ export default function BacklogView({
     return (
       <div
         style={{
-          background: "var(--color-surface)",
-          border: "1px solid var(--color-border)",
-          borderRadius: "var(--radius-md)",
-          boxShadow: "var(--shadow-card)",
+          ...CARD_STYLE,
           padding: 20,
           color: "var(--color-text-faint)",
           fontSize: 13,
@@ -68,14 +66,7 @@ export default function BacklogView({
   }
 
   return (
-    <div
-      style={{
-        background: "var(--color-surface)",
-        border: "1px solid var(--color-border)",
-        borderRadius: "var(--radius-md)",
-        boxShadow: "var(--shadow-card)",
-      }}
-    >
+    <div style={CARD_STYLE}>
       {topLevel.map((task) => (
         <TaskRow
           key={task.id}

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, KeyboardEvent } from "react";
 import type { Task } from "../types";
 import { fuzzyScore } from "../lib/fuzzy";
 import { formatDateDisplay } from "../lib/date";
+import { MODAL_STYLE } from "../lib/sharedStyles";
 
 export interface PaletteCommand {
   id: string;
@@ -110,15 +111,7 @@ export default function CommandPalette({ tasks, commands, onSelectTask, onClose 
         role="dialog"
         aria-modal="true"
         aria-label="Command palette"
-        style={{
-          width: "100%",
-          maxWidth: 480,
-          background: "var(--color-surface)",
-          border: "1px solid var(--color-border)",
-          borderRadius: "var(--radius-md)",
-          boxShadow: "var(--shadow-card)",
-          overflow: "hidden",
-        }}
+        style={{ ...MODAL_STYLE, maxWidth: 480, overflow: "hidden" }}
       >
         <input
           ref={inputRef}

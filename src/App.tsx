@@ -98,6 +98,7 @@ import {
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "./lib/priority";
 import { buildTaskTree, withDescendants } from "./lib/tree";
 import { hexToRgba, DANGER_COLOR } from "./lib/color";
+import { CARD_STYLE, POPOVER_STYLE } from "./lib/sharedStyles";
 import { exportToFile, importFromFile, exportTaskAsMarkdown } from "./lib/backup";
 import { taskToMarkdown, listToMarkdown } from "./lib/taskMarkdown";
 import { nextRecurrenceDate, type RecurrenceInput } from "./lib/recurrence";
@@ -1479,16 +1480,12 @@ export default function App() {
                   <div
                     role="tooltip"
                     style={{
+                      ...POPOVER_STYLE,
                       position: "absolute",
                       top: "calc(100% + 6px)",
                       right: 0,
-                      zIndex: 30,
                       width: 240,
                       padding: "10px 12px",
-                      border: "1px solid var(--color-border)",
-                      borderRadius: "var(--radius-sm)",
-                      background: "var(--color-surface)",
-                      boxShadow: "var(--shadow-card)",
                       fontSize: 12,
                       color: "var(--color-text-muted)",
                     }}
@@ -1670,18 +1667,7 @@ export default function App() {
             ["Completed today", String(myDayCompletedToday)],
             ["This week", String(myDayCompletedThisWeek)],
           ].map(([label, value]) => (
-            <div
-              key={label}
-              style={{
-                flex: 1,
-                minWidth: 110,
-                padding: "10px 14px",
-                background: "var(--color-surface)",
-                border: "1px solid var(--color-border)",
-                borderRadius: "var(--radius-md)",
-                boxShadow: "var(--shadow-card)",
-              }}
-            >
+            <div key={label} style={{ ...CARD_STYLE, flex: 1, minWidth: 110, padding: "10px 14px" }}>
               <div style={{ fontSize: 12, color: "var(--color-text-muted)", marginBottom: 2 }}>{label}</div>
               <div style={{ fontSize: 20, fontWeight: 600 }}>{value}</div>
             </div>
@@ -1699,14 +1685,7 @@ export default function App() {
       {pinnedTasks.length > 0 && (
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: "#f2994a", marginBottom: 6 }}>★ Pinned</div>
-          <div
-            style={{
-              background: "var(--color-surface)",
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-md)",
-              boxShadow: "var(--shadow-card)",
-            }}
-          >
+          <div style={CARD_STYLE}>
             {pinnedTasks.map((task) => (
               <TaskRow
                 key={task.id}
@@ -2010,16 +1989,12 @@ export default function App() {
           {showTemplatesPicker && (
             <div
               style={{
+                ...POPOVER_STYLE,
                 position: "absolute",
                 top: "calc(100% + 4px)",
                 left: 0,
-                zIndex: 30,
                 minWidth: 220,
                 padding: 6,
-                border: "1px solid var(--color-border)",
-                borderRadius: "var(--radius-sm)",
-                background: "var(--color-surface)",
-                boxShadow: "var(--shadow-card)",
               }}
             >
               {taskTemplates.length === 0 && (
@@ -2138,16 +2113,12 @@ export default function App() {
             {showBulkTagPicker && (
               <div
                 style={{
+                  ...POPOVER_STYLE,
                   position: "absolute",
                   top: "calc(100% + 4px)",
                   left: 0,
-                  zIndex: 30,
                   minWidth: 140,
                   padding: 6,
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "var(--radius-sm)",
-                  background: "var(--color-surface)",
-                  boxShadow: "var(--shadow-card)",
                 }}
               >
                 {tags.length === 0 && (
@@ -2201,16 +2172,12 @@ export default function App() {
             {showBulkPostponePicker && (
               <div
                 style={{
+                  ...POPOVER_STYLE,
                   position: "absolute",
                   top: "calc(100% + 4px)",
                   left: 0,
-                  zIndex: 30,
                   minWidth: 220,
                   padding: 8,
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "var(--radius-sm)",
-                  background: "var(--color-surface)",
-                  boxShadow: "var(--shadow-card)",
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
@@ -2365,14 +2332,7 @@ export default function App() {
           {overdueTopLevel.length > 0 && (
             <div style={{ marginBottom: 20 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: DANGER_COLOR, marginBottom: 6 }}>Overdue</div>
-              <div
-                style={{
-                  background: "var(--color-surface)",
-                  border: `1px solid ${DANGER_COLOR}`,
-                  borderRadius: "var(--radius-md)",
-                  boxShadow: "var(--shadow-card)",
-                }}
-              >
+              <div style={{ ...CARD_STYLE, border: `1px solid ${DANGER_COLOR}` }}>
                 {overdueTopLevel.map((task) => (
                   <TaskRow
                     key={task.id}
@@ -2408,14 +2368,7 @@ export default function App() {
             </div>
           )}
 
-          <div
-            style={{
-              background: "var(--color-surface)",
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-md)",
-              boxShadow: "var(--shadow-card)",
-            }}
-          >
+          <div style={CARD_STYLE}>
             {incompleteTopLevel.length === 0 && (
               <div style={{ padding: 20, color: "var(--color-text-faint)", fontSize: 13 }}>
                 {searchQuery.trim()
@@ -2489,14 +2442,7 @@ export default function App() {
                 Completed ({completedTopLevel.length})
               </button>
               {showCompleted && (
-                <div
-                  style={{
-                    background: "var(--color-surface)",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: "var(--radius-md)",
-                    boxShadow: "var(--shadow-card)",
-                  }}
-                >
+                <div style={CARD_STYLE}>
                   {completedTopLevel.map((task) => (
                     <TaskRow
                       key={task.id}
@@ -2660,6 +2606,7 @@ export default function App() {
       {pendingDelete && (
         <div
           style={{
+            ...CARD_STYLE,
             position: "fixed",
             bottom: 24,
             left: "50%",
@@ -2669,10 +2616,6 @@ export default function App() {
             alignItems: "center",
             gap: 12,
             padding: "10px 16px",
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--radius-md)",
-            background: "var(--color-surface)",
-            boxShadow: "var(--shadow-card)",
             fontSize: 13,
             color: "var(--color-text)",
           }}

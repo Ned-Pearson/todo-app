@@ -1,4 +1,5 @@
 import { useState, FormEvent } from "react";
+import { MODAL_STYLE } from "../lib/sharedStyles";
 
 interface Props {
   onClose: () => void;
@@ -42,15 +43,7 @@ export default function AddCustomTabModal({ onClose, onCreate }: Props) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="add-list-heading"
-        style={{
-          width: "100%",
-          maxWidth: 400,
-          background: "var(--color-surface)",
-          border: "1px solid var(--color-border)",
-          borderRadius: "var(--radius-md)",
-          boxShadow: "var(--shadow-card)",
-          padding: 20,
-        }}
+        style={{ ...MODAL_STYLE, maxWidth: 400, padding: 20 }}
       >
         <h2 id="add-list-heading" style={{ fontSize: 16, fontWeight: 600, marginTop: 0, marginBottom: 12 }}>
           New list

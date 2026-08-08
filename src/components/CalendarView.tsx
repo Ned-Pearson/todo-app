@@ -3,6 +3,7 @@ import type { Priority, Task } from "../types";
 import { formatDate, todayStr, formatDateDisplay } from "../lib/date";
 import { nextRecurrenceDate } from "../lib/recurrence";
 import { PRIORITY_COLORS } from "../lib/priority";
+import { CARD_STYLE } from "../lib/sharedStyles";
 import TaskRow from "./TaskRow";
 
 interface Props {
@@ -280,14 +281,7 @@ export default function CalendarView({
         })}
       </div>
 
-      <div
-        style={{
-          background: "var(--color-surface)",
-          border: "1px solid var(--color-border)",
-          borderRadius: "var(--radius-md)",
-          boxShadow: "var(--shadow-card)",
-        }}
-      >
+      <div style={CARD_STYLE}>
         <div
           style={{
             padding: "10px 14px",

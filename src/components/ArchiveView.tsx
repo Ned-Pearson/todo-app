@@ -1,6 +1,7 @@
 import type { Priority, Task } from "../types";
 import { buildTaskTree } from "../lib/tree";
 import { datePartOf, formatDateDisplay } from "../lib/date";
+import { CARD_STYLE } from "../lib/sharedStyles";
 import TaskRow from "./TaskRow";
 
 interface Props {
@@ -54,10 +55,7 @@ export default function ArchiveView({
     return (
       <div
         style={{
-          background: "var(--color-surface)",
-          border: "1px solid var(--color-border)",
-          borderRadius: "var(--radius-md)",
-          boxShadow: "var(--shadow-card)",
+          ...CARD_STYLE,
           padding: 20,
           color: "var(--color-text-faint)",
           fontSize: 13,
@@ -77,14 +75,7 @@ export default function ArchiveView({
             <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted)", marginBottom: 6 }}>
               {formatDateDisplay(date)} ({byDate.get(date)?.length})
             </div>
-            <div
-              style={{
-                background: "var(--color-surface)",
-                border: "1px solid var(--color-border)",
-                borderRadius: "var(--radius-md)",
-                boxShadow: "var(--shadow-card)",
-              }}
-            >
+            <div style={CARD_STYLE}>
               {topLevel.map((task) => (
                 <TaskRow
                   key={task.id}

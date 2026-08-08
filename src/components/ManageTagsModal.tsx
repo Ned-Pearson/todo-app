@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Tag } from "../types";
+import { MODAL_STYLE } from "../lib/sharedStyles";
 
 interface Props {
   tags: Tag[];
@@ -86,15 +87,7 @@ export default function ManageTagsModal({ tags, onClose, onRename, onRecolor, on
         role="dialog"
         aria-modal="true"
         aria-labelledby="manage-tags-heading"
-        style={{
-          width: "100%",
-          maxWidth: 400,
-          background: "var(--color-surface)",
-          border: "1px solid var(--color-border)",
-          borderRadius: "var(--radius-md)",
-          boxShadow: "var(--shadow-card)",
-          padding: 20,
-        }}
+        style={{ ...MODAL_STYLE, maxWidth: 400, padding: 20 }}
       >
         <h2 id="manage-tags-heading" style={{ fontSize: 16, fontWeight: 600, marginTop: 0, marginBottom: 12 }}>
           Manage tags

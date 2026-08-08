@@ -14,6 +14,7 @@ import {
 } from "../lib/appConstants";
 import { useClickOutside } from "../lib/useClickOutside";
 import { startResize } from "../lib/resize";
+import { POPOVER_STYLE, MENU_ITEM_STYLE } from "../lib/sharedStyles";
 
 interface Props {
   view: View;
@@ -293,16 +294,12 @@ export default function Sidebar({
             role="menu"
             aria-label="More views"
             style={{
+              ...POPOVER_STYLE,
               position: "absolute",
               top: "calc(100% + 4px)",
               left: 0,
               right: 0,
-              zIndex: 30,
               padding: 4,
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-sm)",
-              background: "var(--color-surface)",
-              boxShadow: "var(--shadow-card)",
             }}
           >
             {MORE_VIEWS.map((v) => {
@@ -317,15 +314,9 @@ export default function Sidebar({
                     setShowMoreViews(() => false);
                   }}
                   style={{
-                    display: "block",
-                    width: "100%",
-                    textAlign: "left",
-                    padding: "6px 8px",
-                    border: "none",
-                    borderRadius: "var(--radius-sm)",
+                    ...MENU_ITEM_STYLE,
                     background: active ? "var(--color-accent-soft)" : "none",
                     color: active ? "var(--color-accent)" : "var(--color-text-muted)",
-                    fontSize: 13,
                     fontWeight: 500,
                   }}
                 >
@@ -476,6 +467,7 @@ export default function Sidebar({
                     role="dialog"
                     aria-label={`"${tab.name}" list settings`}
                     style={{
+                      ...POPOVER_STYLE,
                       position: listMenuPos ? "fixed" : "absolute",
                       top: listMenuPos ? listMenuPos.y : "calc(100% + 6px)",
                       left: listMenuPos ? listMenuPos.x : undefined,
@@ -486,13 +478,8 @@ export default function Sidebar({
                       // further rightward from there would spill out of the
                       // sidebar and over the main column.
                       right: listMenuPos ? undefined : 0,
-                      zIndex: 30,
                       width: LIST_MENU_WIDTH,
                       padding: "10px 12px",
-                      border: "1px solid var(--color-border)",
-                      borderRadius: "var(--radius-sm)",
-                      background: "var(--color-surface)",
-                      boxShadow: "var(--shadow-card)",
                       fontSize: 12,
                       color: "var(--color-text-muted)",
                     }}
@@ -694,17 +681,13 @@ export default function Sidebar({
               role="dialog"
               aria-label="Configuration"
               style={{
+                ...POPOVER_STYLE,
                 position: "absolute",
                 bottom: "calc(100% + 6px)",
                 left: 0,
                 right: 0,
-                zIndex: 30,
                 width: 240,
                 padding: "10px 12px",
-                border: "1px solid var(--color-border)",
-                borderRadius: "var(--radius-sm)",
-                background: "var(--color-surface)",
-                boxShadow: "var(--shadow-card)",
                 fontSize: 12,
                 color: "var(--color-text-muted)",
               }}

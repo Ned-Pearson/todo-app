@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, FocusEvent, KeyboardEvent, CSSProperties } from "react";
+import { useState, useEffect, useRef, FocusEvent, KeyboardEvent } from "react";
 import type { Priority, Task } from "../types";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "../lib/priority";
 import { isOverdue, formatDateDisplay } from "../lib/date";
@@ -8,6 +8,7 @@ import { hexToRgba, DANGER_COLOR } from "../lib/color";
 import { formatDuration } from "../lib/duration";
 import { REPEAT_LABELS } from "../lib/recurrence";
 import { useClickOutside } from "../lib/useClickOutside";
+import { POPOVER_STYLE, MENU_ITEM_STYLE } from "../lib/sharedStyles";
 
 const OVERDUE_COLOR = DANGER_COLOR;
 // Aligns the subtitle line under the title text, past the leading cluster of
@@ -521,17 +522,13 @@ export default function TaskRow({
                 role="menu"
                 aria-label="Task actions"
                 style={{
+                  ...POPOVER_STYLE,
                   position: contextMenuPos ? "fixed" : "absolute",
                   top: contextMenuPos ? contextMenuPos.y : "calc(100% + 4px)",
                   left: contextMenuPos ? contextMenuPos.x : undefined,
                   right: contextMenuPos ? undefined : 0,
-                  zIndex: 30,
                   minWidth: 170,
                   padding: 4,
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "var(--radius-sm)",
-                  background: "var(--color-surface)",
-                  boxShadow: "var(--shadow-card)",
                 }}
               >
                 {task.recurrence && onSkipOccurrence && (
@@ -539,7 +536,7 @@ export default function TaskRow({
                     onClick={() => runMenuAction(onSkipOccurrence)}
                     title="Skip this occurrence and advance to the next one, without marking it complete"
                     role="menuitem"
-                    style={menuItemStyle}
+                    style={MENU_ITEM_STYLE}
                   >
                     Skip
                   </button>
@@ -549,7 +546,7 @@ export default function TaskRow({
                     onClick={() => runMenuAction(onPostpone)}
                     title="Push this task's due date forward by a day"
                     role="menuitem"
-                    style={menuItemStyle}
+                    style={MENU_ITEM_STYLE}
                   >
                     Postpone
                   </button>
@@ -559,7 +556,7 @@ export default function TaskRow({
                     onClick={() => runMenuAction(onDuplicate)}
                     title="Duplicate this task (and its subtasks)"
                     role="menuitem"
-                    style={menuItemStyle}
+                    style={MENU_ITEM_STYLE}
                   >
                     Duplicate
                   </button>
@@ -569,7 +566,7 @@ export default function TaskRow({
                     onClick={() => runMenuAction(onSaveAsTemplate)}
                     title="Save this task's title/priority/tags and subtasks as a reusable template"
                     role="menuitem"
-                    style={menuItemStyle}
+                    style={MENU_ITEM_STYLE}
                   >
                     Save as template
                   </button>
@@ -579,7 +576,7 @@ export default function TaskRow({
                     onClick={() => runMenuAction(onExportMarkdown)}
                     title="Save this task (and its subtasks) as a Markdown file"
                     role="menuitem"
-                    style={menuItemStyle}
+                    style={MENU_ITEM_STYLE}
                   >
                     Export .md
                   </button>
@@ -589,7 +586,7 @@ export default function TaskRow({
                     onClick={() => runMenuAction(onBacklog)}
                     title="Move to Backlog — hide from All/Today/This Week until you're ready for it"
                     role="menuitem"
-                    style={menuItemStyle}
+                    style={MENU_ITEM_STYLE}
                   >
                     Backlog
                   </button>
@@ -599,7 +596,7 @@ export default function TaskRow({
                     onClick={() => runMenuAction(onUnbacklog)}
                     title="Bring back into the everyday views"
                     role="menuitem"
-                    style={menuItemStyle}
+                    style={MENU_ITEM_STYLE}
                   >
                     Unbacklog
                   </button>
@@ -609,7 +606,7 @@ export default function TaskRow({
                     onClick={() => runMenuAction(onRestore)}
                     title="Restore this task out of the trash"
                     role="menuitem"
-                    style={menuItemStyle}
+                    style={MENU_ITEM_STYLE}
                   >
                     Restore
                   </button>
@@ -619,7 +616,7 @@ export default function TaskRow({
                     onClick={() => runMenuAction(onArchive)}
                     title="Move this task to the archive, out of History and the main list"
                     role="menuitem"
-                    style={menuItemStyle}
+                    style={MENU_ITEM_STYLE}
                   >
                     Archive
                   </button>
@@ -629,7 +626,7 @@ export default function TaskRow({
                     onClick={() => runMenuAction(onUnarchive)}
                     title="Restore this task out of the archive"
                     role="menuitem"
-                    style={menuItemStyle}
+                    style={MENU_ITEM_STYLE}
                   >
                     Unarchive
                   </button>
@@ -639,7 +636,7 @@ export default function TaskRow({
                     onClick={() => runMenuAction(onResetTimer)}
                     title="Reset this task's logged time back to 0:00"
                     role="menuitem"
-                    style={menuItemStyle}
+                    style={MENU_ITEM_STYLE}
                   >
                     Reset timer
                   </button>
@@ -647,7 +644,7 @@ export default function TaskRow({
                 <button
                   onClick={() => runMenuAction(onDelete)}
                   role="menuitem"
-                  style={{ ...menuItemStyle, color: DANGER_COLOR }}
+                  style={{ ...MENU_ITEM_STYLE, color: DANGER_COLOR }}
                 >
                   {deleteLabel}
                 </button>
@@ -994,15 +991,3 @@ export default function TaskRow({
     </>
   );
 }
-
-const menuItemStyle: CSSProperties = {
-  display: "block",
-  width: "100%",
-  textAlign: "left",
-  padding: "6px 8px",
-  border: "none",
-  background: "none",
-  color: "var(--color-text)",
-  fontSize: 13,
-  borderRadius: "var(--radius-sm)",
-};

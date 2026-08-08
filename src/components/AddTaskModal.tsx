@@ -10,6 +10,7 @@ import {
 } from "../lib/recurrence";
 import { parseNaturalDate } from "../lib/naturalDate";
 import { formatDateDisplay } from "../lib/date";
+import { MODAL_STYLE } from "../lib/sharedStyles";
 
 interface Props {
   defaultDueDate: string;
@@ -103,15 +104,7 @@ export default function AddTaskModal({ defaultDueDate, onClose, onAdd }: Props) 
         role="dialog"
         aria-modal="true"
         aria-label="Add task"
-        style={{
-          width: "100%",
-          maxWidth: 440,
-          background: "var(--color-surface)",
-          border: "1px solid var(--color-border)",
-          borderRadius: "var(--radius-md)",
-          boxShadow: "var(--shadow-card)",
-          padding: 20,
-        }}
+        style={{ ...MODAL_STYLE, maxWidth: 440, padding: 20 }}
       >
         <input
           autoFocus

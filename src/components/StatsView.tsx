@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import type { CustomTab, Tag, Task } from "../types";
 import { todayStr, formatDateDisplay } from "../lib/date";
 import { lastNDays, buildDailyCounts, computeStreaks, weekStartOf, buildWeeklyCounts } from "../lib/stats";
+import { CARD_STYLE } from "../lib/sharedStyles";
 
 interface Props {
   tasks: Task[];
@@ -149,13 +150,10 @@ export default function StatsView({ tasks, customTabs, tags }: Props) {
         ].sort((a, b) => b.count - a.count);
 
   const statCardStyle: CSSProperties = {
+    ...CARD_STYLE,
     flex: 1,
     minWidth: 120,
     padding: "12px 14px",
-    background: "var(--color-surface)",
-    border: "1px solid var(--color-border)",
-    borderRadius: "var(--radius-md)",
-    boxShadow: "var(--shadow-card)",
   };
 
   return (
@@ -183,28 +181,16 @@ export default function StatsView({ tasks, customTabs, tags }: Props) {
         </div>
       </div>
 
-      <div
-        style={{
-          padding: 16,
-          marginBottom: 20,
-          background: "var(--color-surface)",
-          border: "1px solid var(--color-border)",
-          borderRadius: "var(--radius-md)",
-          boxShadow: "var(--shadow-card)",
-        }}
-      >
+      <div style={{ ...CARD_STYLE, padding: 16, marginBottom: 20 }}>
         <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Last {DAILY_CHART_DAYS} days</div>
         <BarChart entries={dailyEntries} barTitle={(date, count) => `${count} completed on ${formatDateDisplay(date)}`} />
       </div>
 
       <div
         style={{
+          ...CARD_STYLE,
           padding: 16,
           marginBottom: listBreakdown.length > 0 || tagBreakdown.length > 0 ? 20 : 0,
-          background: "var(--color-surface)",
-          border: "1px solid var(--color-border)",
-          borderRadius: "var(--radius-md)",
-          boxShadow: "var(--shadow-card)",
         }}
       >
         <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Last 12 weeks</div>
@@ -212,31 +198,14 @@ export default function StatsView({ tasks, customTabs, tags }: Props) {
       </div>
 
       {listBreakdown.length > 0 && (
-        <div
-          style={{
-            padding: 16,
-            marginBottom: tagBreakdown.length > 0 ? 20 : 0,
-            background: "var(--color-surface)",
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--radius-md)",
-            boxShadow: "var(--shadow-card)",
-          }}
-        >
+        <div style={{ ...CARD_STYLE, padding: 16, marginBottom: tagBreakdown.length > 0 ? 20 : 0 }}>
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Completed by list (all-time)</div>
           <BreakdownBars entries={listBreakdown} />
         </div>
       )}
 
       {tagBreakdown.length > 0 && (
-        <div
-          style={{
-            padding: 16,
-            background: "var(--color-surface)",
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--radius-md)",
-            boxShadow: "var(--shadow-card)",
-          }}
-        >
+        <div style={{ ...CARD_STYLE, padding: 16 }}>
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Completed by tag (all-time)</div>
           <BreakdownBars entries={tagBreakdown} />
         </div>
