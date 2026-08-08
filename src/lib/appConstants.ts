@@ -3,6 +3,11 @@
 // cadence, so there's no reason for two separate magic numbers.
 export const OVERDUE_CHECK_INTERVAL_MS = 60_000;
 
+// Exported (rather than kept App.tsx-local) so the useKeyboardShortcuts hook
+// can type its sortBy parameter against the same union App.tsx's own sortBy
+// state uses, instead of a hook needing to import a type from App.tsx.
+export type SortOption = "manual" | "dueDate" | "priority" | "title";
+
 export type View =
   | "my-day"
   | "all"
