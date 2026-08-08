@@ -113,6 +113,10 @@ export default function TaskDetailModal({
     if (selectedDependencyId != null && !dependencyCandidates.some((c) => c.id === selectedDependencyId)) {
       setSelectedDependencyId(dependencyCandidates[0]?.id ?? null);
     }
+    // dependencyCandidates is a fresh array every render (allTasks.filter(...)
+    // above, not memoized) — depending on it would run this on every render
+    // instead of only when the underlying relationships actually change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [task.dependsOn]);
 
   const relatedCandidates = allTasks.filter(
@@ -126,6 +130,10 @@ export default function TaskDetailModal({
     if (selectedRelatedId != null && !relatedCandidates.some((c) => c.id === selectedRelatedId)) {
       setSelectedRelatedId(relatedCandidates[0]?.id ?? null);
     }
+    // Same reasoning as the dependency effect above — relatedCandidates is a
+    // fresh array every render, so depending on it directly would defeat the
+    // point of only reacting to genuine relationship changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [task.relatedTasks]);
 
   function buildRecurrenceInput(): RecurrenceInput | null {

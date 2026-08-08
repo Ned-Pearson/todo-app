@@ -185,6 +185,12 @@ export default function Sidebar({
     if (colorPickerTabId != null) {
       setDescriptionDraft(customTabs.find((t) => t.id === colorPickerTabId)?.description ?? "");
     }
+    // Deliberately excludes customTabs — including it would re-sync (and
+    // clobber) an in-progress, uncommitted description draft every time
+    // *any* edit within this same popover (color, icon, default tag) writes
+    // through and reloads customTabs, not just when a different tab's
+    // popover opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [colorPickerTabId]);
 
   return (

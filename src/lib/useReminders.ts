@@ -45,5 +45,6 @@ export function useReminders(tasks: Task[], dndEnabled: boolean, reload: () => P
     // was pulled out of, and App.tsx's sibling checkOverdue effect, both of
     // which only re-subscribe on tasks/dndEnabled changes rather than on
     // every render (reload is a fresh function reference each render).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tasks, dndEnabled]);
 }

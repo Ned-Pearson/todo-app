@@ -325,10 +325,9 @@ export default function App() {
   // overdue again later.
   useEffect(() => {
     (async () => {
-      let granted = await isPermissionGranted();
+      const granted = await isPermissionGranted();
       if (!granted) {
-        const permission = await requestPermission();
-        granted = permission === "granted";
+        await requestPermission();
       }
     })().catch((err) => console.error("Failed to request notification permission:", err));
   }, []);
@@ -430,6 +429,7 @@ export default function App() {
   useEffect(() => {
     purgeExpiredTrash(trashRetentionDays).then(reload);
     // Deliberately empty deps — see comment above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleAddTask(

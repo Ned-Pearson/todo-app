@@ -151,6 +151,10 @@ export default function TaskRow({
   // alone wouldn't change between them, so the effect wouldn't re-run.
   useEffect(() => {
     if (collapseSignal && hasChildren) setCollapsed(collapseSignal.collapsed);
+    // Deliberately keyed only on version — see comment above. Whenever this
+    // does run, it still reads the current collapseSignal/hasChildren from
+    // that render's closure, so narrowing the deps doesn't risk stale reads.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [collapseSignal?.version]);
 
   function submitSubtask() {

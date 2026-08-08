@@ -164,6 +164,14 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams): void {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
+    // Deliberately omits the setters (stable React state setters, safe to
+    // skip), searchInputRef (refs are always stable), and handleUndo/
+    // handleRedo/handleMoveTask themselves (plain unmemoized functions from
+    // the caller, so listing them would re-subscribe on every render) —
+    // undoStack/redoStack/tasks are included instead, as the actual data
+    // those three handlers close over, so a fresh subscription still picks
+    // up their current behavior whenever it would actually differ.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTask, showManageTags, showAddModal, showCommandPalette, searchQuery, undoStack, redoStack, sortBy, tasks]);
 
   // A global (OS-level) shortcut so quick-add works even when the app isn't
@@ -188,5 +196,11 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams): void {
     return () => {
       unregisterAll().catch(() => {});
     };
+    // setShowAddModal is a stable setter passed in as a parameter — ESLint
+    // can't verify that across a module boundary the way it can for a local
+    // useState call, but it's still safe to omit; this should register the
+    // global shortcut once for the app's lifetime either way, not on every
+    // render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 }
