@@ -57,8 +57,6 @@ import {
   getArchivedTasks,
   updateTaskArchived,
   updateTaskReminder,
-  markReminderNotified,
-  advanceTaskReminder,
   updateTaskHighlightColor,
   updateTaskEstimate,
   updateTaskInProgress,
@@ -79,15 +77,7 @@ import TrashView from "./components/TrashView";
 import StatsView from "./components/StatsView";
 import ManageTagsModal from "./components/ManageTagsModal";
 import Sidebar from "./components/Sidebar";
-import {
-  addInterval,
-  getWeekRange,
-  isOverdue,
-  nextReminderAfter,
-  nowTimestamp,
-  todayStr,
-  formatDateDisplay,
-} from "./lib/date";
+import { addInterval, getWeekRange, isOverdue, nowTimestamp, todayStr, formatDateDisplay } from "./lib/date";
 import { lastNDays, buildDailyCounts, computeStreaks, weekStartOf, buildWeeklyCounts } from "./lib/stats";
 import {
   type View,
@@ -102,6 +92,7 @@ import {
   PANEL_WIDTH_MAX,
   TRASH_RETENTION_DEFAULT_DAYS,
   TRASH_RETENTION_OPTIONS_DAYS,
+  OVERDUE_CHECK_INTERVAL_MS,
 } from "./lib/appConstants";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "./lib/priority";
 import { buildTaskTree, withDescendants } from "./lib/tree";
@@ -110,12 +101,12 @@ import { exportToFile, importFromFile, exportTaskAsMarkdown } from "./lib/backup
 import { taskToMarkdown, listToMarkdown } from "./lib/taskMarkdown";
 import { nextRecurrenceDate, type RecurrenceInput } from "./lib/recurrence";
 import { useClickOutside } from "./lib/useClickOutside";
+import { useReminders } from "./lib/useReminders";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { register, unregisterAll } from "@tauri-apps/plugin-global-shortcut";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 
 const GLOBAL_QUICK_ADD_SHORTCUT = "CommandOrControl+Shift+N";
-const OVERDUE_CHECK_INTERVAL_MS = 60_000;
 
 // The full set of fields the task detail modal's Save button commits at
 // once — undo/redo for edits treats that whole click as a single step
@@ -496,44 +487,10 @@ export default function App() {
     return () => window.clearInterval(interval);
   }, [tasks, notifySnoozeMinutes, dndEnabled]);
 
-  // Standalone reminders: a nudge at reminderAt, independent of the
-  // due-date/overdue machinery above — it never implies the task is "due",
-  // so it doesn't touch lastNotifiedAt or the snooze loop. A one-shot
-  // reminder (no reminderRepeat) is marked reminder_notified so it never
-  // re-fires, same as before; a repeating one instead rolls reminderAt
-  // forward to its next occurrence (via nextReminderAfter, which also
-  // catches up in one step if the app was closed past more than one
-  // interval, rather than replaying every missed occurrence) and leaves
-  // reminder_notified at 0 so it fires again next time. Changing the
-  // reminder (via updateTaskReminder) always resets reminder_notified to
-  // schedule a fresh one.
-  useEffect(() => {
-    async function checkReminders() {
-      if (dndEnabled) return;
-      const granted = await isPermissionGranted().catch(() => false);
-      if (!granted) return;
-      const now = nowTimestamp();
-      const due = tasks.filter(
-        (t) => t.reminderAt && !t.reminderNotified && !t.completed && t.reminderAt <= now
-      );
-      if (due.length === 0) return;
-      for (const task of due) {
-        sendNotification({ title: "Reminder", body: task.title });
-      }
-      await Promise.all(
-        due.map((t) =>
-          t.reminderRepeat
-            ? advanceTaskReminder(t.id, nextReminderAfter(t.reminderAt as string, t.reminderRepeat, now))
-            : markReminderNotified(t.id)
-        )
-      );
-      await reload();
-    }
-
-    checkReminders();
-    const interval = window.setInterval(checkReminders, OVERDUE_CHECK_INTERVAL_MS);
-    return () => window.clearInterval(interval);
-  }, [tasks, dndEnabled]);
+  // Standalone reminders — independent of the due-date/overdue machinery
+  // above, so it never touches lastNotifiedAt or the snooze loop. See
+  // lib/useReminders.ts for the actual check/re-notify/advance logic.
+  useReminders(tasks, dndEnabled, reload);
 
   useEffect(() => {
     if (view === "today" || view === "my-day") setDueDate(todayStr());

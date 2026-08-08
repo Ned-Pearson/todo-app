@@ -1,3 +1,8 @@
+// Shared by the overdue-notification effect (App.tsx) and the useReminders
+// hook — both are independent 60-second background polls, but on the same
+// cadence, so there's no reason for two separate magic numbers.
+export const OVERDUE_CHECK_INTERVAL_MS = 60_000;
+
 export type View =
   | "my-day"
   | "all"
