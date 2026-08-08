@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { CustomTab, Priority, RecurrenceFrequency, SavedView, Tag, Task, TaskTemplate } from "./types";
 import {
   getAllTasks,
@@ -1383,6 +1383,110 @@ export default function App() {
   const myDayCompletedToday = myDayDailyCounts.get(todayStr()) ?? 0;
   const myDayCompletedThisWeek = buildWeeklyCounts(myDayDailyCounts, myDayDays).get(weekStartOf(todayStr())) ?? 0;
 
+  // The six views with their own dedicated component get looked up here
+  // instead of a long view === "x" ? <X/> : view === "y" ? <Y/> : ... chain.
+  // Everything else (all/today/this-week/no-date/my-day) shares one main
+  // task-list rendering below instead — there's no single "view" key they'd
+  // each map to here, so it stays the fallback rather than five duplicate
+  // entries pointing at the same JSX.
+  const viewComponents: Partial<Record<View, ReactNode>> = {
+    calendar: (
+      <CalendarView
+        tasks={searchFilteredTasks}
+        priorityFilter={priorityFilter}
+        onToggle={handleToggle}
+        onDelete={handleDelete}
+        onSelectTask={setSelectedTask}
+        onAddSubtask={handleAddSubtask}
+        onSelectDate={setDueDate}
+        weekStartsOn={weekStartsOn}
+        onDuplicate={handleDuplicateTask}
+        onSkipOccurrence={handleSkipOccurrence}
+        onPostpone={handlePostpone}
+        onTogglePin={handleTogglePin}
+        onSaveAsTemplate={handleSaveAsTemplate}
+        onExportMarkdown={handleExportTaskMarkdown}
+        onArchive={handleArchive}
+        onToggleInProgress={handleToggleInProgress}
+        onToggleTimer={handleToggleTimer}
+        onResetTimer={handleResetTimer}
+        onBacklog={handleBacklog}
+        onUnbacklog={handleUnbacklog}
+      />
+    ),
+    history: (
+      <HistoryView
+        tasks={searchFilteredTasks}
+        priorityFilter={priorityFilter}
+        onToggle={handleToggle}
+        onDelete={handleDelete}
+        onSelectTask={setSelectedTask}
+        onAddSubtask={handleAddSubtask}
+        onDuplicate={handleDuplicateTask}
+        onSkipOccurrence={handleSkipOccurrence}
+        onPostpone={handlePostpone}
+        onTogglePin={handleTogglePin}
+        onSaveAsTemplate={handleSaveAsTemplate}
+        onExportMarkdown={handleExportTaskMarkdown}
+        onArchive={handleArchive}
+        onToggleInProgress={handleToggleInProgress}
+        onToggleTimer={handleToggleTimer}
+        onResetTimer={handleResetTimer}
+        onBacklog={handleBacklog}
+        onUnbacklog={handleUnbacklog}
+      />
+    ),
+    stats: <StatsView tasks={searchFilteredTasks} customTabs={customTabs} tags={tags} />,
+    archive: (
+      <ArchiveView
+        tasks={archivedSearchFilteredTasks}
+        priorityFilter={priorityFilter}
+        onToggle={handleToggle}
+        onDelete={handleDelete}
+        onSelectTask={setSelectedTask}
+        onAddSubtask={handleAddSubtask}
+        onDuplicate={handleDuplicateTask}
+        onTogglePin={handleTogglePin}
+        onSaveAsTemplate={handleSaveAsTemplate}
+        onExportMarkdown={handleExportTaskMarkdown}
+        onUnarchive={handleUnarchive}
+      />
+    ),
+    backlog: (
+      <BacklogView
+        tasks={backlogFilteredTasks}
+        priorityFilter={priorityFilter}
+        onToggle={handleToggle}
+        onDelete={handleDelete}
+        onSelectTask={setSelectedTask}
+        onAddSubtask={handleAddSubtask}
+        onDuplicate={handleDuplicateTask}
+        onSkipOccurrence={handleSkipOccurrence}
+        onPostpone={handlePostpone}
+        onTogglePin={handleTogglePin}
+        onSaveAsTemplate={handleSaveAsTemplate}
+        onExportMarkdown={handleExportTaskMarkdown}
+        onArchive={handleArchive}
+        onToggleInProgress={handleToggleInProgress}
+        onToggleTimer={handleToggleTimer}
+        onResetTimer={handleResetTimer}
+        onUnbacklog={handleUnbacklog}
+      />
+    ),
+    trash: (
+      <TrashView
+        tasks={trashedSearchFilteredTasks}
+        priorityFilter={priorityFilter}
+        onToggle={handleToggle}
+        onDeleteForever={handleDeleteForever}
+        onSelectTask={setSelectedTask}
+        onAddSubtask={handleAddSubtask}
+        onRestore={handleRestoreFromTrash}
+        onEmptyTrash={handleEmptyTrash}
+      />
+    ),
+  };
+
   return (
     <div style={{ display: "flex", height: "100%" }}>
       <Sidebar
@@ -2236,98 +2340,7 @@ export default function App() {
         </div>
       )}
 
-      {view === "calendar" ? (
-        <CalendarView
-          tasks={searchFilteredTasks}
-          priorityFilter={priorityFilter}
-          onToggle={handleToggle}
-          onDelete={handleDelete}
-          onSelectTask={setSelectedTask}
-          onAddSubtask={handleAddSubtask}
-          onSelectDate={setDueDate}
-          weekStartsOn={weekStartsOn}
-          onDuplicate={handleDuplicateTask}
-          onSkipOccurrence={handleSkipOccurrence}
-          onPostpone={handlePostpone}
-          onTogglePin={handleTogglePin}
-          onSaveAsTemplate={handleSaveAsTemplate}
-          onExportMarkdown={handleExportTaskMarkdown}
-          onArchive={handleArchive}
-          onToggleInProgress={handleToggleInProgress}
-          onToggleTimer={handleToggleTimer}
-          onResetTimer={handleResetTimer}
-          onBacklog={handleBacklog}
-          onUnbacklog={handleUnbacklog}
-        />
-      ) : view === "history" ? (
-        <HistoryView
-          tasks={searchFilteredTasks}
-          priorityFilter={priorityFilter}
-          onToggle={handleToggle}
-          onDelete={handleDelete}
-          onSelectTask={setSelectedTask}
-          onAddSubtask={handleAddSubtask}
-          onDuplicate={handleDuplicateTask}
-          onSkipOccurrence={handleSkipOccurrence}
-          onPostpone={handlePostpone}
-          onTogglePin={handleTogglePin}
-          onSaveAsTemplate={handleSaveAsTemplate}
-          onExportMarkdown={handleExportTaskMarkdown}
-          onArchive={handleArchive}
-          onToggleInProgress={handleToggleInProgress}
-          onToggleTimer={handleToggleTimer}
-          onResetTimer={handleResetTimer}
-          onBacklog={handleBacklog}
-          onUnbacklog={handleUnbacklog}
-        />
-      ) : view === "stats" ? (
-        <StatsView tasks={searchFilteredTasks} customTabs={customTabs} tags={tags} />
-      ) : view === "archive" ? (
-        <ArchiveView
-          tasks={archivedSearchFilteredTasks}
-          priorityFilter={priorityFilter}
-          onToggle={handleToggle}
-          onDelete={handleDelete}
-          onSelectTask={setSelectedTask}
-          onAddSubtask={handleAddSubtask}
-          onDuplicate={handleDuplicateTask}
-          onTogglePin={handleTogglePin}
-          onSaveAsTemplate={handleSaveAsTemplate}
-          onExportMarkdown={handleExportTaskMarkdown}
-          onUnarchive={handleUnarchive}
-        />
-      ) : view === "backlog" ? (
-        <BacklogView
-          tasks={backlogFilteredTasks}
-          priorityFilter={priorityFilter}
-          onToggle={handleToggle}
-          onDelete={handleDelete}
-          onSelectTask={setSelectedTask}
-          onAddSubtask={handleAddSubtask}
-          onDuplicate={handleDuplicateTask}
-          onSkipOccurrence={handleSkipOccurrence}
-          onPostpone={handlePostpone}
-          onTogglePin={handleTogglePin}
-          onSaveAsTemplate={handleSaveAsTemplate}
-          onExportMarkdown={handleExportTaskMarkdown}
-          onArchive={handleArchive}
-          onToggleInProgress={handleToggleInProgress}
-          onToggleTimer={handleToggleTimer}
-          onResetTimer={handleResetTimer}
-          onUnbacklog={handleUnbacklog}
-        />
-      ) : view === "trash" ? (
-        <TrashView
-          tasks={trashedSearchFilteredTasks}
-          priorityFilter={priorityFilter}
-          onToggle={handleToggle}
-          onDeleteForever={handleDeleteForever}
-          onSelectTask={setSelectedTask}
-          onAddSubtask={handleAddSubtask}
-          onRestore={handleRestoreFromTrash}
-          onEmptyTrash={handleEmptyTrash}
-        />
-      ) : (
+      {viewComponents[view] ?? (
         <>
           {overdueTopLevel.length > 0 && (
             <div style={{ marginBottom: 20 }}>
