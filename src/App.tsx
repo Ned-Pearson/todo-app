@@ -104,6 +104,7 @@ import { nextRecurrenceDate, type RecurrenceInput } from "./lib/recurrence";
 import { useClickOutside } from "./lib/useClickOutside";
 import { useReminders } from "./lib/useReminders";
 import { useKeyboardShortcuts } from "./lib/useKeyboardShortcuts";
+import { useTaskFilters } from "./lib/useTaskFilters";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 
 // The full set of fields the task detail modal's Save button commits at
@@ -1289,50 +1290,16 @@ export default function App() {
   // filter context.
   const pinnedTasks = activeTasks.filter((t) => t.pinned);
 
-  // Shared by the main (non-archived) list and Archive, so the tag/priority/
-  // search filters reach both instead of Archive silently showing everything
-  // regardless of whatever filter is currently active.
-  function filterByTagPriorityAndSearch(list: Task[]): Task[] {
-    // Viewing a list keeps only tasks assigned to it, plus every one of
-    // their descendants (regardless of the descendant's own list) so a
-    // matching task's subtree stays intact — same reasoning as the priority
-    // filter below. A subtask's listId is only ever copied from its parent
-    // at creation time (not live-inherited like tags), so without this a
-    // subtask added before this feature, or dragged in from elsewhere,
-    // would otherwise silently vanish from its own parent's list.
-    const listFiltered =
-      activeListId == null ? list : withDescendants(list, (t) => t.listId === activeListId);
-
-    const tagFiltered =
-      activeTagFilter == null
-        ? listFiltered
-        : listFiltered.filter(
-            (t) =>
-              t.tags.some((tag) => tag.id === activeTagFilter) ||
-              t.inheritedTags.some((tag) => tag.id === activeTagFilter)
-          );
-
-    // Selecting a priority keeps only tasks flagged with it, plus every one
-    // of their descendants (regardless of the descendant's own priority) so
-    // a matching task's subtree stays intact. Tasks with no priority set
-    // (and no matching ancestor) are dropped entirely rather than just
-    // reordered.
-    const priorityFiltered = !priorityFilter
-      ? tagFiltered
-      : withDescendants(tagFiltered, (t) => t.priority === priorityFilter);
-
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return priorityFiltered;
-    return priorityFiltered.filter(
-      (t) => t.title.toLowerCase().includes(q) || (t.description ?? "").toLowerCase().includes(q)
-    );
-  }
-
-  const searchFilteredTasks = filterByTagPriorityAndSearch(activeTasks);
-  const archivedSearchFilteredTasks = filterByTagPriorityAndSearch(activeArchivedTasks);
+  // Shared by the main (non-archived) list, Archive, and Trash, so the tag/
+  // priority/search/list filters reach all three instead of any one of them
+  // silently showing everything regardless of whatever filter is currently
+  // active. See lib/useTaskFilters.ts for the actual filter pipeline.
+  const filterCriteria = { activeListId, activeTagFilter, priorityFilter, searchQuery };
+  const searchFilteredTasks = useTaskFilters(activeTasks, filterCriteria);
+  const archivedSearchFilteredTasks = useTaskFilters(activeArchivedTasks, filterCriteria);
   // No pending-delete filter needed here — nothing in the 5-second undo
   // window has been moved to Trash yet by definition.
-  const trashedSearchFilteredTasks = filterByTagPriorityAndSearch(trashedTasks);
+  const trashedSearchFilteredTasks = useTaskFilters(trashedTasks, filterCriteria);
 
   // "Manual" preserves the order the query already came back in (driven by
   // sort_order, i.e. drag order); the other options re-sort every sibling
