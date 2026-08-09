@@ -3,6 +3,13 @@
 Tauri + React + TypeScript + SQLite
 
 TODO:
+- Extract `App.tsx`'s undo/redo edit-history mechanism (`toEditSnapshot`/`applyEditSnapshot`/`pushEditHistory`/`handleUndo`/`handleRedo`, the `EditSnapshot`/`EditHistoryEntry` types, and the `undoStack`/`redoStack` state) into a `useEditHistory` hook
+- Extract `App.tsx`'s task CRUD/mutation handlers (toggle, delete/restore/trash/archive/backlog, duplicate, add subtask, bulk actions, pin/timer/skip/postpone, the per-field save handlers, attachments, dependencies/related tasks, per-task tag toggle — the largest single chunk of its ~80 handler functions) into a `useTaskActions` hook
+- Extract `App.tsx`'s custom-tab/list handlers (create/select/delete/update color/description/default tag/icon, reorder/move, apply-tag-to-all-in-list, change-task-list, export-list-as-markdown) into a `useCustomTabActions` hook
+- Extract `App.tsx`'s tag CRUD handlers (create/rename/recolor/delete) into a `useTagActions` hook
+- Extract `App.tsx`'s saved-view handlers (apply/save-current/delete/is-active) into a `useSavedViews` hook
+- Extract `App.tsx`'s backup/export handlers (`handleExport`/`handleImport`/`handleExportTaskMarkdown`/`handleExportListMarkdown`) into a `useBackup` hook
+- Split `Sidebar`'s "Lists" section (drag/reorder, color picker, right-click menu, description/default-tag/icon editing) out into its own component, the same way `TaskRow`'s kebab menu was extracted into `TaskActionsMenu`
 
 ## Project structure~
 
