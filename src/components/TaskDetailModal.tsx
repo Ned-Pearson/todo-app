@@ -3,13 +3,8 @@ import type { CustomTab, Priority, RecurrenceFrequency, Tag, Task } from "../typ
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "../lib/priority";
 import TaskAttachments from "./TaskAttachments";
 import TaskRelationPicker from "./TaskRelationPicker";
-import {
-  REPEAT_LABELS,
-  WEEKDAY_LABELS,
-  previewOccurrences,
-  type RepeatOption,
-  type RecurrenceInput,
-} from "../lib/recurrence";
+import RecurrenceEditor from "./RecurrenceEditor";
+import { REPEAT_LABELS, buildRecurrenceInput, type RepeatOption, type RecurrenceInput } from "../lib/recurrence";
 import { pickUnusedColor } from "../lib/tagColor";
 import { renderMarkdown } from "../lib/markdown";
 import { formatDuration } from "../lib/duration";
@@ -104,20 +99,9 @@ export default function TaskDetailModal({
     (t) => t.id !== task.id && !task.relatedTasks.some((r) => r.id === t.id)
   );
 
-  function buildRecurrenceInput(): RecurrenceInput | null {
-    return repeat === "none"
-      ? null
-      : {
-          frequency: repeat,
-          interval: repeatInterval,
-          endDate: repeatEndDate,
-          occurrences: repeatOccurrences ? Number(repeatOccurrences) : null,
-          weekdays: repeat === "weekly" && repeatWeekdays.length > 0 ? repeatWeekdays : null,
-        };
+  function currentRecurrenceInput(): RecurrenceInput | null {
+    return buildRecurrenceInput(repeat, repeatInterval, repeatEndDate, repeatOccurrences, repeatWeekdays);
   }
-
-  const recurrenceInput = buildRecurrenceInput();
-  const occurrencePreview = recurrenceInput ? previewOccurrences(dueDate, recurrenceInput, 5) : [];
 
   async function handleSave() {
     const trimmedTitle = title.trim();
@@ -133,7 +117,7 @@ export default function TaskDetailModal({
         dueDate,
         dueTime,
         priority,
-        buildRecurrenceInput(),
+        currentRecurrenceInput(),
         reminderAt,
         reminderAt && reminderRepeat !== "none" ? reminderRepeat : null,
         highlightColor || null,
@@ -356,164 +340,20 @@ export default function TaskDetailModal({
           repeat, it re-schedules itself to the next occurrence each time it fires instead of firing once.
         </div>
 
-        <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
-          Repeat
-        </label>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 16 }}>
-          <select
-            value={repeat}
-            onChange={(e) => setRepeat(e.target.value as RepeatOption)}
-            style={{
-              padding: "6px 8px",
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-sm)",
-              background: "var(--color-surface)",
-              color: "var(--color-text)",
-              fontSize: 13,
-            }}
-          >
-            {(Object.keys(REPEAT_LABELS) as RepeatOption[]).map((option) => (
-              <option key={option} value={option}>
-                {REPEAT_LABELS[option]}
-              </option>
-            ))}
-          </select>
-
-          {repeat !== "none" && !(repeat === "weekly" && repeatWeekdays.length > 0) && (
-            <>
-              <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>every</span>
-              <input
-                type="number"
-                min={1}
-                value={repeatInterval}
-                onChange={(e) => setRepeatInterval(Math.max(1, Number(e.target.value)))}
-                style={{
-                  width: 50,
-                  padding: "6px 8px",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "var(--radius-sm)",
-                  background: "var(--color-surface)",
-                  color: "var(--color-text)",
-                  fontSize: 13,
-                }}
-              />
-              <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
-                {repeat === "daily" && "day(s)"}
-                {repeat === "weekly" && "week(s)"}
-                {repeat === "monthly" && "month(s)"}
-                {repeat === "yearly" && "year(s)"}
-              </span>
-            </>
-          )}
-          {repeat !== "none" && (
-            <>
-              <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>until</span>
-              <input
-                type="date"
-                value={repeatEndDate}
-                onChange={(e) => setRepeatEndDate(e.target.value)}
-                style={{
-                  padding: "6px 8px",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "var(--radius-sm)",
-                  background: "var(--color-surface)",
-                  color: "var(--color-text)",
-                  fontSize: 13,
-                }}
-              />
-              <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>or after</span>
-              <input
-                type="number"
-                min={1}
-                value={repeatOccurrences}
-                onChange={(e) => setRepeatOccurrences(e.target.value)}
-                placeholder="∞"
-                title="Stop after this many occurrences from now (optional)"
-                style={{
-                  width: 50,
-                  padding: "6px 8px",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "var(--radius-sm)",
-                  background: "var(--color-surface)",
-                  color: "var(--color-text)",
-                  fontSize: 13,
-                }}
-              />
-              <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>time(s)</span>
-            </>
-          )}
-        </div>
-
-        {repeat === "weekly" && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center", marginBottom: 16 }}>
-            <span style={{ fontSize: 12, color: "var(--color-text-muted)", marginRight: 4 }}>On:</span>
-            {WEEKDAY_LABELS.map((label, day) => {
-              const selected = repeatWeekdays.includes(day);
-              return (
-                <button
-                  key={day}
-                  type="button"
-                  onClick={() =>
-                    setRepeatWeekdays((prev) =>
-                      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort()
-                    )
-                  }
-                  title={selected ? `Don't repeat on ${label}` : `Also repeat on ${label}`}
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 500,
-                    padding: "4px 8px",
-                    borderRadius: "var(--radius-sm)",
-                    border: selected ? "1px solid transparent" : "1px solid var(--color-border)",
-                    background: selected ? "var(--color-accent)" : "none",
-                    color: selected ? "#fff" : "var(--color-text-muted)",
-                  }}
-                >
-                  {label}
-                </button>
-              );
-            })}
-            {repeatWeekdays.length === 0 && (
-              <span style={{ fontSize: 11, color: "var(--color-text-faint)" }}>
-                (none selected — uses "every N week(s)" above instead)
-              </span>
-            )}
-          </div>
-        )}
-
-        {repeat !== "none" && (
-          <div style={{ marginBottom: 16 }}>
-            {!dueDate ? (
-              <div style={{ fontSize: 11, color: "var(--color-text-faint)" }}>
-                Pick a due date above to preview upcoming occurrences.
-              </div>
-            ) : occurrencePreview.length > 0 ? (
-              <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
-                <span style={{ fontSize: 11, color: "var(--color-text-faint)" }}>Next:</span>
-                {occurrencePreview.map((d) => (
-                  <span
-                    key={d}
-                    style={{
-                      fontSize: 11,
-                      color: "var(--color-text-muted)",
-                      background: "var(--color-surface-sunken)",
-                      border: "1px solid var(--color-border)",
-                      borderRadius: "var(--radius-sm)",
-                      padding: "2px 6px",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {formatDateDisplay(d)}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <div style={{ fontSize: 11, color: "var(--color-text-faint)" }}>
-                No further occurrences — this would be the only one.
-              </div>
-            )}
-          </div>
-        )}
+        <RecurrenceEditor
+          dueDate={dueDate}
+          repeat={repeat}
+          setRepeat={setRepeat}
+          repeatInterval={repeatInterval}
+          setRepeatInterval={setRepeatInterval}
+          repeatEndDate={repeatEndDate}
+          setRepeatEndDate={setRepeatEndDate}
+          repeatOccurrences={repeatOccurrences}
+          setRepeatOccurrences={setRepeatOccurrences}
+          repeatWeekdays={repeatWeekdays}
+          setRepeatWeekdays={setRepeatWeekdays}
+          occurrencesTitle="Stop after this many occurrences from now (optional)"
+        />
 
         <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
           Priority

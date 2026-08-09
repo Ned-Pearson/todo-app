@@ -25,6 +25,27 @@ export interface RecurrenceInput {
   weekdays: number[] | null;
 }
 
+// Turns the Repeat section's raw local field values into the shape App.tsx
+// actually wants, or null while "Doesn't repeat" is selected. Identical
+// logic previously lived in both AddTaskModal and TaskDetailModal.
+export function buildRecurrenceInput(
+  repeat: RepeatOption,
+  interval: number,
+  endDate: string,
+  occurrences: string,
+  weekdays: number[]
+): RecurrenceInput | null {
+  return repeat === "none"
+    ? null
+    : {
+        frequency: repeat,
+        interval,
+        endDate,
+        occurrences: occurrences ? Number(occurrences) : null,
+        weekdays: repeat === "weekly" && weekdays.length > 0 ? weekdays : null,
+      };
+}
+
 // The single place that decides how a recurring task's next due date is
 // computed — weekday mode (specific days of the week) and plain interval
 // mode are mutually exclusive, so every call site that needs to advance a
