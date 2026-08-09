@@ -77,6 +77,7 @@ import TrashView from "./components/TrashView";
 import StatsView from "./components/StatsView";
 import ManageTagsModal from "./components/ManageTagsModal";
 import Sidebar from "./components/Sidebar";
+import { SettingsProvider, type SettingsContextValue } from "./lib/SettingsContext";
 import { addInterval, getWeekRange, isOverdue, nowTimestamp, todayStr, formatDateDisplay } from "./lib/date";
 import { lastNDays, buildDailyCounts, computeStreaks, weekStartOf, buildWeeklyCounts } from "./lib/stats";
 import {
@@ -1399,7 +1400,6 @@ export default function App() {
         onSelectTask={setSelectedTask}
         onAddSubtask={handleAddSubtask}
         onSelectDate={setDueDate}
-        weekStartsOn={weekStartsOn}
         onDuplicate={handleDuplicateTask}
         onSkipOccurrence={handleSkipOccurrence}
         onPostpone={handlePostpone}
@@ -1487,7 +1487,23 @@ export default function App() {
     ),
   };
 
+  const settings: SettingsContextValue = {
+    theme,
+    setTheme,
+    customAccent,
+    setCustomAccent,
+    dndEnabled,
+    setDndEnabled,
+    notifySnoozeMinutes,
+    setNotifySnoozeMinutes,
+    weekStartsOn,
+    setWeekStartsOn,
+    trashRetentionDays,
+    setTrashRetentionDays,
+  };
+
   return (
+    <SettingsProvider value={settings}>
     <div style={{ display: "flex", height: "100%" }}>
       <Sidebar
         view={view}
@@ -1512,22 +1528,10 @@ export default function App() {
         tags={tags}
         handleDeleteCustomTab={handleDeleteCustomTab}
         setShowAddTabModal={setShowAddTabModal}
-        theme={theme}
-        setTheme={setTheme}
-        customAccent={customAccent}
-        setCustomAccent={setCustomAccent}
         showConfigMenu={showConfigMenu}
         setShowConfigMenu={setShowConfigMenu}
         handleExport={handleExport}
         handleImport={handleImport}
-        dndEnabled={dndEnabled}
-        setDndEnabled={setDndEnabled}
-        notifySnoozeMinutes={notifySnoozeMinutes}
-        setNotifySnoozeMinutes={setNotifySnoozeMinutes}
-        weekStartsOn={weekStartsOn}
-        setWeekStartsOn={setWeekStartsOn}
-        trashRetentionDays={trashRetentionDays}
-        setTrashRetentionDays={setTrashRetentionDays}
       />
       <div
         style={{
@@ -2649,5 +2653,6 @@ export default function App() {
         </div>
       )}
     </div>
+    </SettingsProvider>
   );
 }

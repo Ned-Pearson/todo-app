@@ -4,6 +4,7 @@ import { formatDate, todayStr, formatDateDisplay } from "../lib/date";
 import { nextRecurrenceDate } from "../lib/recurrence";
 import { PRIORITY_COLORS } from "../lib/priority";
 import { CARD_STYLE } from "../lib/sharedStyles";
+import { useSettings } from "../lib/SettingsContext";
 import TaskRow from "./TaskRow";
 
 interface Props {
@@ -14,7 +15,6 @@ interface Props {
   onSelectTask: (task: Task) => void;
   onAddSubtask: (parentId: number, title: string) => void;
   onSelectDate: (date: string) => void;
-  weekStartsOn: 0 | 1;
   onDuplicate: (id: number) => void;
   onSkipOccurrence: (id: number) => void;
   onPostpone: (id: number) => void;
@@ -74,8 +74,8 @@ export default function CalendarView({
   onResetTimer,
   onBacklog,
   onUnbacklog,
-  weekStartsOn,
 }: Props) {
+  const { weekStartsOn } = useSettings();
   const today = todayStr();
   const weekdayLabels = [
     ...WEEKDAYS_SUNDAY_FIRST.slice(weekStartsOn),

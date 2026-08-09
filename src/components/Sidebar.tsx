@@ -3,7 +3,6 @@ import type { CustomTab, Tag } from "../types";
 import {
   type View,
   VIEW_LABELS,
-  type Theme,
   DEFAULT_ACCENT,
   SNOOZE_OPTIONS_MINUTES,
   SNOOZE_LABELS,
@@ -15,6 +14,7 @@ import {
 import { useClickOutside } from "../lib/useClickOutside";
 import { startResize } from "../lib/resize";
 import { POPOVER_STYLE, MENU_ITEM_STYLE } from "../lib/sharedStyles";
+import { useSettings } from "../lib/SettingsContext";
 
 interface Props {
   view: View;
@@ -39,22 +39,10 @@ interface Props {
   tags: Tag[];
   handleDeleteCustomTab: (id: number) => void;
   setShowAddTabModal: (show: boolean) => void;
-  theme: Theme;
-  setTheme: (updater: (t: Theme) => Theme) => void;
-  customAccent: string | null;
-  setCustomAccent: (color: string | null) => void;
   showConfigMenu: boolean;
   setShowConfigMenu: (updater: (v: boolean) => boolean) => void;
   handleExport: () => void;
   handleImport: () => void;
-  dndEnabled: boolean;
-  setDndEnabled: (enabled: boolean) => void;
-  notifySnoozeMinutes: number;
-  setNotifySnoozeMinutes: (minutes: number) => void;
-  weekStartsOn: 0 | 1;
-  setWeekStartsOn: (value: 0 | 1) => void;
-  trashRetentionDays: number;
-  setTrashRetentionDays: (days: number) => void;
 }
 
 // Kept as top-level sidebar buttons — the views reached for constantly.
@@ -118,23 +106,25 @@ export default function Sidebar({
   tags,
   handleDeleteCustomTab,
   setShowAddTabModal,
-  theme,
-  setTheme,
-  customAccent,
-  setCustomAccent,
   showConfigMenu,
   setShowConfigMenu,
   handleExport,
   handleImport,
-  dndEnabled,
-  setDndEnabled,
-  notifySnoozeMinutes,
-  setNotifySnoozeMinutes,
-  weekStartsOn,
-  setWeekStartsOn,
-  trashRetentionDays,
-  setTrashRetentionDays,
 }: Props) {
+  const {
+    theme,
+    setTheme,
+    customAccent,
+    setCustomAccent,
+    dndEnabled,
+    setDndEnabled,
+    notifySnoozeMinutes,
+    setNotifySnoozeMinutes,
+    weekStartsOn,
+    setWeekStartsOn,
+    trashRetentionDays,
+    setTrashRetentionDays,
+  } = useSettings();
   const colorPickerRef = useRef<HTMLDivElement>(null);
   const configMenuRef = useRef<HTMLDivElement>(null);
   const moreViewsRef = useRef<HTMLDivElement>(null);
