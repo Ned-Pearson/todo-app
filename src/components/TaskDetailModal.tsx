@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { CustomTab, Priority, RecurrenceFrequency, Tag, Task } from "../types";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "../lib/priority";
 import TaskAttachments from "./TaskAttachments";
+import TaskRelationPicker from "./TaskRelationPicker";
 import {
   REPEAT_LABELS,
   WEEKDAY_LABELS,
@@ -99,38 +100,9 @@ export default function TaskDetailModal({
   const dependencyCandidates = allTasks.filter(
     (t) => t.id !== task.id && !task.dependsOn.some((d) => d.id === t.id)
   );
-  const [selectedDependencyId, setSelectedDependencyId] = useState<number | null>(
-    dependencyCandidates[0]?.id ?? null
-  );
-
-  // Keep the dropdown's selection valid as the candidate list shrinks (a
-  // dependency just added should disappear from the options) or grows.
-  useEffect(() => {
-    if (selectedDependencyId != null && !dependencyCandidates.some((c) => c.id === selectedDependencyId)) {
-      setSelectedDependencyId(dependencyCandidates[0]?.id ?? null);
-    }
-    // dependencyCandidates is a fresh array every render (allTasks.filter(...)
-    // above, not memoized) — depending on it would run this on every render
-    // instead of only when the underlying relationships actually change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [task.dependsOn]);
-
   const relatedCandidates = allTasks.filter(
     (t) => t.id !== task.id && !task.relatedTasks.some((r) => r.id === t.id)
   );
-  const [selectedRelatedId, setSelectedRelatedId] = useState<number | null>(relatedCandidates[0]?.id ?? null);
-
-  // Same reasoning as the dependency dropdown above — keep the selection
-  // valid as tasks are linked/unlinked.
-  useEffect(() => {
-    if (selectedRelatedId != null && !relatedCandidates.some((c) => c.id === selectedRelatedId)) {
-      setSelectedRelatedId(relatedCandidates[0]?.id ?? null);
-    }
-    // Same reasoning as the dependency effect above — relatedCandidates is a
-    // fresh array every render, so depending on it directly would defeat the
-    // point of only reacting to genuine relationship changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [task.relatedTasks]);
 
   function buildRecurrenceInput(): RecurrenceInput | null {
     return repeat === "none"
@@ -644,184 +616,28 @@ export default function TaskDetailModal({
           </span>
         </div>
 
-        <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
-          Depends on
-        </label>
-        {task.dependsOn.length > 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
-            {task.dependsOn.map((dep) => (
-              <div
-                key={dep.id}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  padding: "4px 8px",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "var(--radius-sm)",
-                  background: "var(--color-surface-sunken)",
-                }}
-              >
-                <span style={{ fontSize: 13 }}>{dep.completed ? "✅" : "⏳"}</span>
-                <span
-                  style={{
-                    flex: 1,
-                    fontSize: 13,
-                    textDecoration: dep.completed ? "line-through" : "none",
-                    color: dep.completed ? "var(--color-text-faint)" : "var(--color-text)",
-                  }}
-                >
-                  {dep.title}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => onRemoveDependency(dep.id)}
-                  title="Remove this dependency"
-                  aria-label={`Remove dependency on "${dep.title}"`}
-                  style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 12 }}
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-        {dependencyCandidates.length > 0 ? (
-          <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 16 }}>
-            <select
-              value={selectedDependencyId ?? ""}
-              onChange={(e) => setSelectedDependencyId(Number(e.target.value))}
-              style={{
-                flex: 1,
-                padding: "6px 8px",
-                border: "1px solid var(--color-border)",
-                borderRadius: "var(--radius-sm)",
-                background: "var(--color-surface)",
-                color: "var(--color-text)",
-                fontSize: 13,
-              }}
-            >
-              {dependencyCandidates.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.title}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={() => selectedDependencyId != null && onAddDependency(selectedDependencyId)}
-              style={{
-                padding: "6px 10px",
-                border: "none",
-                borderRadius: "var(--radius-sm)",
-                background: "var(--color-accent)",
-                color: "#fff",
-                fontSize: 13,
-              }}
-            >
-              Add
-            </button>
-          </div>
-        ) : (
-          task.dependsOn.length === 0 && (
-            <div style={{ fontSize: 12, color: "var(--color-text-faint)", marginBottom: 16 }}>
-              No other tasks to depend on yet.
-            </div>
-          )
-        )}
+        <TaskRelationPicker
+          label="Depends on"
+          items={task.dependsOn}
+          candidates={dependencyCandidates}
+          emptyMessage="No other tasks to depend on yet."
+          removeTitle="Remove this dependency"
+          removeAriaLabel={(title) => `Remove dependency on "${title}"`}
+          onAdd={onAddDependency}
+          onRemove={onRemoveDependency}
+        />
 
-        <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
-          See also
-        </label>
-        {task.relatedTasks.length > 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
-            {task.relatedTasks.map((rel) => (
-              <div
-                key={rel.id}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  padding: "4px 8px",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "var(--radius-sm)",
-                  background: "var(--color-surface-sunken)",
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => onSelectRelatedTask(rel.id)}
-                  title="Open this task"
-                  style={{
-                    flex: 1,
-                    textAlign: "left",
-                    border: "none",
-                    background: "none",
-                    padding: 0,
-                    fontSize: 13,
-                    textDecoration: rel.completed ? "line-through" : "underline",
-                    color: rel.completed ? "var(--color-text-faint)" : "var(--color-text)",
-                    cursor: "pointer",
-                  }}
-                >
-                  {rel.title}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onRemoveRelatedTask(rel.id)}
-                  title="Remove this link"
-                  aria-label={`Remove link to "${rel.title}"`}
-                  style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 12 }}
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-        {relatedCandidates.length > 0 ? (
-          <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 16 }}>
-            <select
-              value={selectedRelatedId ?? ""}
-              onChange={(e) => setSelectedRelatedId(Number(e.target.value))}
-              style={{
-                flex: 1,
-                padding: "6px 8px",
-                border: "1px solid var(--color-border)",
-                borderRadius: "var(--radius-sm)",
-                background: "var(--color-surface)",
-                color: "var(--color-text)",
-                fontSize: 13,
-              }}
-            >
-              {relatedCandidates.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.title}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={() => selectedRelatedId != null && onAddRelatedTask(selectedRelatedId)}
-              style={{
-                padding: "6px 10px",
-                border: "none",
-                borderRadius: "var(--radius-sm)",
-                background: "var(--color-accent)",
-                color: "#fff",
-                fontSize: 13,
-              }}
-            >
-              Add
-            </button>
-          </div>
-        ) : (
-          task.relatedTasks.length === 0 && (
-            <div style={{ fontSize: 12, color: "var(--color-text-faint)", marginBottom: 16 }}>
-              No other tasks to link yet.
-            </div>
-          )
-        )}
+        <TaskRelationPicker
+          label="See also"
+          items={task.relatedTasks}
+          candidates={relatedCandidates}
+          emptyMessage="No other tasks to link yet."
+          removeTitle="Remove this link"
+          removeAriaLabel={(title) => `Remove link to "${title}"`}
+          onAdd={onAddRelatedTask}
+          onRemove={onRemoveRelatedTask}
+          onSelectItem={onSelectRelatedTask}
+        />
 
         <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
           List
