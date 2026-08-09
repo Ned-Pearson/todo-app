@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, FocusEvent, KeyboardEvent } from "react";
+import { useState, useEffect, FocusEvent, KeyboardEvent } from "react";
 import type { Priority, Task } from "../types";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "../lib/priority";
 import { isOverdue, formatDateDisplay } from "../lib/date";
@@ -7,8 +7,7 @@ import { renderInlineMarkdown } from "../lib/markdown";
 import { hexToRgba, DANGER_COLOR } from "../lib/color";
 import { formatDuration } from "../lib/duration";
 import { REPEAT_LABELS } from "../lib/recurrence";
-import { useClickOutside } from "../lib/useClickOutside";
-import { POPOVER_STYLE, MENU_ITEM_STYLE } from "../lib/sharedStyles";
+import TaskActionsMenu from "./TaskActionsMenu";
 
 const OVERDUE_COLOR = DANGER_COLOR;
 // Aligns the subtitle line under the title text, past the leading cluster of
@@ -117,8 +116,6 @@ export default function TaskRow({
   // way of opening it, so a stale cursor position never lingers into the
   // next left-click open.
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  useClickOutside(menuRef, menuOpen, () => setMenuOpen(false));
   const children = childrenByParent.get(task.id) ?? [];
   const hasChildren = children.length > 0;
 
@@ -219,13 +216,6 @@ export default function TaskRow({
     hasTimeLogged ||
     showTimerControl ||
     task.estimatedMinutes != null;
-
-  // Runs an action-menu handler and closes the menu, so picking an item
-  // doesn't leave a stale popover open behind whatever it triggered.
-  function runMenuAction(action: (id: number) => void) {
-    action(task.id);
-    setMenuOpen(false);
-  }
 
   return (
     <>
@@ -494,163 +484,27 @@ export default function TaskRow({
               {task.pinned ? "★" : "☆"}
             </button>
           )}
-          <div ref={menuRef} style={{ position: "relative", display: "flex", flexShrink: 0 }}>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setContextMenuPos(null);
-                setMenuOpen((v) => !v);
-              }}
-              title="More actions (or right-click the row)"
-              aria-label="More actions"
-              aria-haspopup="true"
-              aria-expanded={menuOpen}
-              style={{
-                border: "none",
-                background: "none",
-                color: "var(--color-text-faint)",
-                fontSize: 16,
-                padding: "0 2px",
-                lineHeight: 1,
-              }}
-            >
-              ⋯
-            </button>
-            {menuOpen && (
-              <div
-                onClick={(e) => e.stopPropagation()}
-                role="menu"
-                aria-label="Task actions"
-                style={{
-                  ...POPOVER_STYLE,
-                  position: contextMenuPos ? "fixed" : "absolute",
-                  top: contextMenuPos ? contextMenuPos.y : "calc(100% + 4px)",
-                  left: contextMenuPos ? contextMenuPos.x : undefined,
-                  right: contextMenuPos ? undefined : 0,
-                  minWidth: 170,
-                  padding: 4,
-                }}
-              >
-                {task.recurrence && onSkipOccurrence && (
-                  <button
-                    onClick={() => runMenuAction(onSkipOccurrence)}
-                    title="Skip this occurrence and advance to the next one, without marking it complete"
-                    role="menuitem"
-                    style={MENU_ITEM_STYLE}
-                  >
-                    Skip
-                  </button>
-                )}
-                {task.dueDate && !task.recurrence && onPostpone && (
-                  <button
-                    onClick={() => runMenuAction(onPostpone)}
-                    title="Push this task's due date forward by a day"
-                    role="menuitem"
-                    style={MENU_ITEM_STYLE}
-                  >
-                    Postpone
-                  </button>
-                )}
-                {onDuplicate && (
-                  <button
-                    onClick={() => runMenuAction(onDuplicate)}
-                    title="Duplicate this task (and its subtasks)"
-                    role="menuitem"
-                    style={MENU_ITEM_STYLE}
-                  >
-                    Duplicate
-                  </button>
-                )}
-                {onSaveAsTemplate && (
-                  <button
-                    onClick={() => runMenuAction(onSaveAsTemplate)}
-                    title="Save this task's title/priority/tags and subtasks as a reusable template"
-                    role="menuitem"
-                    style={MENU_ITEM_STYLE}
-                  >
-                    Save as template
-                  </button>
-                )}
-                {onExportMarkdown && (
-                  <button
-                    onClick={() => runMenuAction(onExportMarkdown)}
-                    title="Save this task (and its subtasks) as a Markdown file"
-                    role="menuitem"
-                    style={MENU_ITEM_STYLE}
-                  >
-                    Export .md
-                  </button>
-                )}
-                {!task.backlog && onBacklog && (
-                  <button
-                    onClick={() => runMenuAction(onBacklog)}
-                    title="Move to Backlog — hide from All/Today/This Week until you're ready for it"
-                    role="menuitem"
-                    style={MENU_ITEM_STYLE}
-                  >
-                    Backlog
-                  </button>
-                )}
-                {task.backlog && onUnbacklog && (
-                  <button
-                    onClick={() => runMenuAction(onUnbacklog)}
-                    title="Bring back into the everyday views"
-                    role="menuitem"
-                    style={MENU_ITEM_STYLE}
-                  >
-                    Unbacklog
-                  </button>
-                )}
-                {onRestore && (
-                  <button
-                    onClick={() => runMenuAction(onRestore)}
-                    title="Restore this task out of the trash"
-                    role="menuitem"
-                    style={MENU_ITEM_STYLE}
-                  >
-                    Restore
-                  </button>
-                )}
-                {task.completed && onArchive && (
-                  <button
-                    onClick={() => runMenuAction(onArchive)}
-                    title="Move this task to the archive, out of History and the main list"
-                    role="menuitem"
-                    style={MENU_ITEM_STYLE}
-                  >
-                    Archive
-                  </button>
-                )}
-                {onUnarchive && (
-                  <button
-                    onClick={() => runMenuAction(onUnarchive)}
-                    title="Restore this task out of the archive"
-                    role="menuitem"
-                    style={MENU_ITEM_STYLE}
-                  >
-                    Unarchive
-                  </button>
-                )}
-                {hasTimeLogged && onResetTimer && (
-                  <button
-                    onClick={() => runMenuAction(onResetTimer)}
-                    title="Reset this task's logged time back to 0:00"
-                    role="menuitem"
-                    style={MENU_ITEM_STYLE}
-                  >
-                    Reset timer
-                  </button>
-                )}
-                <button
-                  onClick={() => runMenuAction(onDelete)}
-                  role="menuitem"
-                  style={{ ...MENU_ITEM_STYLE, color: DANGER_COLOR }}
-                >
-                  {deleteLabel}
-                </button>
-              </div>
-            )}
-          </div>
+          <TaskActionsMenu
+            task={task}
+            hasTimeLogged={hasTimeLogged}
+            deleteLabel={deleteLabel}
+            open={menuOpen}
+            setOpen={setMenuOpen}
+            contextMenuPos={contextMenuPos}
+            setContextMenuPos={setContextMenuPos}
+            onDelete={onDelete}
+            onDuplicate={onDuplicate}
+            onSkipOccurrence={onSkipOccurrence}
+            onPostpone={onPostpone}
+            onSaveAsTemplate={onSaveAsTemplate}
+            onExportMarkdown={onExportMarkdown}
+            onArchive={onArchive}
+            onUnarchive={onUnarchive}
+            onBacklog={onBacklog}
+            onUnbacklog={onUnbacklog}
+            onRestore={onRestore}
+            onResetTimer={onResetTimer}
+          />
         </div>
 
         {/* Line 2: subtitle — due date/reminder/recurrence/attachments/tags */}
