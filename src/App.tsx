@@ -14,17 +14,8 @@ import {
   createSavedView,
   deleteSavedView,
   getAllCustomTabs,
-  createCustomTab,
-  deleteCustomTab,
-  updateCustomTabColor,
-  updateCustomTabDescription,
-  updateCustomTabDefaultTag,
-  updateCustomTabIcon,
-  updateCustomTabSortOrder,
-  applyTagToAllTasksInList,
   getAllTaskTemplates,
   getArchivedTasks,
-  updateTaskList,
 } from "./lib/db";
 import TaskDetailModal from "./components/TaskDetailModal";
 import CommandPalette, { type PaletteCommand } from "./components/CommandPalette";
@@ -59,16 +50,17 @@ import {
   type SortOption,
 } from "./lib/appConstants";
 import { PRIORITY_COLORS, PRIORITY_LABELS } from "./lib/priority";
-import { buildTaskTree, withDescendants } from "./lib/tree";
+import { buildTaskTree } from "./lib/tree";
 import { hexToRgba, DANGER_COLOR } from "./lib/color";
 import { CARD_STYLE, POPOVER_STYLE } from "./lib/sharedStyles";
 import { exportToFile, importFromFile, exportTaskAsMarkdown } from "./lib/backup";
-import { taskToMarkdown, listToMarkdown } from "./lib/taskMarkdown";
+import { taskToMarkdown } from "./lib/taskMarkdown";
 import { useClickOutside } from "./lib/useClickOutside";
 import { useReminders } from "./lib/useReminders";
 import { useKeyboardShortcuts } from "./lib/useKeyboardShortcuts";
 import { useTaskFilters } from "./lib/useTaskFilters";
 import { useTaskActions } from "./lib/useTaskActions";
+import { useCustomTabActions } from "./lib/useCustomTabActions";
 import { useEditHistory, type EditSnapshot } from "./lib/useEditHistory";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 
@@ -243,6 +235,32 @@ export default function App() {
     onSaveReminder: handleSaveReminder,
     onSaveHighlightColor: handleSaveHighlightColor,
     onSaveEstimate: handleSaveEstimate,
+  });
+
+  const {
+    handleCreateCustomTab,
+    handleSelectCustomTab,
+    handleDeleteCustomTab,
+    handleUpdateCustomTabColor,
+    handleUpdateCustomTabDescription,
+    handleUpdateCustomTabDefaultTag,
+    handleUpdateCustomTabIcon,
+    handleApplyTagToAllTasksInList,
+    handleChangeTaskList,
+    handleReorderCustomTab,
+    handleExportListMarkdown,
+  } = useCustomTabActions({
+    customTabs,
+    activeListId,
+    tasks,
+    archivedTasks,
+    trashedTasks,
+    reload,
+    setShowAddTabModal,
+    setView,
+    setActiveListId,
+    setActiveTagFilter,
+    setPriorityFilter,
   });
 
   useEffect(() => {
@@ -456,21 +474,6 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Same before/after splice-insertion shape as handleReorder above, just
-  // without the reparent branch — lists are always a single flat group, no
-  // hierarchy to worry about.
-  async function handleReorderCustomTab(draggedId: number, targetId: number, position: "before" | "after") {
-    if (draggedId === targetId) return;
-    const dragged = customTabs.find((t) => t.id === draggedId);
-    if (!dragged) return;
-    const reordered = customTabs.filter((t) => t.id !== draggedId);
-    const targetIndex = reordered.findIndex((t) => t.id === targetId);
-    if (targetIndex === -1) return;
-    reordered.splice(position === "after" ? targetIndex + 1 : targetIndex, 0, dragged);
-    await Promise.all(reordered.map((t, i) => updateCustomTabSortOrder(t.id, i)));
-    await reload();
-  }
-
   async function handleCreateTag(name: string, color: string) {
     if (!selectedTask) return;
     const tagId = await createTag(name, color);
@@ -545,63 +548,6 @@ export default function App() {
     await reload();
   }
 
-  async function handleCreateCustomTab(tabName: string) {
-    const newId = await createCustomTab(tabName);
-    setShowAddTabModal(false);
-    await reload();
-    setView("all");
-    setActiveListId(newId);
-    // Entering a list is a fresh, dedicated destination — an invisible
-    // leftover tag/priority filter would silently hide tasks in it with no
-    // visible cue why, since list mode hides the filter chips/banner that'd
-    // normally explain that.
-    setActiveTagFilter(null);
-    setPriorityFilter(null);
-  }
-
-  function handleSelectCustomTab(tab: CustomTab) {
-    setView("all");
-    setActiveListId(tab.id);
-    setActiveTagFilter(null);
-    setPriorityFilter(null);
-  }
-
-  async function handleDeleteCustomTab(id: number) {
-    await deleteCustomTab(id);
-    if (activeListId === id) setActiveListId(null);
-    await reload();
-  }
-
-  async function handleUpdateCustomTabColor(id: number, color: string | null) {
-    await updateCustomTabColor(id, color);
-    await reload();
-  }
-
-  async function handleUpdateCustomTabDescription(id: number, description: string | null) {
-    await updateCustomTabDescription(id, description);
-    await reload();
-  }
-
-  async function handleUpdateCustomTabDefaultTag(id: number, tagId: number | null) {
-    await updateCustomTabDefaultTag(id, tagId);
-    await reload();
-  }
-
-  async function handleUpdateCustomTabIcon(id: number, icon: string | null) {
-    await updateCustomTabIcon(id, icon);
-    await reload();
-  }
-
-  async function handleApplyTagToAllTasksInList(listId: number, tagId: number) {
-    await applyTagToAllTasksInList(listId, tagId);
-    await reload();
-  }
-
-  async function handleChangeTaskList(taskId: number, listId: number | null) {
-    await updateTaskList(taskId, listId);
-    await reload();
-  }
-
   async function handleExport() {
     try {
       const exported = await exportToFile();
@@ -629,28 +575,6 @@ export default function App() {
     } catch (err) {
       console.error("Failed to export task as Markdown:", err);
       window.alert(`Couldn't export task: ${err}`);
-    }
-  }
-
-  // The whole-list counterpart to handleExportTaskMarkdown above — same
-  // "list membership" rule the app itself uses when the list is open
-  // (filterByTagPriorityAndSearch's own listId + descendants rule, via the
-  // shared withDescendants() helper), just recomputed here rather than
-  // reused directly, since that one is scoped to whichever list is
-  // *currently active* while this needs to work for whatever list's
-  // popover the export was triggered from.
-  async function handleExportListMarkdown(listId: number) {
-    const list = customTabs.find((t) => t.id === listId);
-    if (!list) return;
-    const everyTask = [...tasks, ...archivedTasks, ...trashedTasks];
-    const listTasks = withDescendants(everyTask, (t) => t.listId === listId);
-    const markdown = listToMarkdown(list.name, list.description, listTasks);
-    try {
-      const exported = await exportTaskAsMarkdown(list.name, markdown);
-      if (exported) window.alert("List exported.");
-    } catch (err) {
-      console.error("Failed to export list as Markdown:", err);
-      window.alert(`Couldn't export list: ${err}`);
     }
   }
 
