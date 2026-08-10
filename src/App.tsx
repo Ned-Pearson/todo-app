@@ -107,29 +107,8 @@ import { useClickOutside } from "./lib/useClickOutside";
 import { useReminders } from "./lib/useReminders";
 import { useKeyboardShortcuts } from "./lib/useKeyboardShortcuts";
 import { useTaskFilters } from "./lib/useTaskFilters";
+import { useEditHistory, type EditSnapshot } from "./lib/useEditHistory";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
-
-// The full set of fields the task detail modal's Save button commits at
-// once — undo/redo for edits treats that whole click as a single step
-// (reverting/reapplying every field together) rather than one step per
-// field, since that's what the user actually did in one action.
-interface EditSnapshot {
-  title: string;
-  description: string;
-  dueDate: string;
-  dueTime: string;
-  priority: Priority | null;
-  recurrence: RecurrenceInput | null;
-  reminderAt: string | null;
-  reminderRepeat: RecurrenceFrequency | null;
-  highlightColor: string | null;
-  estimatedMinutes: number | null;
-}
-
-interface EditHistoryEntry {
-  undo: () => Promise<void>;
-  redo: () => Promise<void>;
-}
 
 const SORT_LABELS: Record<SortOption, string> = {
   manual: "Manual (drag order)",
@@ -220,8 +199,21 @@ export default function App() {
   useClickOutside(bulkTagPickerRef, showBulkTagPicker, () => setShowBulkTagPicker(false));
   useClickOutside(bulkPostponePickerRef, showBulkPostponePicker, () => setShowBulkPostponePicker(false));
   const [showCompleted, setShowCompleted] = useState(false);
-  const [undoStack, setUndoStack] = useState<EditHistoryEntry[]>([]);
-  const [redoStack, setRedoStack] = useState<EditHistoryEntry[]>([]);
+  // The eight per-field handlers referenced here (handleSaveTitle, etc.) are
+  // hoisted function declarations defined further down this component, so
+  // this call can reference them despite running before their textual
+  // definition — same as handleUndo/handleRedo already being passed to
+  // useKeyboardShortcuts below before their own definitions.
+  const { undoStack, redoStack, handleUndo, handleRedo, commitTaskEdit } = useEditHistory({
+    onSaveTitle: handleSaveTitle,
+    onSaveDescription: handleSaveDescription,
+    onSaveDueDate: handleSaveDueDate,
+    onSavePriority: handleSavePriority,
+    onSaveRecurrence: handleSaveRecurrence,
+    onSaveReminder: handleSaveReminder,
+    onSaveHighlightColor: handleSaveHighlightColor,
+    onSaveEstimate: handleSaveEstimate,
+  });
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -927,66 +919,6 @@ export default function App() {
   async function handleSaveEstimate(id: number, estimatedMinutes: number | null) {
     await updateTaskEstimate(id, estimatedMinutes);
     await reload();
-  }
-
-  function toEditSnapshot(task: Task): EditSnapshot {
-    return {
-      title: task.title,
-      description: task.description ?? "",
-      dueDate: task.dueDate ?? "",
-      dueTime: task.dueTime ?? "",
-      priority: task.priority,
-      recurrence: task.recurrence
-        ? {
-            frequency: task.recurrence.frequency,
-            interval: task.recurrence.interval,
-            endDate: task.recurrence.endDate ?? "",
-            occurrences: task.recurrence.occurrencesLeft,
-            weekdays: task.recurrence.weekdays,
-          }
-        : null,
-      reminderAt: task.reminderAt,
-      reminderRepeat: task.reminderRepeat,
-      highlightColor: task.highlightColor,
-      estimatedMinutes: task.estimatedMinutes,
-    };
-  }
-
-  async function applyEditSnapshot(id: number, snap: EditSnapshot) {
-    await Promise.all([
-      handleSaveTitle(id, snap.title),
-      handleSaveDescription(id, snap.description),
-      handleSaveDueDate(id, snap.dueDate, snap.dueTime),
-      handleSavePriority(id, snap.priority),
-      handleSaveRecurrence(id, snap.recurrence),
-      handleSaveReminder(id, snap.reminderAt, snap.reminderRepeat),
-      handleSaveHighlightColor(id, snap.highlightColor),
-      handleSaveEstimate(id, snap.estimatedMinutes),
-    ]);
-  }
-
-  // Committing a fresh edit invalidates whatever was in the redo stack, same
-  // as any standard undo/redo — there's no sensible "redo" once a new edit
-  // has branched off from that point in history.
-  function pushEditHistory(entry: EditHistoryEntry) {
-    setUndoStack((prev) => [...prev, entry]);
-    setRedoStack([]);
-  }
-
-  async function handleUndo() {
-    const entry = undoStack[undoStack.length - 1];
-    if (!entry) return;
-    setUndoStack((prev) => prev.slice(0, -1));
-    await entry.undo();
-    setRedoStack((prev) => [...prev, entry]);
-  }
-
-  async function handleRedo() {
-    const entry = redoStack[redoStack.length - 1];
-    if (!entry) return;
-    setRedoStack((prev) => prev.slice(0, -1));
-    await entry.redo();
-    setUndoStack((prev) => [...prev, entry]);
   }
 
   async function handleSaveRecurrence(id: number, recurrence: RecurrenceInput | null) {
@@ -2569,8 +2501,6 @@ export default function App() {
             highlightColor,
             estimatedMinutes
           ) => {
-            const id = selectedTask.id;
-            const before = toEditSnapshot(selectedTask);
             const after: EditSnapshot = {
               title,
               description,
@@ -2583,14 +2513,7 @@ export default function App() {
               highlightColor,
               estimatedMinutes,
             };
-            return applyEditSnapshot(id, after).then(() => {
-              if (JSON.stringify(before) !== JSON.stringify(after)) {
-                pushEditHistory({
-                  undo: () => applyEditSnapshot(id, before),
-                  redo: () => applyEditSnapshot(id, after),
-                });
-              }
-            });
+            return commitTaskEdit(selectedTask, after);
           }}
           onToggleTag={(tagId, assign) => handleToggleTag(selectedTask.id, tagId, assign)}
           onCreateTag={handleCreateTag}
