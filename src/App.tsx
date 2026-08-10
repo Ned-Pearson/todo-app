@@ -3,11 +3,6 @@ import type { CustomTab, Priority, SavedView, Tag, Task, TaskTemplate } from "./
 import {
   getAllTasks,
   getAllTags,
-  createTag,
-  addTagToTask,
-  updateTagName,
-  updateTagColor,
-  deleteTag,
   getTrashedTasks,
   purgeExpiredTrash,
   getAllSavedViews,
@@ -61,6 +56,7 @@ import { useKeyboardShortcuts } from "./lib/useKeyboardShortcuts";
 import { useTaskFilters } from "./lib/useTaskFilters";
 import { useTaskActions } from "./lib/useTaskActions";
 import { useCustomTabActions } from "./lib/useCustomTabActions";
+import { useTagActions } from "./lib/useTagActions";
 import { useEditHistory, type EditSnapshot } from "./lib/useEditHistory";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 
@@ -261,6 +257,13 @@ export default function App() {
     setActiveListId,
     setActiveTagFilter,
     setPriorityFilter,
+  });
+
+  const { handleCreateTag, handleRenameTag, handleRecolorTag, handleDeleteTag } = useTagActions({
+    selectedTask,
+    activeTagFilter,
+    reload,
+    setActiveTagFilter,
   });
 
   useEffect(() => {
@@ -473,29 +476,6 @@ export default function App() {
     // Deliberately empty deps — see comment above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  async function handleCreateTag(name: string, color: string) {
-    if (!selectedTask) return;
-    const tagId = await createTag(name, color);
-    await addTagToTask(selectedTask.id, tagId);
-    await reload();
-  }
-
-  async function handleRenameTag(id: number, name: string) {
-    await updateTagName(id, name);
-    await reload();
-  }
-
-  async function handleRecolorTag(id: number, color: string) {
-    await updateTagColor(id, color);
-    await reload();
-  }
-
-  async function handleDeleteTag(id: number) {
-    await deleteTag(id);
-    if (activeTagFilter === id) setActiveTagFilter(null);
-    await reload();
-  }
 
   function handleClearAllFilters() {
     setActiveTagFilter(null);
