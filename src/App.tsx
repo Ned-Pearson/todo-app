@@ -6,8 +6,6 @@ import {
   getTrashedTasks,
   purgeExpiredTrash,
   getAllSavedViews,
-  createSavedView,
-  deleteSavedView,
   getAllCustomTabs,
   getAllTaskTemplates,
   getArchivedTasks,
@@ -57,6 +55,7 @@ import { useTaskFilters } from "./lib/useTaskFilters";
 import { useTaskActions } from "./lib/useTaskActions";
 import { useCustomTabActions } from "./lib/useCustomTabActions";
 import { useTagActions } from "./lib/useTagActions";
+import { useSavedViews } from "./lib/useSavedViews";
 import { useEditHistory, type EditSnapshot } from "./lib/useEditHistory";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 
@@ -264,6 +263,16 @@ export default function App() {
     activeTagFilter,
     reload,
     setActiveTagFilter,
+  });
+
+  const { isSavedViewActive, handleApplySavedView, handleSaveCurrentView, handleDeleteSavedView } = useSavedViews({
+    activeTagFilter,
+    priorityFilter,
+    searchQuery,
+    reload,
+    setActiveTagFilter,
+    setPriorityFilter,
+    setSearchQuery,
   });
 
   useEffect(() => {
@@ -492,40 +501,6 @@ export default function App() {
 
   function handleCollapseAll() {
     setCollapseSignal((prev) => ({ collapsed: true, version: (prev?.version ?? 0) + 1 }));
-  }
-
-  // A saved view is just a shortcut for the tag/priority/search combo — it
-  // doesn't touch which view (All/Today/Calendar/etc.) is currently open, so
-  // "show me high-priority Work tasks" applies whether you're checking Today
-  // or All rather than also forcing a page jump.
-  function isSavedViewActive(view: SavedView): boolean {
-    return (
-      activeTagFilter === view.tagId && priorityFilter === view.priority && searchQuery === (view.searchQuery ?? "")
-    );
-  }
-
-  function handleApplySavedView(view: SavedView) {
-    if (isSavedViewActive(view)) {
-      setActiveTagFilter(null);
-      setPriorityFilter(null);
-      setSearchQuery("");
-    } else {
-      setActiveTagFilter(view.tagId);
-      setPriorityFilter(view.priority);
-      setSearchQuery(view.searchQuery ?? "");
-    }
-  }
-
-  async function handleSaveCurrentView() {
-    const name = window.prompt("Name this view:");
-    if (!name || !name.trim()) return;
-    await createSavedView(name.trim(), activeTagFilter, priorityFilter, searchQuery);
-    await reload();
-  }
-
-  async function handleDeleteSavedView(id: number) {
-    await deleteSavedView(id);
-    await reload();
   }
 
   async function handleExport() {
