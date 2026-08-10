@@ -1,42 +1,18 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import type { CustomTab, Priority, RecurrenceFrequency, SavedView, Tag, Task, TaskTemplate } from "./types";
+import type { CustomTab, Priority, SavedView, Tag, Task, TaskTemplate } from "./types";
 import {
   getAllTasks,
   getAllTags,
-  createTask,
   createTag,
   addTagToTask,
-  removeTagFromTask,
   updateTagName,
   updateTagColor,
   deleteTag,
-  createRecurrenceRule,
-  updateRecurrenceRule,
-  decrementRecurrenceOccurrences,
-  setTaskRecurrenceId,
-  clearTaskRecurrence,
-  setTaskCompleted,
-  deleteTask,
   getTrashedTasks,
-  moveTaskToTrash,
-  restoreTaskFromTrash,
   purgeExpiredTrash,
-  emptyTrash,
-  startTaskTimer,
-  stopTaskTimer,
-  resetTaskTimer,
-  updateTaskTitle,
-  updateTaskDescription,
-  updateTaskDueDate,
-  updateTaskPriority,
-  updateTaskPinned,
-  addAttachmentToTask,
-  removeAttachment,
-  updateTaskSortOrder,
   getAllSavedViews,
   createSavedView,
   deleteSavedView,
-  duplicateTask,
   getAllCustomTabs,
   createCustomTab,
   deleteCustomTab,
@@ -47,21 +23,7 @@ import {
   updateCustomTabSortOrder,
   applyTagToAllTasksInList,
   getAllTaskTemplates,
-  saveTaskAsTemplate,
-  createTaskFromTemplate,
-  deleteTaskTemplate,
-  addTaskDependency,
-  removeTaskDependency,
-  addRelatedTask,
-  removeRelatedTask,
   getArchivedTasks,
-  updateTaskArchived,
-  updateTaskReminder,
-  updateTaskHighlightColor,
-  updateTaskEstimate,
-  updateTaskInProgress,
-  updateTaskParent,
-  updateTaskBacklog,
   updateTaskList,
 } from "./lib/db";
 import TaskDetailModal from "./components/TaskDetailModal";
@@ -78,7 +40,7 @@ import StatsView from "./components/StatsView";
 import ManageTagsModal from "./components/ManageTagsModal";
 import Sidebar from "./components/Sidebar";
 import { SettingsProvider, type SettingsContextValue } from "./lib/SettingsContext";
-import { addInterval, getWeekRange, isOverdue, nowTimestamp, todayStr, formatDateDisplay } from "./lib/date";
+import { getWeekRange, isOverdue, todayStr, formatDateDisplay } from "./lib/date";
 import { lastNDays, buildDailyCounts, computeStreaks, weekStartOf, buildWeeklyCounts } from "./lib/stats";
 import {
   type View,
@@ -102,11 +64,11 @@ import { hexToRgba, DANGER_COLOR } from "./lib/color";
 import { CARD_STYLE, POPOVER_STYLE } from "./lib/sharedStyles";
 import { exportToFile, importFromFile, exportTaskAsMarkdown } from "./lib/backup";
 import { taskToMarkdown, listToMarkdown } from "./lib/taskMarkdown";
-import { nextRecurrenceDate, type RecurrenceInput } from "./lib/recurrence";
 import { useClickOutside } from "./lib/useClickOutside";
 import { useReminders } from "./lib/useReminders";
 import { useKeyboardShortcuts } from "./lib/useKeyboardShortcuts";
 import { useTaskFilters } from "./lib/useTaskFilters";
+import { useTaskActions } from "./lib/useTaskActions";
 import { useEditHistory, type EditSnapshot } from "./lib/useEditHistory";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 
@@ -181,29 +143,97 @@ export default function App() {
   const [panelWidth, setPanelWidth] = useState<number>(getInitialPanelWidth);
   const [trashRetentionDays, setTrashRetentionDays] = useState<number>(getInitialTrashRetentionDays);
   const [dndEnabled, setDndEnabled] = useState<boolean>(() => localStorage.getItem("notifyDnd") === "true");
-  const [pendingDelete, setPendingDelete] = useState<{ rootIds: number[]; allIds: number[]; label: string } | null>(
-    null
-  );
-  const pendingDeleteTimeout = useRef<number | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const lastNotifiedAt = useRef<Map<number, number>>(new Map());
-  const [selectMode, setSelectMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [showBulkTagPicker, setShowBulkTagPicker] = useState(false);
-  const [showBulkPostponePicker, setShowBulkPostponePicker] = useState(false);
-  const [bulkPostponeDays, setBulkPostponeDays] = useState("1");
   const templatesPickerRef = useRef<HTMLDivElement>(null);
   const bulkTagPickerRef = useRef<HTMLDivElement>(null);
   const bulkPostponePickerRef = useRef<HTMLDivElement>(null);
   useClickOutside(templatesPickerRef, showTemplatesPicker, () => setShowTemplatesPicker(false));
+  const [showCompleted, setShowCompleted] = useState(false);
+
+  // reload is a hoisted function declaration (defined further down this
+  // component), so it can be referenced here despite running before its
+  // textual definition — same reasoning applies to every handler referenced
+  // below before its own definition.
+  const {
+    pendingDelete,
+    selectMode,
+    setSelectMode,
+    selectedIds,
+    showBulkTagPicker,
+    setShowBulkTagPicker,
+    showBulkPostponePicker,
+    setShowBulkPostponePicker,
+    bulkPostponeDays,
+    setBulkPostponeDays,
+    exitSelectMode,
+    handleAddTask,
+    handleToggle,
+    handleRestoreFromTrash,
+    handleDeleteForever,
+    handleEmptyTrash,
+    handleDelete,
+    handleUndoDelete,
+    handleToggleSelect,
+    handleBulkComplete,
+    handleBulkDelete,
+    handleBulkAddTag,
+    handleBulkPostpone,
+    handleAddSubtask,
+    handleDuplicateTask,
+    handleSkipOccurrence,
+    handlePostpone,
+    handleTogglePin,
+    handleToggleInProgress,
+    handleToggleTimer,
+    handleResetTimer,
+    handleArchive,
+    handleUnarchive,
+    handleBacklog,
+    handleUnbacklog,
+    handleSaveAsTemplate,
+    handleUseTemplate,
+    handleDeleteTemplate,
+    handleReorder,
+    handleMoveTask,
+    handleSaveTitle,
+    handleSaveDescription,
+    handleSaveDueDate,
+    handleSavePriority,
+    handleSaveReminder,
+    handleSaveHighlightColor,
+    handleSaveEstimate,
+    handleSaveRecurrence,
+    handleAddAttachment,
+    handleRemoveAttachment,
+    handleAddDependency,
+    handleRemoveDependency,
+    handleAddRelatedTask,
+    handleRemoveRelatedTask,
+    handleSelectRelatedTask,
+    handleToggleTag,
+  } = useTaskActions({
+    tasks,
+    archivedTasks,
+    trashedTasks,
+    customTabs,
+    activeListId,
+    view,
+    dueDate,
+    reload,
+    setDueDate,
+    setShowAddModal,
+    setShowTemplatesPicker,
+    setSelectedTask,
+  });
+
   useClickOutside(bulkTagPickerRef, showBulkTagPicker, () => setShowBulkTagPicker(false));
   useClickOutside(bulkPostponePickerRef, showBulkPostponePicker, () => setShowBulkPostponePicker(false));
-  const [showCompleted, setShowCompleted] = useState(false);
-  // The eight per-field handlers referenced here (handleSaveTitle, etc.) are
-  // hoisted function declarations defined further down this component, so
-  // this call can reference them despite running before their textual
-  // definition — same as handleUndo/handleRedo already being passed to
-  // useKeyboardShortcuts below before their own definitions.
+
+  // The eight per-field handlers referenced here now come from
+  // useTaskActions above (called earlier in this component, so its return
+  // value is already available here) rather than being hoisted function
+  // declarations local to this component.
   const { undoStack, redoStack, handleUndo, handleRedo, commitTaskEdit } = useEditHistory({
     onSaveTitle: handleSaveTitle,
     onSaveDescription: handleSaveDescription,
@@ -274,12 +304,6 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("notifyDnd", String(dndEnabled));
   }, [dndEnabled]);
-
-  useEffect(() => {
-    return () => {
-      if (pendingDeleteTimeout.current != null) window.clearTimeout(pendingDeleteTimeout.current);
-    };
-  }, []);
 
   // In-app shortcuts (n, /, arrows, Escape, undo/redo, command palette) plus
   // the Ctrl/⌘+Shift+N OS-level global shortcut — see
@@ -383,6 +407,12 @@ export default function App() {
       view === "trash"
     )
       exitSelectMode();
+    // exitSelectMode is a fresh closure from useTaskActions on every render
+    // (unmemoized, same as handleUndo/handleRedo/handleMoveTask elsewhere in
+    // this file) — this effect is only meant to react to `view` itself
+    // changing, not to re-run (and redundantly exit select mode) on every
+    // unrelated render while already on a non-list view.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view]);
 
   async function reload() {
@@ -426,451 +456,6 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function handleAddTask(
-    title: string,
-    description: string,
-    taskDueDate: string,
-    dueTime: string,
-    priority: Priority | null,
-    recurrence: RecurrenceInput | null
-  ) {
-    try {
-      const recurrenceId = recurrence
-        ? await createRecurrenceRule(
-            recurrence.frequency,
-            recurrence.interval,
-            recurrence.endDate,
-            recurrence.occurrences,
-            recurrence.weekdays
-          )
-        : undefined;
-      // Adding a task while a list is open should land it directly in that
-      // list, not just in the untagged everyday view.
-      const newTaskId = await createTask(
-        title,
-        taskDueDate,
-        undefined,
-        recurrenceId,
-        priority ?? undefined,
-        taskDueDate ? dueTime : undefined,
-        activeListId ?? undefined,
-        description
-      );
-      // A list's default tag (distinct from list membership itself) applies
-      // the same way — only to new tasks added while that list is open, not
-      // retroactively; that's what the explicit "apply to all" action is for.
-      if (activeList?.defaultTagId != null) {
-        await addTagToTask(newTaskId, activeList.defaultTagId);
-      }
-      // Today keeps defaulting to today's date, Calendar keeps whatever day is
-      // selected — only clear the field when neither has a sensible default
-      // to fall back to.
-      if (view === "today" || view === "my-day") {
-        setDueDate(todayStr());
-      } else if (view !== "calendar") {
-        setDueDate("");
-      }
-      setShowAddModal(false);
-      await reload();
-    } catch (err) {
-      console.error("Failed to add task:", err);
-      window.alert(`Couldn't add task: ${err}`);
-    }
-  }
-
-  function getDescendantIds(id: number): number[] {
-    const children = tasks.filter((t) => t.parentId === id).map((t) => t.id);
-    return children.flatMap((childId) => [childId, ...getDescendantIds(childId)]);
-  }
-
-  // Shared by single-task and bulk completion: marks a task and its
-  // descendants complete/incomplete, and — only when completing — spawns the
-  // next instance of any recurring task in that set. Doesn't reload on its
-  // own so bulk completion can do a single reload after the whole batch.
-  async function applyCompletion(id: number, completed: boolean) {
-    if (completed) {
-      // Blocked tasks can't be completed — the checkbox is already disabled
-      // for this in TaskRow, but bulk-complete bypasses that UI entirely, so
-      // this is the one choke point both paths go through where it's worth
-      // guarding again rather than trusting the UI alone.
-      const task = tasks.find((t) => t.id === id);
-      if (task?.dependsOn.some((d) => !d.completed)) return;
-    }
-    const idsToUpdate = completed ? [id, ...getDescendantIds(id)] : [id];
-    const completedAt = completed ? nowTimestamp() : null;
-    for (const taskId of idsToUpdate) {
-      // A timer left running after its task is done would just keep
-      // accumulating meaningless time in the background — fold it into the
-      // total the same way explicitly clicking "Stop" would.
-      if (completed) {
-        const task = tasks.find((t) => t.id === taskId);
-        if (task?.timerStartedAt) await stopTaskTimer(taskId);
-      }
-      await setTaskCompleted(taskId, completed, completedAt);
-    }
-
-    if (completed) {
-      for (const taskId of idsToUpdate) {
-        const task = tasks.find((t) => t.id === taskId);
-        if (!task?.recurrence) continue;
-        const baseDate = task.dueDate ?? todayStr();
-        const nextDue = nextRecurrenceDate(baseDate, task.recurrence);
-        const withinEnd = !task.recurrence.endDate || nextDue <= task.recurrence.endDate;
-        const withinCount = task.recurrence.occurrencesLeft == null || task.recurrence.occurrencesLeft > 1;
-        if (withinEnd && withinCount) {
-          await createTask(
-            task.title,
-            nextDue,
-            task.parentId ?? undefined,
-            task.recurrence.id,
-            undefined,
-            undefined,
-            task.listId ?? undefined
-          );
-          await decrementRecurrenceOccurrences(task.recurrence.id);
-          await clearTaskRecurrence(task.id);
-        }
-      }
-    }
-  }
-
-  async function handleToggle(id: number, completed: boolean) {
-    await applyCompletion(id, completed);
-    await reload();
-  }
-
-  // Deleting doesn't hit the database right away: the task(s) (and their
-  // subtasks) are just hidden from the UI for a few seconds while a toast
-  // offers "Undo". Only once that window elapses without being cancelled
-  // does the task actually move to Trash (moveTaskToTrash cascades to
-  // descendants itself) — a real DELETE only ever happens from within Trash
-  // ("Delete forever") or once something's been there past the retention
-  // window. `rootIds` are the tasks the user actually deleted; `allIds` is
-  // the full set hidden from the UI in the meantime.
-  function schedulePendingDelete(pending: { rootIds: number[]; allIds: number[]; label: string }) {
-    setPendingDelete(pending);
-    pendingDeleteTimeout.current = window.setTimeout(() => {
-      // Passed explicitly rather than read back off `pendingDelete` state:
-      // this closure was created (and captured whatever `pendingDelete` was)
-      // at the moment `schedulePendingDelete` ran, which is *before* the
-      // `setPendingDelete(pending)` above ever commits to a render — reading
-      // the state here would always see the pre-delete value (null), so
-      // `rootIds` would be empty and nothing would actually get trashed.
-      commitPendingDelete(pending);
-    }, 5000);
-  }
-
-  async function commitPendingDelete(pending?: { rootIds: number[]; allIds: number[]; label: string }) {
-    if (pendingDeleteTimeout.current != null) {
-      window.clearTimeout(pendingDeleteTimeout.current);
-      pendingDeleteTimeout.current = null;
-    }
-    const rootIds = (pending ?? pendingDelete)?.rootIds ?? [];
-    setPendingDelete(null);
-    for (const id of rootIds) {
-      await moveTaskToTrash(id);
-    }
-    await reload();
-  }
-
-  async function handleRestoreFromTrash(id: number) {
-    await restoreTaskFromTrash(id);
-    await reload();
-  }
-
-  async function handleDeleteForever(id: number) {
-    const task = trashedTasks.find((t) => t.id === id);
-    if (!window.confirm(`Permanently delete "${task?.title ?? "this task"}"? This can't be undone.`)) return;
-    await deleteTask(id);
-    await reload();
-  }
-
-  async function handleEmptyTrash() {
-    if (trashedTasks.length === 0) return;
-    if (
-      !window.confirm(
-        `Permanently delete all ${trashedTasks.length} task(s) in Trash? This can't be undone.`
-      )
-    ) {
-      return;
-    }
-    await emptyTrash();
-    await reload();
-  }
-
-  async function handleDelete(id: number) {
-    if (pendingDelete) await commitPendingDelete();
-
-    const task = tasks.find((t) => t.id === id);
-    const allIds = [id, ...getDescendantIds(id)];
-    schedulePendingDelete({
-      rootIds: [id],
-      allIds,
-      label: `"${task?.title ?? "Task"}" deleted${allIds.length > 1 ? ` (with ${allIds.length - 1} subtask(s))` : ""}`,
-    });
-  }
-
-  function handleUndoDelete() {
-    if (pendingDeleteTimeout.current != null) {
-      window.clearTimeout(pendingDeleteTimeout.current);
-      pendingDeleteTimeout.current = null;
-    }
-    setPendingDelete(null);
-  }
-
-  function exitSelectMode() {
-    setSelectMode(false);
-    setSelectedIds(new Set());
-    setShowBulkTagPicker(false);
-    setShowBulkPostponePicker(false);
-  }
-
-  function handleToggleSelect(id: number) {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  }
-
-  async function handleBulkComplete() {
-    for (const id of selectedIds) {
-      await applyCompletion(id, true);
-    }
-    exitSelectMode();
-    await reload();
-  }
-
-  async function handleBulkDelete() {
-    if (selectedIds.size === 0) return;
-    if (pendingDelete) await commitPendingDelete();
-
-    const rootIds = [...selectedIds];
-    const allIds = [...new Set(rootIds.flatMap((id) => [id, ...getDescendantIds(id)]))];
-    schedulePendingDelete({
-      rootIds,
-      allIds,
-      label: `${rootIds.length} task${rootIds.length > 1 ? "s" : ""} deleted`,
-    });
-    exitSelectMode();
-  }
-
-  async function handleBulkAddTag(tagId: number) {
-    for (const id of selectedIds) {
-      await addTagToTask(id, tagId);
-    }
-    await reload();
-  }
-
-  // Same eligibility as the single-task Postpone button (has a due date,
-  // isn't recurring — Skip is the recurring equivalent), plus the "overdue"
-  // qualifier the bulk action is specifically for: a selected task that
-  // isn't actually overdue is silently left untouched rather than treated
-  // as an error, since selection in bulk mode isn't itself a promise that
-  // every selected task is eligible for whatever action gets applied next.
-  async function handleBulkPostpone(days: number) {
-    for (const id of selectedIds) {
-      const task = tasks.find((t) => t.id === id);
-      if (!task?.dueDate || task.recurrence) continue;
-      if (!isOverdue(task.dueDate, task.dueTime, task.completed)) continue;
-      const nextDue = addInterval(task.dueDate, "daily", days);
-      await updateTaskDueDate(id, nextDue, task.dueTime ?? "");
-    }
-    exitSelectMode();
-    await reload();
-  }
-
-  async function handleAddSubtask(parentId: number, title: string) {
-    const parent = tasks.find((t) => t.id === parentId);
-    await createTask(
-      title,
-      parent?.dueDate ?? undefined,
-      parentId,
-      undefined,
-      undefined,
-      parent?.dueTime ?? undefined,
-      parent?.listId ?? undefined
-    );
-    await reload();
-  }
-
-  async function handleDuplicateTask(id: number) {
-    await duplicateTask(id);
-    await reload();
-  }
-
-  // Advances a recurring task's own due date to the next occurrence in
-  // place, without touching `completed`/`completed_at` or spawning a new
-  // row — the series' single live row just moves forward a beat, so this
-  // occurrence is skipped rather than marked done. If the next date would
-  // fall past the rule's end date, there's nothing left to skip to, so the
-  // recurrence is simply dropped instead (same as what happens when a normal
-  // completion runs out the end date).
-  async function handleSkipOccurrence(id: number) {
-    const task = tasks.find((t) => t.id === id);
-    if (!task?.recurrence) return;
-    const baseDate = task.dueDate ?? todayStr();
-    const nextDue = nextRecurrenceDate(baseDate, task.recurrence);
-    const withinEnd = !task.recurrence.endDate || nextDue <= task.recurrence.endDate;
-    const withinCount = task.recurrence.occurrencesLeft == null || task.recurrence.occurrencesLeft > 1;
-    if (withinEnd && withinCount) {
-      await decrementRecurrenceOccurrences(task.recurrence.id);
-      await updateTaskDueDate(id, nextDue, task.dueTime ?? "");
-    } else {
-      await clearTaskRecurrence(id);
-    }
-    await reload();
-  }
-
-  // The non-recurring counterpart to "Skip" — just pushes a task's own due
-  // date forward a day in place, reusing addInterval's "daily" step so the
-  // date math stays in one place rather than duplicating it.
-  async function handlePostpone(id: number) {
-    const task = tasks.find((t) => t.id === id);
-    if (!task?.dueDate || task.recurrence) return;
-    const nextDue = addInterval(task.dueDate, "daily", 1);
-    await updateTaskDueDate(id, nextDue, task.dueTime ?? "");
-    await reload();
-  }
-
-  async function handleTogglePin(id: number) {
-    const task = tasks.find((t) => t.id === id);
-    if (!task) return;
-    await updateTaskPinned(id, !task.pinned);
-    await reload();
-  }
-
-  async function handleToggleInProgress(id: number) {
-    const task = tasks.find((t) => t.id === id);
-    if (!task) return;
-    await updateTaskInProgress(id, !task.inProgress);
-    await reload();
-  }
-
-  async function handleToggleTimer(id: number) {
-    const task = tasks.find((t) => t.id === id);
-    if (!task) return;
-    if (task.timerStartedAt) {
-      await stopTaskTimer(id);
-    } else {
-      await startTaskTimer(id);
-      // One-directional: starting the timer means you're actively working
-      // on this right now, so it's a reasonable moment to also mark it in
-      // progress. The reverse doesn't hold — stopping the timer (a break,
-      // done for the day, ...) doesn't imply the task is no longer in
-      // progress, so that flag is left alone on stop.
-      if (!task.inProgress) await updateTaskInProgress(id, true);
-    }
-    await reload();
-  }
-
-  async function handleResetTimer(id: number) {
-    if (!window.confirm("Reset this task's logged time back to 0:00? This can't be undone.")) return;
-    await resetTaskTimer(id);
-    await reload();
-  }
-
-  async function handleArchive(id: number) {
-    await updateTaskArchived(id, true);
-    await reload();
-  }
-
-  async function handleUnarchive(id: number) {
-    await updateTaskArchived(id, false);
-    await reload();
-  }
-
-  async function handleBacklog(id: number) {
-    await updateTaskBacklog(id, true);
-    await reload();
-  }
-
-  async function handleUnbacklog(id: number) {
-    await updateTaskBacklog(id, false);
-    await reload();
-  }
-
-  async function handleSaveAsTemplate(id: number) {
-    const task = tasks.find((t) => t.id === id);
-    const name = window.prompt("Name this template:", task?.title ?? "");
-    if (!name || !name.trim()) return;
-    await saveTaskAsTemplate(id, name.trim());
-    await reload();
-  }
-
-  // Stamps out a fresh task (and its whole subtask subtree) from a saved
-  // template, using whatever due date is currently pending for the add form
-  // — the same default a manually-added task on this view would get.
-  async function handleUseTemplate(templateId: number) {
-    await createTaskFromTemplate(templateId, dueDate || undefined);
-    setShowTemplatesPicker(false);
-    await reload();
-  }
-
-  async function handleDeleteTemplate(id: number) {
-    await deleteTaskTemplate(id);
-    await reload();
-  }
-
-  // Reordering only makes sense among true siblings (same parent), and
-  // operates on the full sibling group rather than whatever subset the
-  // current view/filter happens to show, so a hidden sibling's position
-  // doesn't get scrambled by a drag made within a filtered view.
-  // Dropping onto a target always inserts the dragged task just before it
-  // among the target's real siblings — same as before when they already
-  // share a parent, but now also reparenting the dragged task to the
-  // target's parent when they don't. Dropping onto any top-level task's row
-  // is how a subtask gets promoted to top-level, since a top-level task's
-  // parentId is already null. Dropping onto anything inside the dragged
-  // task's own subtree is rejected — that would make it its own ancestor.
-  async function handleReorder(draggedId: number, targetId: number, position: "before" | "after" = "before") {
-    if (draggedId === targetId) return;
-    const dragged = tasks.find((t) => t.id === draggedId);
-    const target = tasks.find((t) => t.id === targetId);
-    if (!dragged || !target) return;
-    if (getDescendantIds(draggedId).includes(targetId)) return;
-
-    const newParentId = target.parentId;
-    if (dragged.parentId === newParentId) {
-      const siblings = tasks.filter((t) => t.parentId === dragged.parentId);
-      const reordered = siblings.filter((t) => t.id !== draggedId);
-      const targetIndex = reordered.findIndex((t) => t.id === targetId);
-      reordered.splice(position === "after" ? targetIndex + 1 : targetIndex, 0, dragged);
-      await Promise.all(reordered.map((t, i) => updateTaskSortOrder(t.id, i)));
-    } else {
-      const oldSiblings = tasks.filter((t) => t.parentId === dragged.parentId && t.id !== draggedId);
-      const newSiblings = tasks.filter((t) => t.parentId === newParentId && t.id !== draggedId);
-      const targetIndex = newSiblings.findIndex((t) => t.id === targetId);
-      newSiblings.splice(position === "after" ? targetIndex + 1 : targetIndex, 0, dragged);
-
-      await updateTaskParent(draggedId, newParentId);
-      await Promise.all([
-        ...oldSiblings.map((t, i) => updateTaskSortOrder(t.id, i)),
-        ...newSiblings.map((t, i) => updateTaskSortOrder(t.id, i)),
-      ]);
-    }
-    await reload();
-  }
-
-  // The keyboard-operable equivalent of dragging a row's ⠿ handle — Alt+↑/↓
-  // on a focused row (wired below, alongside the plain ↑/↓ row-navigation
-  // shortcut) swaps it with its immediate sibling instead of requiring a
-  // mouse drag. Reuses handleReorder's own same-parent branch (never
-  // reparents, since the target here is always a true sibling already).
-  async function handleMoveTask(id: number, direction: "up" | "down") {
-    const task = tasks.find((t) => t.id === id);
-    if (!task) return;
-    const siblings = tasks.filter((t) => t.parentId === task.parentId);
-    const index = siblings.findIndex((t) => t.id === id);
-    const targetIndex = direction === "up" ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= siblings.length) return;
-    await handleReorder(id, siblings[targetIndex].id, direction === "up" ? "before" : "after");
-  }
-
   // Same before/after splice-insertion shape as handleReorder above, just
   // without the reparent branch — lists are always a single flat group, no
   // hierarchy to worry about.
@@ -883,122 +468,6 @@ export default function App() {
     if (targetIndex === -1) return;
     reordered.splice(position === "after" ? targetIndex + 1 : targetIndex, 0, dragged);
     await Promise.all(reordered.map((t, i) => updateCustomTabSortOrder(t.id, i)));
-    await reload();
-  }
-
-  async function handleSaveTitle(id: number, title: string) {
-    await updateTaskTitle(id, title);
-    await reload();
-  }
-
-  async function handleSaveDescription(id: number, description: string) {
-    await updateTaskDescription(id, description);
-    await reload();
-  }
-
-  async function handleSaveDueDate(id: number, dueDate: string, dueTime: string) {
-    await updateTaskDueDate(id, dueDate, dueTime);
-    await reload();
-  }
-
-  async function handleSavePriority(id: number, priority: Priority | null) {
-    await updateTaskPriority(id, priority);
-    await reload();
-  }
-
-  async function handleSaveReminder(id: number, reminderAt: string | null, reminderRepeat: RecurrenceFrequency | null) {
-    await updateTaskReminder(id, reminderAt, reminderRepeat);
-    await reload();
-  }
-
-  async function handleSaveHighlightColor(id: number, color: string | null) {
-    await updateTaskHighlightColor(id, color);
-    await reload();
-  }
-
-  async function handleSaveEstimate(id: number, estimatedMinutes: number | null) {
-    await updateTaskEstimate(id, estimatedMinutes);
-    await reload();
-  }
-
-  async function handleSaveRecurrence(id: number, recurrence: RecurrenceInput | null) {
-    const task = tasks.find((t) => t.id === id);
-    if (!recurrence) {
-      if (task?.recurrence) await clearTaskRecurrence(id);
-    } else if (task?.recurrence) {
-      await updateRecurrenceRule(
-        task.recurrence.id,
-        recurrence.frequency,
-        recurrence.interval,
-        recurrence.endDate,
-        recurrence.occurrences,
-        recurrence.weekdays
-      );
-    } else {
-      const recurrenceId = await createRecurrenceRule(
-        recurrence.frequency,
-        recurrence.interval,
-        recurrence.endDate,
-        recurrence.occurrences,
-        recurrence.weekdays
-      );
-      await setTaskRecurrenceId(id, recurrenceId);
-    }
-    await reload();
-  }
-
-  async function handleAddAttachment(taskId: number, path: string) {
-    await addAttachmentToTask(taskId, path);
-    await reload();
-  }
-
-  async function handleRemoveAttachment(attachmentId: number) {
-    await removeAttachment(attachmentId);
-    await reload();
-  }
-
-  async function handleAddDependency(taskId: number, dependsOnId: number) {
-    try {
-      await addTaskDependency(taskId, dependsOnId);
-    } catch (err) {
-      window.alert(err instanceof Error ? err.message : String(err));
-      return;
-    }
-    await reload();
-  }
-
-  async function handleRemoveDependency(taskId: number, dependsOnId: number) {
-    await removeTaskDependency(taskId, dependsOnId);
-    await reload();
-  }
-
-  async function handleAddRelatedTask(taskId: number, relatedTaskId: number) {
-    try {
-      await addRelatedTask(taskId, relatedTaskId);
-    } catch (err) {
-      window.alert(err instanceof Error ? err.message : String(err));
-      return;
-    }
-    await reload();
-  }
-
-  async function handleRemoveRelatedTask(taskId: number, relatedTaskId: number) {
-    await removeRelatedTask(taskId, relatedTaskId);
-    await reload();
-  }
-
-  function handleSelectRelatedTask(taskId: number) {
-    const everyTask = [...tasks, ...archivedTasks, ...trashedTasks];
-    const task = everyTask.find((t) => t.id === taskId);
-    if (task) setSelectedTask(task);
-  }
-
-  async function handleToggleTag(taskId: number, tagId: number, assign: boolean) {
-    if (assign) {
-      await addTagToTask(taskId, tagId);
-    } else {
-      await removeTagFromTask(taskId, tagId);
-    }
     await reload();
   }
 
