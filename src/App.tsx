@@ -46,8 +46,6 @@ import { PRIORITY_COLORS, PRIORITY_LABELS } from "./lib/priority";
 import { buildTaskTree } from "./lib/tree";
 import { hexToRgba, DANGER_COLOR } from "./lib/color";
 import { CARD_STYLE, POPOVER_STYLE } from "./lib/sharedStyles";
-import { exportToFile, importFromFile, exportTaskAsMarkdown } from "./lib/backup";
-import { taskToMarkdown } from "./lib/taskMarkdown";
 import { useClickOutside } from "./lib/useClickOutside";
 import { useReminders } from "./lib/useReminders";
 import { useKeyboardShortcuts } from "./lib/useKeyboardShortcuts";
@@ -56,6 +54,7 @@ import { useTaskActions } from "./lib/useTaskActions";
 import { useCustomTabActions } from "./lib/useCustomTabActions";
 import { useTagActions } from "./lib/useTagActions";
 import { useSavedViews } from "./lib/useSavedViews";
+import { useBackup } from "./lib/useBackup";
 import { useEditHistory, type EditSnapshot } from "./lib/useEditHistory";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 
@@ -273,6 +272,15 @@ export default function App() {
     setActiveTagFilter,
     setPriorityFilter,
     setSearchQuery,
+  });
+
+  const { handleExport, handleExportTaskMarkdown, handleImport } = useBackup({
+    tasks,
+    archivedTasks,
+    trashedTasks,
+    reload,
+    setSelectedTask,
+    setActiveListId,
   });
 
   useEffect(() => {
@@ -501,58 +509,6 @@ export default function App() {
 
   function handleCollapseAll() {
     setCollapseSignal((prev) => ({ collapsed: true, version: (prev?.version ?? 0) + 1 }));
-  }
-
-  async function handleExport() {
-    try {
-      const exported = await exportToFile();
-      if (exported) window.alert("Backup saved.");
-    } catch (err) {
-      console.error("Failed to export backup:", err);
-      window.alert(`Couldn't export backup: ${err}`);
-    }
-  }
-
-  // A task can be exported from any view — including Archive/Backlog/Trash,
-  // wherever "Export .md" is passed — so the subtree lookup spans all three
-  // task lists rather than just the everyday `tasks` array, otherwise an
-  // archived or backlogged task's own children (which live in a different
-  // list) would be missing from the export.
-  async function handleExportTaskMarkdown(id: number) {
-    const everyTask = [...tasks, ...archivedTasks, ...trashedTasks];
-    const task = everyTask.find((t) => t.id === id);
-    if (!task) return;
-    const { childrenByParent } = buildTaskTree(everyTask);
-    const markdown = taskToMarkdown(task, childrenByParent);
-    try {
-      const exported = await exportTaskAsMarkdown(task.title, markdown);
-      if (exported) window.alert("Task exported.");
-    } catch (err) {
-      console.error("Failed to export task as Markdown:", err);
-      window.alert(`Couldn't export task: ${err}`);
-    }
-  }
-
-  async function handleImport() {
-    if (
-      !window.confirm(
-        "Importing a backup replaces everything currently in this app — all tasks, tags, and recurrence rules will be deleted first. This can't be undone. Continue?"
-      )
-    ) {
-      return;
-    }
-    try {
-      const imported = await importFromFile();
-      if (imported) {
-        setSelectedTask(null);
-        setActiveListId(null);
-        await reload();
-        window.alert("Backup restored.");
-      }
-    } catch (err) {
-      console.error("Failed to import backup:", err);
-      window.alert(`Couldn't import backup: ${err}`);
-    }
   }
 
   // Tasks pending a delete-undo window are filtered out here, upstream of
