@@ -120,7 +120,6 @@ export default function App() {
   const [showMoreViews, setShowMoreViews] = useState(false);
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const [customAccent, setCustomAccent] = useState<string | null>(() => localStorage.getItem("accentColor"));
-  const [colorPickerTabId, setColorPickerTabId] = useState<number | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showConfigMenu, setShowConfigMenu] = useState(false);
   const [notifySnoozeMinutes, setNotifySnoozeMinutes] = useState<number>(getInitialSnoozeMinutes);
@@ -753,8 +752,6 @@ export default function App() {
         setActiveListId={setActiveListId}
         handleSelectCustomTab={handleSelectCustomTab}
         handleReorderCustomTab={handleReorderCustomTab}
-        colorPickerTabId={colorPickerTabId}
-        setColorPickerTabId={setColorPickerTabId}
         handleUpdateCustomTabColor={handleUpdateCustomTabColor}
         handleUpdateCustomTabDescription={handleUpdateCustomTabDescription}
         handleUpdateCustomTabDefaultTag={handleUpdateCustomTabDefaultTag}
