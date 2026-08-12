@@ -7,6 +7,7 @@ import { renderInlineMarkdown } from "../lib/markdown";
 import { hexToRgba, DANGER_COLOR } from "../lib/color";
 import { formatDuration } from "../lib/duration";
 import { REPEAT_LABELS } from "../lib/recurrence";
+import { startTaskDragAutoScroll, stopTaskDragAutoScroll } from "../lib/dragAutoScroll";
 import TaskActionsMenu from "./TaskActionsMenu";
 
 const OVERDUE_COLOR = DANGER_COLOR;
@@ -306,7 +307,10 @@ export default function TaskRow({
               onDragStart={(e) => {
                 e.dataTransfer.setData("text/plain", String(task.id));
                 e.dataTransfer.effectAllowed = "move";
+                const scrollContainer = document.querySelector<HTMLElement>("[data-main-scroll]");
+                if (scrollContainer) startTaskDragAutoScroll(scrollContainer);
               }}
+              onDragEnd={stopTaskDragAutoScroll}
               onClick={(e) => e.stopPropagation()}
               title="Drag to reorder"
               // Decorative for screen readers — Alt+↑/↓ on the focused row

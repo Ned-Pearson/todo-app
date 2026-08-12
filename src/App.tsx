@@ -56,6 +56,7 @@ import { useTagActions } from "./lib/useTagActions";
 import { useSavedViews } from "./lib/useSavedViews";
 import { useBackup } from "./lib/useBackup";
 import { useEditHistory, type EditSnapshot } from "./lib/useEditHistory";
+import { updateTaskDragPosition } from "./lib/dragAutoScroll";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 
 const SORT_LABELS: Record<SortOption, string> = {
@@ -767,6 +768,8 @@ export default function App() {
         handleImport={handleImport}
       />
       <div
+        data-main-scroll
+        onDragOver={(e) => updateTaskDragPosition(e.clientY)}
         style={{
           flex: "1 1 0",
           overflowY: "auto",
