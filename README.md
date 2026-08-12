@@ -4,7 +4,13 @@ Tauri + React + TypeScript + SQLite
 
 ## Running it locally
 
-There's no signed installer to just download and double-click yet — that needs a paid code-signing certificate, which isn't worth it for a project not currently being distributed at scale. The straightforward way to try this out is running it from source, which only takes a few commands:
+There's no paid code-signing certificate, so no polished one-click installer link, but there are two ways to get a running copy: a pre-built installer, or building it from source yourself.
+
+**Pre-built installers**: [`build-desktop.yml`](.github/workflows/build-desktop.yml) builds a Windows installer (`.msi`/`.exe`) and a macOS one (`.dmg`, a universal build covering both Intel and Apple Silicon) on demand. Grab them from the [Actions tab](https://github.com/Ned-Pearson/todo-app/actions/workflows/build-desktop.yml) → the latest successful run → the "Artifacts" section at the bottom of that run's page; the repo's public, so any (free) GitHub account can get to them, no collaborator access needed. Both are unsigned, so **your OS will flag them on first launch**:
+- **Windows** shows a SmartScreen "Windows protected your PC" warning: click **"More info" → "Run anyway"**.
+- **macOS** Gatekeeper blocks it outright rather than just warning: go to **System Settings → Privacy & Security**, find the blocked-app notice near the bottom, and click **"Open Anyway"** (or run `xattr -cr` on the `.app` from Terminal). This needs redoing for each new build you download, since macOS re-flags every fresh file.
+
+**From source**: the straightforward way to try this out if you'd rather not deal with either warning, and only takes a few commands:
 
 ```bash
 git clone https://github.com/Ned-Pearson/todo-app.git
@@ -13,13 +19,13 @@ npm install
 npm run tauri dev
 ```
 
-That opens the actual native app window (not a browser tab) backed by a local SQLite database — `npm run dev` alone only starts the Vite dev server for the frontend, without the Tauri shell wrapping it. The first run compiles the Rust backend, which takes a few minutes; every run after that is fast.
+That opens the actual native app window (not a browser tab) backed by a local SQLite database; `npm run dev` alone only starts the Vite dev server for the frontend, without the Tauri shell wrapping it. The first run compiles the Rust backend, which takes a few minutes; every run after that is fast.
 
-**Prerequisites**: [Node.js](https://nodejs.org) (LTS) and [Rust](https://www.rust-lang.org/tools/install) via rustup, plus one platform-specific build tool — Windows needs the "Desktop development with C++" workload (Visual Studio Installer), macOS needs `xcode-select --install`, Linux needs a few webkit/gtk dev packages. Full list, plus troubleshooting, in [SETUP.md](SETUP.md).
+**Prerequisites**: [Node.js](https://nodejs.org) (LTS) and [Rust](https://www.rust-lang.org/tools/install) via rustup, plus one platform-specific build tool: Windows needs the "Desktop development with C++" workload (Visual Studio Installer), macOS needs `xcode-select --install`, Linux needs a few webkit/gtk dev packages. Full list, plus troubleshooting, in [SETUP.md](SETUP.md).
 
-**Checking the code itself** — `npm run lint`, `npx tsc --noEmit -p .`, and `npm test` run ESLint, the TypeScript compiler, and the Vitest suite (69 tests) respectively, all clean on `main`.
+**Checking the code itself**: `npm run lint`, `npx tsc --noEmit -p .`, and `npm test` run ESLint, the TypeScript compiler, and the Vitest suite (69 tests) respectively, all clean on `main`.
 
-If you'd rather build a native installer for your own OS instead of running in dev mode, `npm run tauri build` produces one — unsigned, so the OS will flag it as being from an unrecognized publisher on first launch (standard for a personal project without a paid code-signing certificate).
+If you'd rather build a native installer for your own OS instead of running in dev mode, `npm run tauri build` produces one; it's unsigned, so the OS will flag it as being from an unrecognized publisher on first launch (standard for a personal project without a paid code-signing certificate).
 
 TODO:
 
