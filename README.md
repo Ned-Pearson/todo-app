@@ -2,6 +2,25 @@
 
 Tauri + React + TypeScript + SQLite
 
+## Running it locally
+
+There's no signed installer to just download and double-click yet — that needs a paid code-signing certificate, which isn't worth it for a project not currently being distributed at scale. The straightforward way to try this out is running it from source, which only takes a few commands:
+
+```bash
+git clone https://github.com/Ned-Pearson/todo-app.git
+cd todo-app
+npm install
+npm run tauri dev
+```
+
+That opens the actual native app window (not a browser tab) backed by a local SQLite database — `npm run dev` alone only starts the Vite dev server for the frontend, without the Tauri shell wrapping it. The first run compiles the Rust backend, which takes a few minutes; every run after that is fast.
+
+**Prerequisites**: [Node.js](https://nodejs.org) (LTS) and [Rust](https://www.rust-lang.org/tools/install) via rustup, plus one platform-specific build tool — Windows needs the "Desktop development with C++" workload (Visual Studio Installer), macOS needs `xcode-select --install`, Linux needs a few webkit/gtk dev packages. Full list, plus troubleshooting, in [SETUP.md](SETUP.md).
+
+**Checking the code itself** — `npm run lint`, `npx tsc --noEmit -p .`, and `npm test` run ESLint, the TypeScript compiler, and the Vitest suite (69 tests) respectively, all clean on `main`.
+
+If you'd rather build a native installer for your own OS instead of running in dev mode, `npm run tauri build` produces one — unsigned, so the OS will flag it as being from an unrecognized publisher on first launch (standard for a personal project without a paid code-signing certificate).
+
 TODO:
 
 ## Project structure~
