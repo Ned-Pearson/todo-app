@@ -1,9 +1,8 @@
 name: Build desktop installers
 
-# Manual trigger only — this repo is private, and macOS runners burn through
-# GitHub's free Actions minutes at 10x the rate of Windows/Linux ones, so
-# this shouldn't run on every push. Trigger it from the Actions tab when you
-# actually need a fresh build to hand to someone.
+# Manual trigger only — installers only need rebuilding when there's
+# actually a new version to hand someone, not on every push. Trigger it from
+# the Actions tab when you need a fresh build.
 on:
   workflow_dispatch:
 
