@@ -28,6 +28,14 @@ That opens the actual native app window (not a browser tab) backed by a local SQ
 If you'd rather build a native installer for your own OS instead of running in dev mode, `npm run tauri build` produces one; it's unsigned, so the OS will flag it as being from an unrecognized publisher on first launch (standard for a personal project without a paid code-signing certificate).
 
 TODO:
+The following based on feedback:
+- Make the drag reorder scroll with the user when the task is at the edge of the screen
+- Make the drag reorder button centered in the task and have the whole section it inhabits be that drag option so click doesnt have to be so precise
+- When selected, have the option to add all to a list
+- Make the subtask expand button larger
+- Update the i icon shortcuts to have all keyboard shortcuts (currently missing at least add subtask) & Isnt all centered
+- Keep expansion/collapse of subtasks consistent. Currently subtasks are all expanded when opening a list or any view. Should remember how they were left
+- Reorder task details page, should move up tags, list, description and preview. Move down lesser used like depends on and see also
 
 ## Project structure~
 
