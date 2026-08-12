@@ -1,3 +1,9 @@
+// Suppresses the console window that a Windows release build otherwise
+// opens alongside the app on every launch. Left in place for debug builds
+// (cargo tauri dev) so println!/log output is still visible during
+// development.
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 use tauri_plugin_sql::{Migration, MigrationKind};
 
 fn main() {
