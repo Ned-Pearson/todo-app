@@ -189,7 +189,6 @@ export default function TaskRow({
   // *different* list appearing as a promoted descendant, or anywhere else
   // (All, Today, Calendar, etc.) the row renders.
   const showListBadge = !!task.list && task.list.id !== activeListId;
-  const hasDescription = !!task.description;
   const overdue = isOverdue(task.dueDate, task.dueTime, task.completed);
   const overdueBorder = `3px solid ${overdue ? OVERDUE_COLOR : "transparent"}`;
   // A subtle background wash, not a border/badge — it's a purely personal
@@ -268,486 +267,503 @@ export default function TaskRow({
         }
         style={{
           display: "flex",
-          flexDirection: "column",
-          gap: 4,
-          padding: hasDescription ? "10px 14px 4px" : "10px 14px",
+          // Row instead of column: the drag handle (when present) is a
+          // full-height sibling of the title/subtitle stack below, rather
+          // than an icon sitting inline on the title line — so it stretches
+          // to match whatever the row's actual content height ends up being
+          // (taller once a subtitle line is present), instead of being
+          // pinned to the top and clickable only across a small icon-sized
+          // box.
+          gap: 6,
+          padding: "10px 14px",
           paddingLeft: 14 + depth * 24,
-          borderBottom:
-            dragOverPosition === "after"
-              ? "2px solid var(--color-accent)"
-              : hasDescription
-                ? "none"
-                : "1px solid var(--color-border)",
+          // The description preview (when present) now lives inside this
+          // same container instead of as a separate sibling below it, so
+          // this border is always the true trailing edge of the whole task
+          // block — title, subtitle, and description together — rather
+          // than needing to be suppressed here and re-added on whatever
+          // used to be the last piece.
+          borderBottom: dragOverPosition === "after" ? "2px solid var(--color-accent)" : "1px solid var(--color-border)",
           borderLeft: overdueBorder,
           borderTop: dragOverPosition === "before" ? "2px solid var(--color-accent)" : "2px solid transparent",
           background: highlightBg,
           cursor: "pointer",
         }}
       >
-        {/* Line 1: checkbox/status icons, title, and right-aligned progress/pin/actions */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          {selectable && (
+        {onReorder && (
+          <span
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.setData("text/plain", String(task.id));
+              e.dataTransfer.effectAllowed = "move";
+              const scrollContainer = document.querySelector<HTMLElement>("[data-main-scroll]");
+              if (scrollContainer) startTaskDragAutoScroll(scrollContainer);
+            }}
+            onDragEnd={stopTaskDragAutoScroll}
+            onClick={(e) => e.stopPropagation()}
+            title="Drag to reorder"
+            // Decorative for screen readers — Alt+↑/↓ on the focused row
+            // (see App.tsx's global keydown handler) is the keyboard-
+            // operable equivalent of this mouse-only drag handle.
+            aria-hidden="true"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              // Stretches to the row's full content height (title line
+              // alone, or title+subtitle together when there's a subtitle)
+              // instead of a fixed icon-sized box, so grabbing it doesn't
+              // need precise vertical aim — anywhere in this whole column
+              // starts the drag, not just where the glyph itself sits.
+              alignSelf: "stretch",
+              width: 32,
+              cursor: "grab",
+              color: "var(--color-text-faint)",
+              fontSize: 22,
+              flexShrink: 0,
+              userSelect: "none",
+            }}
+          >
+            ⠿
+          </span>
+        )}
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, minWidth: 0 }}>
+          {/* Line 1: checkbox/status icons, title, and right-aligned progress/pin/actions */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {selectable && (
+              <input
+                type="checkbox"
+                checked={selected}
+                onClick={(e) => e.stopPropagation()}
+                onChange={() => onToggleSelect?.(task.id)}
+                style={{
+                  width: 16,
+                  height: 16,
+                  accentColor: "var(--color-accent)",
+                  flexShrink: 0,
+                  cursor: "pointer",
+                }}
+              />
+            )}
+            {hasChildren ? (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCollapsed((v) => !v);
+                }}
+                title={collapsed ? "Expand subtasks" : "Collapse subtasks"}
+                aria-label={collapsed ? "Expand subtasks" : "Collapse subtasks"}
+                aria-expanded={!collapsed}
+                style={{
+                  width: 16,
+                  height: 16,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  border: "none",
+                  background: "none",
+                  color: "var(--color-text-faint)",
+                  fontSize: 10,
+                  padding: 0,
+                  flexShrink: 0,
+                }}
+              >
+                {collapsed ? "▸" : "▾"}
+              </button>
+            ) : (
+              <span style={{ width: 16, flexShrink: 0 }} />
+            )}
             <input
               type="checkbox"
-              checked={selected}
+              checked={task.completed}
+              disabled={readOnly || blocked}
+              title={blocked ? `Blocked by: ${blockingDeps.map((d) => d.title).join(", ")}` : undefined}
+              aria-label={
+                blocked
+                  ? `"${task.title}" is blocked by: ${blockingDeps.map((d) => d.title).join(", ")}`
+                  : `Mark "${task.title}" complete`
+              }
               onClick={(e) => e.stopPropagation()}
-              onChange={() => onToggleSelect?.(task.id)}
+              onChange={(e) => onToggle(task.id, e.target.checked)}
               style={{
                 width: 16,
                 height: 16,
                 accentColor: "var(--color-accent)",
                 flexShrink: 0,
-                cursor: "pointer",
+                cursor: readOnly || blocked ? "default" : "pointer",
               }}
             />
-          )}
-          {onReorder && (
-            <span
-              draggable
-              onDragStart={(e) => {
-                e.dataTransfer.setData("text/plain", String(task.id));
-                e.dataTransfer.effectAllowed = "move";
-                const scrollContainer = document.querySelector<HTMLElement>("[data-main-scroll]");
-                if (scrollContainer) startTaskDragAutoScroll(scrollContainer);
-              }}
-              onDragEnd={stopTaskDragAutoScroll}
-              onClick={(e) => e.stopPropagation()}
-              title="Drag to reorder"
-              // Decorative for screen readers — Alt+↑/↓ on the focused row
-              // (see App.tsx's global keydown handler) is the keyboard-
-              // operable equivalent of this mouse-only drag handle.
-              aria-hidden="true"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 24,
-                height: 24,
-                margin: "-4px 0",
-                cursor: "grab",
-                color: "var(--color-text-faint)",
-                fontSize: 22,
-                flexShrink: 0,
-                userSelect: "none",
-              }}
-            >
-              ⠿
-            </span>
-          )}
-          {hasChildren ? (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setCollapsed((v) => !v);
-              }}
-              title={collapsed ? "Expand subtasks" : "Collapse subtasks"}
-              aria-label={collapsed ? "Expand subtasks" : "Collapse subtasks"}
-              aria-expanded={!collapsed}
-              style={{
-                width: 16,
-                height: 16,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                border: "none",
-                background: "none",
-                color: "var(--color-text-faint)",
-                fontSize: 10,
-                padding: 0,
-                flexShrink: 0,
-              }}
-            >
-              {collapsed ? "▸" : "▾"}
-            </button>
-          ) : (
-            <span style={{ width: 16, flexShrink: 0 }} />
-          )}
-          <input
-            type="checkbox"
-            checked={task.completed}
-            disabled={readOnly || blocked}
-            title={blocked ? `Blocked by: ${blockingDeps.map((d) => d.title).join(", ")}` : undefined}
-            aria-label={
-              blocked
-                ? `"${task.title}" is blocked by: ${blockingDeps.map((d) => d.title).join(", ")}`
-                : `Mark "${task.title}" complete`
-            }
-            onClick={(e) => e.stopPropagation()}
-            onChange={(e) => onToggle(task.id, e.target.checked)}
-            style={{
-              width: 16,
-              height: 16,
-              accentColor: "var(--color-accent)",
-              flexShrink: 0,
-              cursor: readOnly || blocked ? "default" : "pointer",
-            }}
-          />
-          {blocked && (
-            <span
-              title={`Blocked by: ${blockingDeps.map((d) => d.title).join(", ")}`}
-              style={{ fontSize: 12, flexShrink: 0 }}
-            >
-              🔒
-            </span>
-          )}
-          {!task.completed && onToggleInProgress && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleInProgress(task.id);
-              }}
-              title={task.inProgress ? "Mark as not started" : "Mark as in progress"}
-              aria-label={task.inProgress ? "Mark as not started" : "Mark as in progress"}
-              aria-pressed={task.inProgress}
-              style={{
-                border: "none",
-                background: "none",
-                color: task.inProgress ? "#3d7dd6" : "var(--color-text-faint)",
-                fontSize: 14,
-                padding: 0,
-                flexShrink: 0,
-              }}
-            >
-              {task.inProgress ? "◐" : "○"}
-            </button>
-          )}
-          {task.priority && (
-            <span
-              title={`${PRIORITY_LABELS[task.priority]} priority`}
-              style={{ fontSize: 13, color: PRIORITY_COLORS[task.priority], flexShrink: 0 }}
-            >
-              ⚑
-            </span>
-          )}
-          <span
-            style={{
-              flex: 1,
-              textDecoration: task.completed ? "line-through" : "none",
-              color: task.completed ? "var(--color-text-faint)" : "var(--color-text)",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {task.title}
-          </span>
-          {subtreeProgress && (
-            <span
-              title={`${subtreeProgress.completed} of ${subtreeProgress.total} subtasks done`}
-              style={{
-                fontSize: 12,
-                color: "var(--color-text-muted)",
-                background: "var(--color-surface-sunken)",
-                border: "1px solid var(--color-border)",
-                borderRadius: "var(--radius-sm)",
-                padding: "2px 6px",
-                whiteSpace: "nowrap",
-                flexShrink: 0,
-              }}
-            >
-              {subtreeProgress.completed}/{subtreeProgress.total}
-            </span>
-          )}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setAddingSubtask((v) => !v);
-            }}
-            title="Add subtask"
-            aria-label="Add subtask"
-            style={{
-              border: "none",
-              background: "none",
-              color: "var(--color-text-faint)",
-              fontSize: 15,
-              fontWeight: 600,
-              padding: "0 2px",
-              flexShrink: 0,
-            }}
-          >
-            +
-          </button>
-          {onTogglePin && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onTogglePin(task.id);
-              }}
-              title={task.pinned ? "Unpin" : "Pin to shortlist"}
-              aria-label={task.pinned ? "Unpin" : "Pin to shortlist"}
-              aria-pressed={task.pinned}
-              style={{
-                border: "none",
-                background: "none",
-                color: task.pinned ? "#f2994a" : "var(--color-text-faint)",
-                fontSize: 14,
-                padding: 0,
-                flexShrink: 0,
-              }}
-            >
-              {task.pinned ? "★" : "☆"}
-            </button>
-          )}
-          <TaskActionsMenu
-            task={task}
-            hasTimeLogged={hasTimeLogged}
-            deleteLabel={deleteLabel}
-            open={menuOpen}
-            setOpen={setMenuOpen}
-            contextMenuPos={contextMenuPos}
-            setContextMenuPos={setContextMenuPos}
-            onDelete={onDelete}
-            onDuplicate={onDuplicate}
-            onSkipOccurrence={onSkipOccurrence}
-            onPostpone={onPostpone}
-            onSaveAsTemplate={onSaveAsTemplate}
-            onExportMarkdown={onExportMarkdown}
-            onArchive={onArchive}
-            onUnarchive={onUnarchive}
-            onBacklog={onBacklog}
-            onUnbacklog={onUnbacklog}
-            onRestore={onRestore}
-            onResetTimer={onResetTimer}
-          />
-        </div>
-
-        {/* Line 2: subtitle — due date/reminder/recurrence/attachments/tags */}
-        {hasSubtitle && (
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              alignItems: "center",
-              gap: 6,
-              marginLeft: SUBTITLE_INDENT,
-            }}
-          >
-            {task.dueDate && (
+            {blocked && (
               <span
-                title={overdue ? "Overdue" : undefined}
-                style={{
-                  fontSize: 12,
-                  fontWeight: overdue ? 700 : 400,
-                  color: overdue ? OVERDUE_COLOR : "var(--color-text-muted)",
-                  background: overdue ? "rgba(201, 24, 74, 0.12)" : "var(--color-surface-sunken)",
-                  border: `1px solid ${overdue ? OVERDUE_COLOR : "var(--color-border)"}`,
-                  borderRadius: "var(--radius-sm)",
-                  padding: "2px 6px",
-                  whiteSpace: "nowrap",
+                title={`Blocked by: ${blockingDeps.map((d) => d.title).join(", ")}`}
+                style={{ fontSize: 12, flexShrink: 0 }}
+              >
+                🔒
+              </span>
+            )}
+            {!task.completed && onToggleInProgress && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleInProgress(task.id);
                 }}
-              >
-                {overdue ? "⚠ " : ""}
-                {formatDateDisplay(task.dueDate)}
-                {task.dueTime ? ` ${task.dueTime}` : ""}
-              </span>
-            )}
-            {(hasTimeLogged || showTimerControl || task.estimatedMinutes != null) && (
-              <span
-                title={
-                  task.estimatedMinutes != null
-                    ? `Logged ${formatDuration(liveElapsedSeconds)} of an estimated ${formatDuration(task.estimatedMinutes * 60)}`
-                    : undefined
-                }
+                title={task.inProgress ? "Mark as not started" : "Mark as in progress"}
+                aria-label={task.inProgress ? "Mark as not started" : "Mark as in progress"}
+                aria-pressed={task.inProgress}
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 4,
-                  fontSize: 12,
-                  color: "var(--color-text-muted)",
-                  background: "var(--color-surface-sunken)",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "var(--radius-sm)",
-                  padding: "2px 6px",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {showTimerControl && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onToggleTimer?.(task.id);
-                    }}
-                    title={task.timerStartedAt ? "Stop timer" : "Start timer"}
-                    aria-label={task.timerStartedAt ? "Stop timer" : "Start timer"}
-                    aria-pressed={!!task.timerStartedAt}
-                    style={{
-                      border: "none",
-                      background: "none",
-                      color: task.timerStartedAt ? "#3d7dd6" : "var(--color-text-muted)",
-                      padding: 0,
-                      fontSize: 12,
-                      lineHeight: 1,
-                    }}
-                  >
-                    {task.timerStartedAt ? "⏸" : "▶"}
-                  </button>
-                )}
-                ⏱ {formatDuration(liveElapsedSeconds)}
-                {task.estimatedMinutes != null && (
-                  <span
-                    style={{
-                      color:
-                        liveElapsedSeconds > task.estimatedMinutes * 60 ? OVERDUE_COLOR : "var(--color-text-faint)",
-                    }}
-                  >
-                    / {formatDuration(task.estimatedMinutes * 60)}
-                  </span>
-                )}
-              </span>
-            )}
-            {task.reminderAt && (
-              <span
-                title={
-                  task.reminderRepeat
-                    ? `Reminder set — repeats ${REPEAT_LABELS[task.reminderRepeat].toLowerCase()}, independent of the due date`
-                    : task.reminderNotified
-                      ? "Reminder already sent"
-                      : "Reminder set — independent of the due date"
-                }
-                style={{
-                  fontSize: 12,
-                  color: "var(--color-text-muted)",
-                  background: "var(--color-surface-sunken)",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "var(--radius-sm)",
-                  padding: "2px 6px",
-                  whiteSpace: "nowrap",
-                  opacity: !task.reminderRepeat && task.reminderNotified ? 0.55 : 1,
-                }}
-              >
-                🔔 {formatDateDisplay(task.reminderAt)}
-                {task.reminderRepeat && " ⟳"}
-              </span>
-            )}
-            {showCompletedDate && task.completedAt && (
-              <span
-                style={{
-                  fontSize: 12,
-                  color: "var(--color-text-muted)",
-                  background: "var(--color-surface-sunken)",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "var(--radius-sm)",
-                  padding: "2px 6px",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                Completed {formatDateDisplay(task.completedAt)}
-              </span>
-            )}
-            {showDeletedDate && task.deletedAt && (
-              <span
-                style={{
-                  fontSize: 12,
-                  color: "var(--color-text-muted)",
-                  background: "var(--color-surface-sunken)",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "var(--radius-sm)",
-                  padding: "2px 6px",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                Deleted {formatDateDisplay(task.deletedAt)}
-              </span>
-            )}
-            {task.recurrence && (
-              <span
-                title={`Repeats every ${task.recurrence.interval > 1 ? task.recurrence.interval + " " : ""}${task.recurrence.frequency}${task.recurrence.interval > 1 ? "s" : ""}${task.recurrence.endDate ? ` until ${formatDateDisplay(task.recurrence.endDate)}` : ""}`}
-                style={{ fontSize: 13, color: "var(--color-text-faint)" }}
-              >
-                ⟳
-              </span>
-            )}
-            {task.attachments.length > 0 && (
-              <span
-                title={task.attachments.map((a) => fileNameFromPath(a.path)).join(", ")}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 2,
-                  fontSize: 13,
-                  color: "var(--color-text-faint)",
+                  border: "none",
+                  background: "none",
+                  color: task.inProgress ? "#3d7dd6" : "var(--color-text-faint)",
+                  fontSize: 14,
+                  padding: 0,
                   flexShrink: 0,
                 }}
               >
-                📎{task.attachments.length > 1 ? task.attachments.length : ""}
+                {task.inProgress ? "◐" : "○"}
+              </button>
+            )}
+            {task.priority && (
+              <span
+                title={`${PRIORITY_LABELS[task.priority]} priority`}
+                style={{ fontSize: 13, color: PRIORITY_COLORS[task.priority], flexShrink: 0 }}
+              >
+                ⚑
               </span>
             )}
-            {task.tags.map((tag) => (
+            <span
+              style={{
+                flex: 1,
+                textDecoration: task.completed ? "line-through" : "none",
+                color: task.completed ? "var(--color-text-faint)" : "var(--color-text)",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {task.title}
+            </span>
+            {subtreeProgress && (
               <span
-                key={tag.id}
+                title={`${subtreeProgress.completed} of ${subtreeProgress.total} subtasks done`}
                 style={{
-                  fontSize: 11,
-                  fontWeight: 500,
-                  color: "#fff",
-                  background: tag.color,
+                  fontSize: 12,
+                  color: "var(--color-text-muted)",
+                  background: "var(--color-surface-sunken)",
+                  border: "1px solid var(--color-border)",
                   borderRadius: "var(--radius-sm)",
                   padding: "2px 6px",
                   whiteSpace: "nowrap",
+                  flexShrink: 0,
                 }}
               >
-                {tag.name}
+                {subtreeProgress.completed}/{subtreeProgress.total}
               </span>
-            ))}
-            {task.inheritedTags.map((tag) => (
-              <span
-                key={tag.id}
-                title="Inherited from a parent task"
+            )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setAddingSubtask((v) => !v);
+              }}
+              title="Add subtask"
+              aria-label="Add subtask"
+              style={{
+                border: "none",
+                background: "none",
+                color: "var(--color-text-faint)",
+                fontSize: 15,
+                fontWeight: 600,
+                padding: "0 2px",
+                flexShrink: 0,
+              }}
+            >
+              +
+            </button>
+            {onTogglePin && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onTogglePin(task.id);
+                }}
+                title={task.pinned ? "Unpin" : "Pin to shortlist"}
+                aria-label={task.pinned ? "Unpin" : "Pin to shortlist"}
+                aria-pressed={task.pinned}
                 style={{
-                  fontSize: 11,
-                  fontWeight: 500,
-                  color: tag.color,
+                  border: "none",
                   background: "none",
-                  border: `1px solid ${tag.color}`,
-                  borderRadius: "var(--radius-sm)",
-                  padding: "2px 6px",
-                  whiteSpace: "nowrap",
-                  opacity: 0.75,
+                  color: task.pinned ? "#f2994a" : "var(--color-text-faint)",
+                  fontSize: 14,
+                  padding: 0,
+                  flexShrink: 0,
                 }}
               >
-                {tag.name}
-              </span>
-            ))}
-            {showListBadge && task.list && (
-              <span
-                title={`In list: ${task.list.name}`}
-                style={{
-                  fontSize: 11,
-                  fontWeight: 500,
-                  color: task.list.color ?? "var(--color-text-muted)",
-                  background: task.list.color ? hexToRgba(task.list.color, 0.15) : "var(--color-surface-sunken)",
-                  border: `1px solid ${task.list.color ?? "var(--color-border)"}`,
-                  borderRadius: "var(--radius-sm)",
-                  padding: "2px 6px",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {task.list.icon ?? "📋"} {task.list.name}
-              </span>
+                {task.pinned ? "★" : "☆"}
+              </button>
             )}
+            <TaskActionsMenu
+              task={task}
+              hasTimeLogged={hasTimeLogged}
+              deleteLabel={deleteLabel}
+              open={menuOpen}
+              setOpen={setMenuOpen}
+              contextMenuPos={contextMenuPos}
+              setContextMenuPos={setContextMenuPos}
+              onDelete={onDelete}
+              onDuplicate={onDuplicate}
+              onSkipOccurrence={onSkipOccurrence}
+              onPostpone={onPostpone}
+              onSaveAsTemplate={onSaveAsTemplate}
+              onExportMarkdown={onExportMarkdown}
+              onArchive={onArchive}
+              onUnarchive={onUnarchive}
+              onBacklog={onBacklog}
+              onUnbacklog={onUnbacklog}
+              onRestore={onRestore}
+              onResetTimer={onResetTimer}
+            />
           </div>
-        )}
-      </div>
+  
+          {/* Line 2: subtitle — due date/reminder/recurrence/attachments/tags */}
+          {hasSubtitle && (
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "center",
+                gap: 6,
+                marginLeft: SUBTITLE_INDENT,
+              }}
+            >
+              {task.dueDate && (
+                <span
+                  title={overdue ? "Overdue" : undefined}
+                  style={{
+                    fontSize: 12,
+                    fontWeight: overdue ? 700 : 400,
+                    color: overdue ? OVERDUE_COLOR : "var(--color-text-muted)",
+                    background: overdue ? "rgba(201, 24, 74, 0.12)" : "var(--color-surface-sunken)",
+                    border: `1px solid ${overdue ? OVERDUE_COLOR : "var(--color-border)"}`,
+                    borderRadius: "var(--radius-sm)",
+                    padding: "2px 6px",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {overdue ? "⚠ " : ""}
+                  {formatDateDisplay(task.dueDate)}
+                  {task.dueTime ? ` ${task.dueTime}` : ""}
+                </span>
+              )}
+              {(hasTimeLogged || showTimerControl || task.estimatedMinutes != null) && (
+                <span
+                  title={
+                    task.estimatedMinutes != null
+                      ? `Logged ${formatDuration(liveElapsedSeconds)} of an estimated ${formatDuration(task.estimatedMinutes * 60)}`
+                      : undefined
+                  }
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                    fontSize: 12,
+                    color: "var(--color-text-muted)",
+                    background: "var(--color-surface-sunken)",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "var(--radius-sm)",
+                    padding: "2px 6px",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {showTimerControl && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleTimer?.(task.id);
+                      }}
+                      title={task.timerStartedAt ? "Stop timer" : "Start timer"}
+                      aria-label={task.timerStartedAt ? "Stop timer" : "Start timer"}
+                      aria-pressed={!!task.timerStartedAt}
+                      style={{
+                        border: "none",
+                        background: "none",
+                        color: task.timerStartedAt ? "#3d7dd6" : "var(--color-text-muted)",
+                        padding: 0,
+                        fontSize: 12,
+                        lineHeight: 1,
+                      }}
+                    >
+                      {task.timerStartedAt ? "⏸" : "▶"}
+                    </button>
+                  )}
+                  ⏱ {formatDuration(liveElapsedSeconds)}
+                  {task.estimatedMinutes != null && (
+                    <span
+                      style={{
+                        color:
+                          liveElapsedSeconds > task.estimatedMinutes * 60 ? OVERDUE_COLOR : "var(--color-text-faint)",
+                      }}
+                    >
+                      / {formatDuration(task.estimatedMinutes * 60)}
+                    </span>
+                  )}
+                </span>
+              )}
+              {task.reminderAt && (
+                <span
+                  title={
+                    task.reminderRepeat
+                      ? `Reminder set — repeats ${REPEAT_LABELS[task.reminderRepeat].toLowerCase()}, independent of the due date`
+                      : task.reminderNotified
+                        ? "Reminder already sent"
+                        : "Reminder set — independent of the due date"
+                  }
+                  style={{
+                    fontSize: 12,
+                    color: "var(--color-text-muted)",
+                    background: "var(--color-surface-sunken)",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "var(--radius-sm)",
+                    padding: "2px 6px",
+                    whiteSpace: "nowrap",
+                    opacity: !task.reminderRepeat && task.reminderNotified ? 0.55 : 1,
+                  }}
+                >
+                  🔔 {formatDateDisplay(task.reminderAt)}
+                  {task.reminderRepeat && " ⟳"}
+                </span>
+              )}
+              {showCompletedDate && task.completedAt && (
+                <span
+                  style={{
+                    fontSize: 12,
+                    color: "var(--color-text-muted)",
+                    background: "var(--color-surface-sunken)",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "var(--radius-sm)",
+                    padding: "2px 6px",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Completed {formatDateDisplay(task.completedAt)}
+                </span>
+              )}
+              {showDeletedDate && task.deletedAt && (
+                <span
+                  style={{
+                    fontSize: 12,
+                    color: "var(--color-text-muted)",
+                    background: "var(--color-surface-sunken)",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "var(--radius-sm)",
+                    padding: "2px 6px",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Deleted {formatDateDisplay(task.deletedAt)}
+                </span>
+              )}
+              {task.recurrence && (
+                <span
+                  title={`Repeats every ${task.recurrence.interval > 1 ? task.recurrence.interval + " " : ""}${task.recurrence.frequency}${task.recurrence.interval > 1 ? "s" : ""}${task.recurrence.endDate ? ` until ${formatDateDisplay(task.recurrence.endDate)}` : ""}`}
+                  style={{ fontSize: 13, color: "var(--color-text-faint)" }}
+                >
+                  ⟳
+                </span>
+              )}
+              {task.attachments.length > 0 && (
+                <span
+                  title={task.attachments.map((a) => fileNameFromPath(a.path)).join(", ")}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 2,
+                    fontSize: 13,
+                    color: "var(--color-text-faint)",
+                    flexShrink: 0,
+                  }}
+                >
+                  📎{task.attachments.length > 1 ? task.attachments.length : ""}
+                </span>
+              )}
+              {task.tags.map((tag) => (
+                <span
+                  key={tag.id}
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: "#fff",
+                    background: tag.color,
+                    borderRadius: "var(--radius-sm)",
+                    padding: "2px 6px",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {tag.name}
+                </span>
+              ))}
+              {task.inheritedTags.map((tag) => (
+                <span
+                  key={tag.id}
+                  title="Inherited from a parent task"
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: tag.color,
+                    background: "none",
+                    border: `1px solid ${tag.color}`,
+                    borderRadius: "var(--radius-sm)",
+                    padding: "2px 6px",
+                    whiteSpace: "nowrap",
+                    opacity: 0.75,
+                  }}
+                >
+                  {tag.name}
+                </span>
+              ))}
+              {showListBadge && task.list && (
+                <span
+                  title={`In list: ${task.list.name}`}
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: task.list.color ?? "var(--color-text-muted)",
+                    background: task.list.color ? hexToRgba(task.list.color, 0.15) : "var(--color-surface-sunken)",
+                    border: `1px solid ${task.list.color ?? "var(--color-border)"}`,
+                    borderRadius: "var(--radius-sm)",
+                    padding: "2px 6px",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {task.list.icon ?? "📋"} {task.list.name}
+                </span>
+              )}
+            </div>
+          )}
 
-      {task.description && (
-        <div
-          onClick={() => onSelect(task)}
-          style={{
-            padding: "0 14px 10px",
-            paddingLeft: 14 + depth * 24 + SUBTITLE_INDENT,
-            fontSize: 12,
-            color: "var(--color-text-faint)",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            borderBottom: "1px solid var(--color-border)",
-            borderLeft: overdueBorder,
-            background: highlightBg,
-            cursor: "pointer",
-          }}
-        >
-          {renderInlineMarkdown(task.description, `desc${task.id}`)}
+          {/* Description preview — lives in this same container (not as a
+              separate sibling below it) so the drag handle's alignSelf:
+              "stretch" and this row's own before/after drop-zone midpoint
+              both naturally include its height too, rather than treating
+              it as something outside the task block entirely. */}
+          {task.description && (
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect(task);
+              }}
+              style={{
+                paddingLeft: SUBTITLE_INDENT,
+                fontSize: 12,
+                color: "var(--color-text-faint)",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                cursor: "pointer",
+              }}
+            >
+              {renderInlineMarkdown(task.description, `desc${task.id}`)}
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       {addingSubtask && (
         <div
