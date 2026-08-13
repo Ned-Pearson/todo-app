@@ -383,103 +383,6 @@ export default function TaskDetailModal({
         </div>
 
         <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
-          Time estimate
-        </label>
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}>
-          <input
-            type="number"
-            min={0}
-            value={estimatedMinutes}
-            onChange={(e) => setEstimatedMinutes(e.target.value)}
-            placeholder="e.g. 30"
-            style={{
-              width: 90,
-              padding: "8px 10px",
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-sm)",
-              background: "var(--color-surface)",
-              color: "var(--color-text)",
-              fontSize: 14,
-            }}
-          />
-          <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>minutes</span>
-          {estimatedMinutes.trim() && (
-            <button
-              type="button"
-              onClick={() => setEstimatedMinutes("")}
-              title="Clear estimate"
-              aria-label="Clear estimate"
-              style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 12 }}
-            >
-              ✕
-            </button>
-          )}
-          {(task.timeSpentSeconds > 0 || task.timerStartedAt) && (
-            <span style={{ fontSize: 11, color: "var(--color-text-faint)" }}>
-              Logged so far: {formatDuration(task.timeSpentSeconds)}
-            </span>
-          )}
-        </div>
-
-        <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
-          Highlight color
-        </label>
-        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16 }}>
-          <input
-            type="color"
-            value={highlightColor || "#f2d95c"}
-            onChange={(e) => setHighlightColor(e.target.value)}
-            title="Row highlight color"
-            aria-label="Row highlight color"
-            style={{
-              width: 36,
-              height: 28,
-              padding: 0,
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-sm)",
-              background: "none",
-            }}
-          />
-          {highlightColor && (
-            <button
-              type="button"
-              onClick={() => setHighlightColor("")}
-              title="Clear highlight"
-              aria-label="Clear highlight"
-              style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 12 }}
-            >
-              ✕
-            </button>
-          )}
-          <span style={{ fontSize: 11, color: "var(--color-text-faint)" }}>
-            A personal marker for this row — independent of tags/priority.
-          </span>
-        </div>
-
-        <TaskRelationPicker
-          label="Depends on"
-          items={task.dependsOn}
-          candidates={dependencyCandidates}
-          emptyMessage="No other tasks to depend on yet."
-          removeTitle="Remove this dependency"
-          removeAriaLabel={(title) => `Remove dependency on "${title}"`}
-          onAdd={onAddDependency}
-          onRemove={onRemoveDependency}
-        />
-
-        <TaskRelationPicker
-          label="See also"
-          items={task.relatedTasks}
-          candidates={relatedCandidates}
-          emptyMessage="No other tasks to link yet."
-          removeTitle="Remove this link"
-          removeAriaLabel={(title) => `Remove link to "${title}"`}
-          onAdd={onAddRelatedTask}
-          onRemove={onRemoveRelatedTask}
-          onSelectItem={onSelectRelatedTask}
-        />
-
-        <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
           List
         </label>
         <select
@@ -637,6 +540,103 @@ export default function TaskDetailModal({
             {renderMarkdown(description)}
           </div>
         )}
+
+        <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
+          Time estimate
+        </label>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}>
+          <input
+            type="number"
+            min={0}
+            value={estimatedMinutes}
+            onChange={(e) => setEstimatedMinutes(e.target.value)}
+            placeholder="e.g. 30"
+            style={{
+              width: 90,
+              padding: "8px 10px",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              background: "var(--color-surface)",
+              color: "var(--color-text)",
+              fontSize: 14,
+            }}
+          />
+          <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>minutes</span>
+          {estimatedMinutes.trim() && (
+            <button
+              type="button"
+              onClick={() => setEstimatedMinutes("")}
+              title="Clear estimate"
+              aria-label="Clear estimate"
+              style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 12 }}
+            >
+              ✕
+            </button>
+          )}
+          {(task.timeSpentSeconds > 0 || task.timerStartedAt) && (
+            <span style={{ fontSize: 11, color: "var(--color-text-faint)" }}>
+              Logged so far: {formatDuration(task.timeSpentSeconds)}
+            </span>
+          )}
+        </div>
+
+        <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 6 }}>
+          Highlight color
+        </label>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16 }}>
+          <input
+            type="color"
+            value={highlightColor || "#f2d95c"}
+            onChange={(e) => setHighlightColor(e.target.value)}
+            title="Row highlight color"
+            aria-label="Row highlight color"
+            style={{
+              width: 36,
+              height: 28,
+              padding: 0,
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              background: "none",
+            }}
+          />
+          {highlightColor && (
+            <button
+              type="button"
+              onClick={() => setHighlightColor("")}
+              title="Clear highlight"
+              aria-label="Clear highlight"
+              style={{ border: "none", background: "none", color: "var(--color-text-faint)", fontSize: 12 }}
+            >
+              ✕
+            </button>
+          )}
+          <span style={{ fontSize: 11, color: "var(--color-text-faint)" }}>
+            A personal marker for this row — independent of tags/priority.
+          </span>
+        </div>
+
+        <TaskRelationPicker
+          label="Depends on"
+          items={task.dependsOn}
+          candidates={dependencyCandidates}
+          emptyMessage="No other tasks to depend on yet."
+          removeTitle="Remove this dependency"
+          removeAriaLabel={(title) => `Remove dependency on "${title}"`}
+          onAdd={onAddDependency}
+          onRemove={onRemoveDependency}
+        />
+
+        <TaskRelationPicker
+          label="See also"
+          items={task.relatedTasks}
+          candidates={relatedCandidates}
+          emptyMessage="No other tasks to link yet."
+          removeTitle="Remove this link"
+          removeAriaLabel={(title) => `Remove link to "${title}"`}
+          onAdd={onAddRelatedTask}
+          onRemove={onRemoveRelatedTask}
+          onSelectItem={onSelectRelatedTask}
+        />
 
         <TaskAttachments
           attachments={task.attachments}
