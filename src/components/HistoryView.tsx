@@ -23,6 +23,7 @@ interface Props {
   onResetTimer: (id: number) => void;
   onBacklog: (id: number) => void;
   onUnbacklog: (id: number) => void;
+  onSetCollapsed?: (id: number, collapsed: boolean) => void;
 }
 
 const UNKNOWN_DATE = "Unknown date";
@@ -46,6 +47,7 @@ export default function HistoryView({
   onResetTimer,
   onBacklog,
   onUnbacklog,
+  onSetCollapsed,
 }: Props) {
   const completed = tasks.filter((t) => t.completed);
 
@@ -110,6 +112,7 @@ export default function HistoryView({
                   onResetTimer={onResetTimer}
                   onBacklog={onBacklog}
                   onUnbacklog={onUnbacklog}
+                  onSetCollapsed={onSetCollapsed}
                   readOnly
                   showCompletedDate
                 />

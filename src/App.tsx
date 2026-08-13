@@ -134,7 +134,6 @@ export default function App() {
   const [dueDate, setDueDate] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<Priority | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>("manual");
-  const [collapseSignal, setCollapseSignal] = useState<{ collapsed: boolean; version: number } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -167,6 +166,7 @@ export default function App() {
   // below before its own definition.
   const {
     pendingDelete,
+    collapseSignal,
     selectMode,
     setSelectMode,
     selectedIds,
@@ -198,6 +198,9 @@ export default function App() {
     handlePostpone,
     handleTogglePin,
     handleToggleInProgress,
+    handleSetCollapsed,
+    handleExpandAll,
+    handleCollapseAll,
     handleToggleTimer,
     handleResetTimer,
     handleArchive,
@@ -528,17 +531,6 @@ export default function App() {
     setSearchQuery("");
   }
 
-  // Bumping the version (rather than just toggling `collapsed`) is what
-  // makes two consecutive clicks of the *same* button both take effect —
-  // see the matching effect in TaskRow.tsx.
-  function handleExpandAll() {
-    setCollapseSignal((prev) => ({ collapsed: false, version: (prev?.version ?? 0) + 1 }));
-  }
-
-  function handleCollapseAll() {
-    setCollapseSignal((prev) => ({ collapsed: true, version: (prev?.version ?? 0) + 1 }));
-  }
-
   // Tasks pending a delete-undo window are filtered out here, upstream of
   // every other filter, so they disappear from every view immediately while
   // still existing in the database until the undo window elapses. Applies
@@ -676,6 +668,7 @@ export default function App() {
         onResetTimer={handleResetTimer}
         onBacklog={handleBacklog}
         onUnbacklog={handleUnbacklog}
+        onSetCollapsed={handleSetCollapsed}
       />
     ),
     history: (
@@ -698,6 +691,7 @@ export default function App() {
         onResetTimer={handleResetTimer}
         onBacklog={handleBacklog}
         onUnbacklog={handleUnbacklog}
+        onSetCollapsed={handleSetCollapsed}
       />
     ),
     stats: <StatsView tasks={searchFilteredTasks} customTabs={customTabs} tags={tags} />,
@@ -714,6 +708,7 @@ export default function App() {
         onSaveAsTemplate={handleSaveAsTemplate}
         onExportMarkdown={handleExportTaskMarkdown}
         onUnarchive={handleUnarchive}
+        onSetCollapsed={handleSetCollapsed}
       />
     ),
     backlog: (
@@ -735,6 +730,7 @@ export default function App() {
         onToggleTimer={handleToggleTimer}
         onResetTimer={handleResetTimer}
         onUnbacklog={handleUnbacklog}
+        onSetCollapsed={handleSetCollapsed}
       />
     ),
     trash: (
@@ -747,6 +743,7 @@ export default function App() {
         onAddSubtask={handleAddSubtask}
         onRestore={handleRestoreFromTrash}
         onEmptyTrash={handleEmptyTrash}
+        onSetCollapsed={handleSetCollapsed}
       />
     ),
   };
@@ -1034,6 +1031,7 @@ export default function App() {
                 childrenByParent={new Map()}
                 activeListId={activeListId}
                 collapseSignal={collapseSignal}
+                onSetCollapsed={handleSetCollapsed}
                 priorityFilter={priorityFilter}
                 onToggle={handleToggle}
                 onDelete={handleDelete}
@@ -1661,6 +1659,7 @@ export default function App() {
                     childrenByParent={overdueChildrenByParent}
                     activeListId={activeListId}
                     collapseSignal={collapseSignal}
+                    onSetCollapsed={handleSetCollapsed}
                     priorityFilter={priorityFilter}
                     onToggle={handleToggle}
                     onDelete={handleDelete}
@@ -1712,6 +1711,7 @@ export default function App() {
                 childrenByParent={childrenByParent}
                 activeListId={activeListId}
                 collapseSignal={collapseSignal}
+                onSetCollapsed={handleSetCollapsed}
                 priorityFilter={priorityFilter}
                 onToggle={handleToggle}
                 onDelete={handleDelete}
@@ -1771,6 +1771,7 @@ export default function App() {
                       childrenByParent={childrenByParent}
                       activeListId={activeListId}
                       collapseSignal={collapseSignal}
+                      onSetCollapsed={handleSetCollapsed}
                       priorityFilter={priorityFilter}
                       onToggle={handleToggle}
                       onDelete={handleDelete}

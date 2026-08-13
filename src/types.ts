@@ -175,4 +175,9 @@ export interface Task {
   // compared. Minute granularity, unlike the second-precision timer, since
   // nobody estimates to the second.
   estimatedMinutes: number | null;
+  // Whether this task's own subtasks are shown or hidden — persisted so it
+  // survives switching views/lists and restarting the app, rather than
+  // resetting to expanded every time this task's row remounts. Meaningless
+  // for a task with no subtasks.
+  collapsed: boolean;
 }

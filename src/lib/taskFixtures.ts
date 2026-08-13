@@ -36,6 +36,7 @@ export function makeTask(overrides: Partial<Task> = {}): Task {
     timeSpentSeconds: 0,
     timerStartedAt: null,
     estimatedMinutes: null,
+    collapsed: false,
     ...overrides,
   };
 }

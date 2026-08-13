@@ -14,6 +14,7 @@ interface Props {
   onAddSubtask: (parentId: number, title: string) => void;
   onRestore: (id: number) => void;
   onEmptyTrash: () => void;
+  onSetCollapsed?: (id: number, collapsed: boolean) => void;
 }
 
 const UNKNOWN_DATE = "Unknown date";
@@ -35,6 +36,7 @@ export default function TrashView({
   onAddSubtask,
   onRestore,
   onEmptyTrash,
+  onSetCollapsed,
 }: Props) {
   const byDate = new Map<string, Task[]>();
   for (const t of tasks) {
@@ -104,6 +106,7 @@ export default function TrashView({
                   onSelect={onSelectTask}
                   onAddSubtask={onAddSubtask}
                   onRestore={onRestore}
+                  onSetCollapsed={onSetCollapsed}
                   readOnly
                   showDeletedDate
                   deleteLabel="Delete forever"

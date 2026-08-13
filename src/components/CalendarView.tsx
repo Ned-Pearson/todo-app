@@ -27,6 +27,7 @@ interface Props {
   onResetTimer: (id: number) => void;
   onBacklog: (id: number) => void;
   onUnbacklog: (id: number) => void;
+  onSetCollapsed?: (id: number, collapsed: boolean) => void;
 }
 
 const WEEKDAYS_SUNDAY_FIRST = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -74,6 +75,7 @@ export default function CalendarView({
   onResetTimer,
   onBacklog,
   onUnbacklog,
+  onSetCollapsed,
 }: Props) {
   const { weekStartsOn } = useSettings();
   const today = todayStr();
@@ -319,6 +321,7 @@ export default function CalendarView({
             onResetTimer={onResetTimer}
             onBacklog={onBacklog}
             onUnbacklog={onUnbacklog}
+            onSetCollapsed={onSetCollapsed}
           />
         ))}
         {virtualSelectedTasks.length > 0 && (

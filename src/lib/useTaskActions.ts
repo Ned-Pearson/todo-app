@@ -44,6 +44,7 @@ import {
   updateTaskParent,
   updateTaskBacklog,
   updateTaskList,
+  updateTaskCollapsed,
 } from "./db";
 import type { RecurrenceFrequency } from "../types";
 
@@ -79,6 +80,12 @@ export function useTaskActions(options: UseTaskActionsOptions) {
   const [showBulkListPicker, setShowBulkListPicker] = useState(false);
   const [showBulkPostponePicker, setShowBulkPostponePicker] = useState(false);
   const [bulkPostponeDays, setBulkPostponeDays] = useState("1");
+  // Bumping the version (rather than just toggling `collapsed`) is what
+  // makes two consecutive clicks of the *same* Expand/Collapse-all button
+  // both take effect — see the matching effect in TaskRow.tsx, which every
+  // already-mounted row watches for the immediate visual update, on top of
+  // the DB writes handleExpandAll/handleCollapseAll below also make.
+  const [collapseSignal, setCollapseSignal] = useState<{ collapsed: boolean; version: number } | null>(null);
 
   // Deleting doesn't hit the database right away: the task(s) (and their
   // subtasks) are just hidden from the UI for a few seconds while a toast
@@ -425,6 +432,36 @@ export function useTaskActions(options: UseTaskActionsOptions) {
     await reload();
   }
 
+  // The row itself already knows the exact new value it's about to show
+  // locally (see TaskRow's own collapsed state), so this takes that value
+  // explicitly rather than re-deriving "toggle from task.collapsed" here —
+  // avoids any chance of the two disagreeing.
+  async function handleSetCollapsed(id: number, collapsed: boolean) {
+    await updateTaskCollapsed(id, collapsed);
+    await reload();
+  }
+
+  // Every task that's someone's parent, regardless of whether it (or its
+  // children) happen to be visible under whatever filter/search is
+  // currently active — Expand/Collapse-all is a blanket reset of a real,
+  // persisted preference, not scoped to only what the current view shows.
+  function tasksWithChildren(): number[] {
+    const parentIds = new Set(tasks.map((t) => t.parentId).filter((id): id is number => id != null));
+    return [...parentIds];
+  }
+
+  async function handleExpandAll() {
+    setCollapseSignal((prev) => ({ collapsed: false, version: (prev?.version ?? 0) + 1 }));
+    await Promise.all(tasksWithChildren().map((id) => updateTaskCollapsed(id, false)));
+    await reload();
+  }
+
+  async function handleCollapseAll() {
+    setCollapseSignal((prev) => ({ collapsed: true, version: (prev?.version ?? 0) + 1 }));
+    await Promise.all(tasksWithChildren().map((id) => updateTaskCollapsed(id, true)));
+    await reload();
+  }
+
   async function handleToggleTimer(id: number) {
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
@@ -663,6 +700,7 @@ export function useTaskActions(options: UseTaskActionsOptions) {
 
   return {
     pendingDelete,
+    collapseSignal,
     selectMode,
     setSelectMode,
     selectedIds,
@@ -694,6 +732,9 @@ export function useTaskActions(options: UseTaskActionsOptions) {
     handlePostpone,
     handleTogglePin,
     handleToggleInProgress,
+    handleSetCollapsed,
+    handleExpandAll,
+    handleCollapseAll,
     handleToggleTimer,
     handleResetTimer,
     handleArchive,

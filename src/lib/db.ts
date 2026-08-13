@@ -77,6 +77,7 @@ function rowToTask(
     timeSpentSeconds: row.time_spent_seconds,
     timerStartedAt: row.timer_started_at,
     estimatedMinutes: row.estimated_minutes,
+    collapsed: !!row.collapsed,
   };
 }
 
@@ -341,6 +342,11 @@ export async function updateTaskHighlightColor(id: number, color: string | null)
 export async function updateTaskInProgress(id: number, inProgress: boolean): Promise<void> {
   const db = await getDb();
   await db.execute("UPDATE tasks SET in_progress = ? WHERE id = ?", [inProgress ? 1 : 0, id]);
+}
+
+export async function updateTaskCollapsed(id: number, collapsed: boolean): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE tasks SET collapsed = ? WHERE id = ?", [collapsed ? 1 : 0, id]);
 }
 
 export async function updateTaskBacklog(id: number, backlog: boolean): Promise<void> {

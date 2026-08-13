@@ -16,6 +16,7 @@ interface Props {
   onSaveAsTemplate: (id: number) => void;
   onExportMarkdown: (id: number) => void;
   onUnarchive: (id: number) => void;
+  onSetCollapsed?: (id: number, collapsed: boolean) => void;
 }
 
 const UNKNOWN_DATE = "Unknown date";
@@ -37,6 +38,7 @@ export default function ArchiveView({
   onSaveAsTemplate,
   onExportMarkdown,
   onUnarchive,
+  onSetCollapsed,
 }: Props) {
   const byDate = new Map<string, Task[]>();
   for (const t of tasks) {
@@ -92,6 +94,7 @@ export default function ArchiveView({
                   onSaveAsTemplate={onSaveAsTemplate}
                   onExportMarkdown={onExportMarkdown}
                   onUnarchive={onUnarchive}
+                  onSetCollapsed={onSetCollapsed}
                   readOnly
                   showCompletedDate
                 />

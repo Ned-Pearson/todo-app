@@ -212,6 +212,12 @@ fn main() {
             sql: include_str!("../migrations/034_time_estimate.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 35,
+            description: "add tasks.collapsed",
+            sql: include_str!("../migrations/035_subtask_collapsed.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

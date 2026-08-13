@@ -21,6 +21,7 @@ interface Props {
   onToggleTimer: (id: number) => void;
   onResetTimer: (id: number) => void;
   onUnbacklog: (id: number) => void;
+  onSetCollapsed?: (id: number, collapsed: boolean) => void;
 }
 
 // Someday/backlog tasks are hidden from All/Today/This Week so they don't
@@ -47,6 +48,7 @@ export default function BacklogView({
   onToggleTimer,
   onResetTimer,
   onUnbacklog,
+  onSetCollapsed,
 }: Props) {
   const { topLevel, childrenByParent } = buildTaskTree(tasks);
 
@@ -89,6 +91,7 @@ export default function BacklogView({
           onToggleTimer={onToggleTimer}
           onResetTimer={onResetTimer}
           onUnbacklog={onUnbacklog}
+          onSetCollapsed={onSetCollapsed}
         />
       ))}
     </div>

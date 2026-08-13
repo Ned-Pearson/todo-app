@@ -31,6 +31,13 @@ interface Props {
   // working independently afterward, since this just seeds the same local
   // `collapsed` state rather than replacing it with something lifted up.
   collapseSignal?: { collapsed: boolean; version: number } | null;
+  // Persists this row's collapsed state so it survives switching views/
+  // lists and restarting the app, rather than resetting to expanded every
+  // time this task's row remounts. Optional (rather than required) to match
+  // every other single-task handler here, which are optional because a
+  // given view often can't support that action — this one just happens to
+  // be wired up everywhere in practice.
+  onSetCollapsed?: (id: number, collapsed: boolean) => void;
   onToggle: (id: number, completed: boolean) => void;
   onDelete: (id: number) => void;
   onSelect: (task: Task) => void;
@@ -66,6 +73,7 @@ export default function TaskRow({
   priorityFilter,
   activeListId = null,
   collapseSignal,
+  onSetCollapsed,
   onToggle,
   onDelete,
   onSelect,
@@ -139,11 +147,17 @@ export default function TaskRow({
   const subtreeProgress = hasChildren ? countSubtreeProgress(task.id) : null;
   const blockingDeps = task.dependsOn.filter((d) => !d.completed);
   const blocked = !task.completed && blockingDeps.length > 0;
-  // While filtering by priority, a matching task's non-matching subtasks are
-  // still shown (so nothing's hidden), but start collapsed so the flagged
-  // task itself doesn't get buried under clutter you didn't ask to see.
+  // Seeded from the task's own persisted value (so switching views/lists or
+  // restarting the app restores whatever this row was left as), with one
+  // extra nudge on top: while filtering by priority, a matching task's
+  // non-matching subtasks are still shown (so nothing's hidden), but start
+  // collapsed so the flagged task itself doesn't get buried under clutter
+  // you didn't ask to see. That nudge is deliberately a one-time initial
+  // value rather than something continuously re-applied — otherwise
+  // manually expanding a row while a priority filter is active would just
+  // immediately re-collapse it on the next render.
   const [collapsed, setCollapsed] = useState(
-    () => !!priorityFilter && hasChildren && !children.every((c) => c.priority === priorityFilter)
+    () => task.collapsed || (!!priorityFilter && hasChildren && !children.every((c) => c.priority === priorityFilter))
   );
   // Keyed on the signal's version specifically (not its `collapsed` value),
   // so two consecutive "Collapse all" clicks each still re-apply — the value
@@ -349,7 +363,9 @@ export default function TaskRow({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  setCollapsed((v) => !v);
+                  const next = !collapsed;
+                  setCollapsed(next);
+                  onSetCollapsed?.(task.id, next);
                 }}
                 title={collapsed ? "Expand subtasks" : "Collapse subtasks"}
                 aria-label={collapsed ? "Expand subtasks" : "Collapse subtasks"}
@@ -846,6 +862,7 @@ export default function TaskRow({
             priorityFilter={priorityFilter}
             activeListId={activeListId}
             collapseSignal={collapseSignal}
+            onSetCollapsed={onSetCollapsed}
             onToggle={onToggle}
             onDelete={onDelete}
             onSelect={onSelect}
