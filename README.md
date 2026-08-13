@@ -28,9 +28,6 @@ That opens the actual native app window (not a browser tab) backed by a local SQ
 If you'd rather build a native installer for your own OS instead of running in dev mode, `npm run tauri build` produces one; it's unsigned, so the OS will flag it as being from an unrecognized publisher on first launch (standard for a personal project without a paid code-signing certificate).
 
 TODO:
-The following based on feedback:
-- Id like to mock adding padding to the top of each task row so that the task title and checkbox is always centered
-    - Dont know if ill like it but will be good to check
 
 ## Project structure~
 

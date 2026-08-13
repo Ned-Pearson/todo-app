@@ -322,7 +322,15 @@ export default function TaskRow({
             aria-hidden="true"
             style={{
               display: "flex",
-              alignItems: "center",
+              // Top-aligned rather than centered within the stretched box:
+              // the title/checkbox line is always the *first* thing in the
+              // stack next to this handle (subtitle and description, when
+              // present, only ever add height *below* it), so pinning the
+              // glyph to the top keeps it level with the title line no
+              // matter how tall the row grows underneath — centering it
+              // in the full stretched height would only line up by
+              // coincidence, for a row with no subtitle/description at all.
+              alignItems: "flex-start",
               justifyContent: "center",
               // Stretches to the row's full content height (title line
               // alone, or title+subtitle together when there's a subtitle)
