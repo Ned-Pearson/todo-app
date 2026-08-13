@@ -17,7 +17,58 @@ on:
           - windows
           - macos
 
+# The GITHUB_TOKEN otherwise defaults to read-only — bump-version needs to
+# push a commit.
+permissions:
+  contents: write
+
 jobs:
+  # Windows' installer upgrade behavior (MSI in particular) is keyed off the
+  # version number actually changing between builds — without this, running
+  # the workflow twice in a row produces two installers that both claim to
+  # be "0.1.0" or whatever, and Windows has no reliable way to tell a
+  # newer install from a same-version reinstall. Bumping the patch version
+  # here, once per trigger, means that problem can't come up by forgetting —
+  # there's nothing to remember.
+  bump-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bump patch version
+        id: bump
+        run: |
+          npm version patch --no-git-tag-version
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          node -e "
+            const fs = require('fs');
+            const path = 'src-tauri/tauri.conf.json';
+            const conf = JSON.parse(fs.readFileSync(path, 'utf8'));
+            conf.version = '$NEW_VERSION';
+            fs.writeFileSync(path, JSON.stringify(conf, null, 2) + '\n');
+          "
+          # Only the [package] version — dependency versions elsewhere in
+          # this file (e.g. `tauri = { version = "2", ... }`) never start a
+          # line with `version = `, so the first match is always the right
+          # one.
+          sed -i "0,/^version = \".*\"/s//version = \"$NEW_VERSION\"/" src-tauri/Cargo.toml
+
+      # Cargo.lock's own record of this package's version will drift one
+      # version behind until someone next runs `cargo build` locally and
+      # commits the refresh — harmless (it's not a dependency-resolution
+      # conflict, just a cosmetic mismatch), and not worth installing a
+      # Rust toolchain in this job just to keep it in lockstep.
+      - name: Commit version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json src-tauri/tauri.conf.json src-tauri/Cargo.toml
+          git commit -m "Bump version to ${{ steps.bump.outputs.version }}"
+          git push
+
   # The matrix context isn't available in a job-level `if:` (it's only
   # resolved per-instance once a job actually starts), so filtering matrix
   # entries by the platform input has to happen before the build job's
@@ -42,7 +93,7 @@ jobs:
           echo "matrix={\"include\":$INCLUDE}" >> "$GITHUB_OUTPUT"
 
   build:
-    needs: compute-matrix
+    needs: [bump-version, compute-matrix]
     strategy:
       fail-fast: false
       # Universal Mac binary (Intel + Apple Silicon in one build) since we
@@ -54,7 +105,13 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
     steps:
+      # Explicit ref rather than the default (which resolves to the SHA at
+      # dispatch time) — bump-version already pushed a new commit onto this
+      # branch by the time this job starts, and without this the build
+      # would silently use the pre-bump version instead.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
 
       - uses: actions/setup-node@v4
         with:
