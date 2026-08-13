@@ -133,6 +133,7 @@ export default function App() {
   const lastNotifiedAt = useRef<Map<number, number>>(new Map());
   const templatesPickerRef = useRef<HTMLDivElement>(null);
   const bulkTagPickerRef = useRef<HTMLDivElement>(null);
+  const bulkListPickerRef = useRef<HTMLDivElement>(null);
   const bulkPostponePickerRef = useRef<HTMLDivElement>(null);
   useClickOutside(templatesPickerRef, showTemplatesPicker, () => setShowTemplatesPicker(false));
   const [showCompleted, setShowCompleted] = useState(false);
@@ -148,6 +149,8 @@ export default function App() {
     selectedIds,
     showBulkTagPicker,
     setShowBulkTagPicker,
+    showBulkListPicker,
+    setShowBulkListPicker,
     showBulkPostponePicker,
     setShowBulkPostponePicker,
     bulkPostponeDays,
@@ -164,6 +167,7 @@ export default function App() {
     handleBulkComplete,
     handleBulkDelete,
     handleBulkAddTag,
+    handleBulkChangeList,
     handleBulkPostpone,
     handleAddSubtask,
     handleDuplicateTask,
@@ -214,6 +218,7 @@ export default function App() {
   });
 
   useClickOutside(bulkTagPickerRef, showBulkTagPicker, () => setShowBulkTagPicker(false));
+  useClickOutside(bulkListPickerRef, showBulkListPicker, () => setShowBulkListPicker(false));
   useClickOutside(bulkPostponePickerRef, showBulkPostponePicker, () => setShowBulkPostponePicker(false));
 
   // The eight per-field handlers referenced here now come from
@@ -1488,6 +1493,77 @@ export default function App() {
                     }}
                   >
                     {tag.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div ref={bulkListPickerRef} style={{ position: "relative" }}>
+            <button
+              type="button"
+              disabled={selectedIds.size === 0}
+              onClick={() => setShowBulkListPicker((v) => !v)}
+              title="Move every selected task into a list"
+              aria-haspopup="true"
+              aria-expanded={showBulkListPicker}
+              style={{
+                padding: "6px 10px",
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-sm)",
+                background: "none",
+                color: "var(--color-text)",
+                fontSize: 13,
+                opacity: selectedIds.size === 0 ? 0.5 : 1,
+              }}
+            >
+              List ▾
+            </button>
+            {showBulkListPicker && (
+              <div
+                style={{
+                  ...POPOVER_STYLE,
+                  position: "absolute",
+                  top: "calc(100% + 4px)",
+                  left: 0,
+                  minWidth: 140,
+                  padding: 6,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => handleBulkChangeList(null)}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "4px 6px",
+                    border: "none",
+                    background: "none",
+                    color: "var(--color-text-muted)",
+                    fontSize: 12,
+                  }}
+                >
+                  No list
+                </button>
+                {customTabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => handleBulkChangeList(tab.id)}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      textAlign: "left",
+                      padding: "4px 6px",
+                      border: "none",
+                      background: "none",
+                      color: "var(--color-text)",
+                      fontSize: 12,
+                      fontWeight: 500,
+                    }}
+                  >
+                    {tab.icon && <span style={{ marginRight: 5 }}>{tab.icon}</span>}
+                    {tab.name}
                   </button>
                 ))}
               </div>

@@ -43,6 +43,7 @@ import {
   updateTaskInProgress,
   updateTaskParent,
   updateTaskBacklog,
+  updateTaskList,
 } from "./db";
 import type { RecurrenceFrequency } from "../types";
 
@@ -75,6 +76,7 @@ export function useTaskActions(options: UseTaskActionsOptions) {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [showBulkTagPicker, setShowBulkTagPicker] = useState(false);
+  const [showBulkListPicker, setShowBulkListPicker] = useState(false);
   const [showBulkPostponePicker, setShowBulkPostponePicker] = useState(false);
   const [bulkPostponeDays, setBulkPostponeDays] = useState("1");
 
@@ -322,6 +324,19 @@ export function useTaskActions(options: UseTaskActionsOptions) {
     for (const id of selectedIds) {
       await addTagToTask(id, tagId);
     }
+    await reload();
+  }
+
+  // Unlike handleBulkAddTag (additive — a task can pick up several tags in
+  // a row without losing the selection), a task only ever belongs to one
+  // list at a time, so this is closer in spirit to Postpone/Complete/Delete
+  // below: one decision that resolves the batch, so it exits select mode
+  // afterward rather than leaving the selection open for another pick.
+  async function handleBulkChangeList(listId: number | null) {
+    for (const id of selectedIds) {
+      await updateTaskList(id, listId);
+    }
+    exitSelectMode();
     await reload();
   }
 
@@ -653,6 +668,8 @@ export function useTaskActions(options: UseTaskActionsOptions) {
     selectedIds,
     showBulkTagPicker,
     setShowBulkTagPicker,
+    showBulkListPicker,
+    setShowBulkListPicker,
     showBulkPostponePicker,
     setShowBulkPostponePicker,
     bulkPostponeDays,
@@ -669,6 +686,7 @@ export function useTaskActions(options: UseTaskActionsOptions) {
     handleBulkComplete,
     handleBulkDelete,
     handleBulkAddTag,
+    handleBulkChangeList,
     handleBulkPostpone,
     handleAddSubtask,
     handleDuplicateTask,
