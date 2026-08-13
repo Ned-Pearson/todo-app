@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import type { CustomTab, Priority, SavedView, Tag, Task, TaskTemplate } from "./types";
 import {
   getAllTasks,
@@ -65,6 +65,29 @@ const SORT_LABELS: Record<SortOption, string> = {
   priority: "Priority",
   title: "Title",
 };
+
+// Every real keyboard shortcut in the app, for the "i" popover — kept as
+// one flat list (rather than scattered inline JSX per row) so adding a
+// shortcut later is one array entry instead of a whole copy-pasted block.
+// Rendered as a CSS grid rather than each row being its own flex/
+// space-between pair, so every key label shares one column width and every
+// description lines up in a straight second column instead of each row's
+// split point drifting with how wide that row's own key label happens to
+// be.
+const SHORTCUTS: [key: string, description: string][] = [
+  ["n", "New task"],
+  ["/", "Focus search"],
+  ["↑ / ↓", "Move between tasks"],
+  ["Alt+↑ / Alt+↓", "Reorder focused task or list"],
+  ["Shift+Enter", "Add subtask (task row focused)"],
+  ["← / →", "Resize sidebar or panel (handle focused)"],
+  ["Enter", "Submit / open task"],
+  ["Esc", "Close modal / clear or unfocus search"],
+  ["Ctrl/⌘+Shift+N", "New task (global)"],
+  ["Ctrl/⌘+Z", "Undo edit"],
+  ["Ctrl/⌘+Shift+Z or Y", "Redo edit"],
+  ["Ctrl/⌘+K", "Command palette"],
+];
 
 function getInitialTheme(): Theme {
   const stored = localStorage.getItem("theme");
@@ -833,52 +856,20 @@ export default function App() {
                       position: "absolute",
                       top: "calc(100% + 6px)",
                       right: 0,
-                      width: 240,
+                      width: 270,
                       padding: "10px 12px",
                       fontSize: 12,
                       color: "var(--color-text-muted)",
                     }}
                   >
                     <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 6 }}>Keyboard shortcuts</div>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                      <span>n</span>
-                      <span>New task</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                      <span>/</span>
-                      <span>Focus search</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                      <span>↑ / ↓</span>
-                      <span>Move between tasks</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                      <span>Alt+↑ / Alt+↓</span>
-                      <span>Reorder focused task</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                      <span>Enter</span>
-                      <span>Submit / open task</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                      <span>Esc</span>
-                      <span>Close modal / clear or unfocus search</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                      <span>Ctrl/⌘+Shift+N</span>
-                      <span>New task (global)</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                      <span>Ctrl/⌘+Z</span>
-                      <span>Undo edit</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                      <span>Ctrl/⌘+Shift+Z</span>
-                      <span>Redo edit</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <span>Ctrl/⌘+K</span>
-                      <span>Command palette</span>
+                    <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", columnGap: 10, rowGap: 4 }}>
+                      {SHORTCUTS.map(([key, description]) => (
+                        <Fragment key={key}>
+                          <span style={{ whiteSpace: "nowrap" }}>{key}</span>
+                          <span>{description}</span>
+                        </Fragment>
+                      ))}
                     </div>
                   </div>
                 )}
