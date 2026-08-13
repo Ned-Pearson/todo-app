@@ -28,6 +28,13 @@ That opens the actual native app window (not a browser tab) backed by a local SQ
 If you'd rather build a native installer for your own OS instead of running in dev mode, `npm run tauri build` produces one; it's unsigned, so the OS will flag it as being from an unrecognized publisher on first launch (standard for a personal project without a paid code-signing certificate).
 
 TODO:
+The following to add self-updating (Tier 1: the free `tauri-plugin-updater`, works the same way on both Windows and macOS; doesn't remove either OS's "unsigned software" warning, just the need to manually notice/redownload/reinstall):
+- Generate the updater's signing keypair (`tauri signer generate`) and wire the public key into `tauri.conf.json`'s `plugins.updater` config — the private key needs adding as a GitHub Actions repo secret by hand, which is outside of what can be done from a file edit
+- Add `tauri-plugin-updater` (the Rust crate in `Cargo.toml`/`main.rs` and the `@tauri-apps/plugin-updater` npm package) plus its required permission entries in `capabilities/default.json`
+- Reconfigure `build-desktop.yml` to publish a real GitHub Release (tagged with the auto-bumped version) instead of build-only artifacts, so `tauri-action` can generate the `latest.json` manifest the updater checks against
+- Add an "Auto-check for updates" toggle to Settings (`SettingsContext` + a control in the Sidebar's Config panel, persisted via `localStorage` the same way DND/week-start/trash-retention already are)
+- Implement the actual check-on-launch flow: respects the toggle above, and prompts to install (and relaunch) when a newer version is found
+- Add a manual "Check for updates now" button in the Config panel too, independent of the toggle, for checking on demand even with auto-check off
 
 ## Project structure~
 
