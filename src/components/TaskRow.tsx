@@ -355,15 +355,26 @@ export default function TaskRow({
                 aria-label={collapsed ? "Expand subtasks" : "Collapse subtasks"}
                 aria-expanded={!collapsed}
                 style={{
-                  width: 16,
-                  height: 16,
+                  // Noticeably bigger than the other same-line icons (16px)
+                  // so it doesn't need pixel-precise aim to hit — same
+                  // reasoning as the drag handle's own enlarged hit target.
+                  // The -8px margin keeps its actual footprint in the flex
+                  // line at 16px (32 minus 8px top/bottom), same as every
+                  // other icon here, so this doesn't inflate the row's own
+                  // height — safe now that the row's padding is a uniform
+                  // 10px on every side (was reduced to 4px on the bottom
+                  // for rows with a description, before the description
+                  // preview moved inside the row's own container).
+                  width: 32,
+                  height: 32,
+                  margin: "-8px 0",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   border: "none",
                   background: "none",
                   color: "var(--color-text-faint)",
-                  fontSize: 10,
+                  fontSize: 16,
                   padding: 0,
                   flexShrink: 0,
                 }}
@@ -371,7 +382,7 @@ export default function TaskRow({
                 {collapsed ? "▸" : "▾"}
               </button>
             ) : (
-              <span style={{ width: 16, flexShrink: 0 }} />
+              <span style={{ width: 32, flexShrink: 0 }} />
             )}
             <input
               type="checkbox"
