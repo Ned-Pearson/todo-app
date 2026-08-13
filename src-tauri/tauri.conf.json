@@ -39,5 +39,13 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDhDQkY2RDQ4RDlFNDkzRjIKUldUeWsrVFpTRzIvaklRbWlYMEF6YmhsVnFmNklOQi9SWUZSa3k2MGJlYjAzRlAzWmVZN3RhbnkK",
+      "endpoints": [
+        "https://github.com/Ned-Pearson/todo-app/releases/latest/download/latest.json"
+      ]
+    }
   }
 }
