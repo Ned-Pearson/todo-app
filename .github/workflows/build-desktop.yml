@@ -131,23 +131,38 @@ jobs:
       - name: Install frontend dependencies
         run: npm install
 
-      - name: Build
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          args: ${{ matrix.build-args }}
-
       # No code-signing certificate is configured, so these installers are
       # unsigned — Windows SmartScreen and macOS Gatekeeper will both flag
       # them as coming from an unrecognized publisher on first launch. See
-      # the README for the workaround each OS needs.
-      - name: Upload installers
-        uses: actions/upload-artifact@v4
+      # the README for the workaround each OS needs. (Separate from the
+      # updater's own signing key below, which only proves an update
+      # actually came from this repo — it doesn't satisfy either OS's own
+      # code-signing check.)
+      - name: Build and publish release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Signs the updater artifacts below so the plugin can verify them
+          # against tauri.conf.json's pubkey at update time. Generated via
+          # `tauri signer generate --ci` with no password (see README), so
+          # the _PASSWORD secret is left unset — a missing secret resolves
+          # to an empty string, which the signer reads as "no password"
+          # rather than erroring.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          name: todo-app-${{ matrix.platform }}
-          path: |
-            src-tauri/target/**/release/bundle/msi/*.msi
-            src-tauri/target/**/release/bundle/nsis/*.exe
-            src-tauri/target/**/release/bundle/dmg/*.dmg
-          if-no-files-found: error
+          # Same tag on both matrix legs: tauri-action finds the release
+          # a first-finishing platform already created for this tag and
+          # appends its own assets instead of creating a second release,
+          # which is how one release ends up with both installers.
+          tagName: v${{ needs.bump-version.outputs.version }}
+          releaseName: "todo-app v${{ needs.bump-version.outputs.version }}"
+          releaseBody: "See the assets below to download this version."
+          # Draft, not published: GitHub's "latest release" (what the
+          # updater endpoint resolves against) skips drafts, so this is a
+          # chance to sanity-check both platforms' installers before
+          # anyone's app offers this as an update. Publish it manually
+          # from the repo's Releases page once you're happy with it.
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.build-args }}
