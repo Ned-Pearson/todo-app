@@ -14,6 +14,7 @@ import {
 import { useClickOutside } from "../lib/useClickOutside";
 import { startResize } from "../lib/resize";
 import { POPOVER_STYLE, MENU_ITEM_STYLE } from "../lib/sharedStyles";
+import { DANGER_COLOR } from "../lib/color";
 import { useSettings } from "../lib/SettingsContext";
 import SidebarLists from "./SidebarLists";
 
@@ -42,6 +43,10 @@ interface Props {
   setShowConfigMenu: (updater: (v: boolean) => boolean) => void;
   handleExport: () => void;
   handleImport: () => void;
+  checkForUpdatesNow: () => void;
+  checkingForUpdates: boolean;
+  updateCheckError: string | null;
+  updateIsUpToDate: boolean;
 }
 
 // Kept as top-level sidebar buttons — the views reached for constantly.
@@ -88,6 +93,10 @@ export default function Sidebar({
   setShowConfigMenu,
   handleExport,
   handleImport,
+  checkForUpdatesNow,
+  checkingForUpdates,
+  updateCheckError,
+  updateIsUpToDate,
 }: Props) {
   const {
     theme,
@@ -445,6 +454,35 @@ export default function Sidebar({
                 />
                 Auto-check for updates
               </label>
+
+              <div style={{ marginBottom: 12 }}>
+                <button
+                  onClick={checkForUpdatesNow}
+                  disabled={checkingForUpdates}
+                  title="Check for updates now, regardless of the auto-check setting above"
+                  style={{
+                    width: "100%",
+                    padding: "6px 10px",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "var(--radius-sm)",
+                    background: "var(--color-surface)",
+                    color: "var(--color-text-muted)",
+                    fontSize: 13,
+                  }}
+                >
+                  {checkingForUpdates ? "Checking…" : "Check for updates now"}
+                </button>
+                {(updateIsUpToDate || updateCheckError) && (
+                  <div
+                    style={{
+                      marginTop: 6,
+                      color: updateCheckError ? DANGER_COLOR : "var(--color-text-faint)",
+                    }}
+                  >
+                    {updateCheckError ? `Check failed: ${updateCheckError}` : "You're up to date."}
+                  </div>
+                )}
+              </div>
 
               <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 6 }}>Theme</div>
               <button
