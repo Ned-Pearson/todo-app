@@ -808,6 +808,10 @@ export default function App() {
         setShowConfigMenu={setShowConfigMenu}
         handleExport={handleExport}
         handleImport={handleImport}
+        checkForUpdatesNow={updateCheck.checkNow}
+        checkingForUpdates={updateCheck.checking}
+        updateCheckError={updateCheck.checkError}
+        updateIsUpToDate={updateCheck.upToDate}
       />
       <div
         data-main-scroll
