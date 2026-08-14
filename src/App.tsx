@@ -23,6 +23,7 @@ import TrashView from "./components/TrashView";
 import StatsView from "./components/StatsView";
 import ManageTagsModal from "./components/ManageTagsModal";
 import Sidebar from "./components/Sidebar";
+import UpdateBanner from "./components/UpdateBanner";
 import { SettingsProvider, type SettingsContextValue } from "./lib/SettingsContext";
 import { getWeekRange, isOverdue, todayStr, formatDateDisplay } from "./lib/date";
 import { lastNDays, buildDailyCounts, computeStreaks, weekStartOf, buildWeeklyCounts } from "./lib/stats";
@@ -48,6 +49,7 @@ import { hexToRgba, DANGER_COLOR } from "./lib/color";
 import { CARD_STYLE, POPOVER_STYLE } from "./lib/sharedStyles";
 import { useClickOutside } from "./lib/useClickOutside";
 import { useReminders } from "./lib/useReminders";
+import { useUpdateCheck } from "./lib/useUpdateCheck";
 import { useKeyboardShortcuts } from "./lib/useKeyboardShortcuts";
 import { useTaskFilters } from "./lib/useTaskFilters";
 import { useTaskActions } from "./lib/useTaskActions";
@@ -474,6 +476,8 @@ export default function App() {
   // above, so it never touches lastNotifiedAt or the snooze loop. See
   // lib/useReminders.ts for the actual check/re-notify/advance logic.
   useReminders(tasks, dndEnabled, reload);
+
+  const updateCheck = useUpdateCheck(autoUpdateCheckEnabled);
 
   useEffect(() => {
     if (view === "today" || view === "my-day") setDueDate(todayStr());
@@ -1959,6 +1963,16 @@ export default function App() {
             Undo
           </button>
         </div>
+      )}
+
+      {updateCheck.available && (
+        <UpdateBanner
+          update={updateCheck.available}
+          installing={updateCheck.installing}
+          error={updateCheck.error}
+          onInstall={updateCheck.install}
+          onDismiss={updateCheck.dismiss}
+        />
       )}
     </div>
     </SettingsProvider>

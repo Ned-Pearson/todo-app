@@ -29,7 +29,6 @@ If you'd rather build a native installer for your own OS instead of running in d
 
 TODO:
 The following to add self-updating (Tier 1: the free `tauri-plugin-updater`, works the same way on both Windows and macOS; doesn't remove either OS's "unsigned software" warning, just the need to manually notice/redownload/reinstall):
-- Implement the actual check-on-launch flow: respects the toggle above, and prompts to install (and relaunch) when a newer version is found
 - Add a manual "Check for updates now" button in the Config panel too, independent of the toggle, for checking on demand even with auto-check off
 
 ## Project structure~
