@@ -151,6 +151,13 @@ export default function App() {
   const [panelWidth, setPanelWidth] = useState<number>(getInitialPanelWidth);
   const [trashRetentionDays, setTrashRetentionDays] = useState<number>(getInitialTrashRetentionDays);
   const [dndEnabled, setDndEnabled] = useState<boolean>(() => localStorage.getItem("notifyDnd") === "true");
+  // Defaults to on (unlike dndEnabled defaulting off) — most people want
+  // update checks to just happen, so this is opt-out rather than opt-in:
+  // absence of the key (a fresh install, or one from before this setting
+  // existed) reads as enabled, and only an explicit "false" turns it off.
+  const [autoUpdateCheckEnabled, setAutoUpdateCheckEnabled] = useState<boolean>(
+    () => localStorage.getItem("autoUpdateCheckEnabled") !== "false",
+  );
   const searchInputRef = useRef<HTMLInputElement>(null);
   const lastNotifiedAt = useRef<Map<number, number>>(new Map());
   const templatesPickerRef = useRef<HTMLDivElement>(null);
@@ -373,6 +380,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("notifyDnd", String(dndEnabled));
   }, [dndEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem("autoUpdateCheckEnabled", String(autoUpdateCheckEnabled));
+  }, [autoUpdateCheckEnabled]);
 
   // In-app shortcuts (n, /, arrows, Escape, undo/redo, command palette) plus
   // the Ctrl/⌘+Shift+N OS-level global shortcut — see
@@ -761,6 +772,8 @@ export default function App() {
     setWeekStartsOn,
     trashRetentionDays,
     setTrashRetentionDays,
+    autoUpdateCheckEnabled,
+    setAutoUpdateCheckEnabled,
   };
 
   return (

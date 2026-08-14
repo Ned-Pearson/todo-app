@@ -14,6 +14,8 @@ export interface SettingsContextValue {
   setWeekStartsOn: (value: 0 | 1) => void;
   trashRetentionDays: number;
   setTrashRetentionDays: (days: number) => void;
+  autoUpdateCheckEnabled: boolean;
+  setAutoUpdateCheckEnabled: (enabled: boolean) => void;
 }
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);

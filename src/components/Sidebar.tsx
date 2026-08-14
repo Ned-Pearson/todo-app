@@ -102,6 +102,8 @@ export default function Sidebar({
     setWeekStartsOn,
     trashRetentionDays,
     setTrashRetentionDays,
+    autoUpdateCheckEnabled,
+    setAutoUpdateCheckEnabled,
   } = useSettings();
   const configMenuRef = useRef<HTMLDivElement>(null);
   const moreViewsRef = useRef<HTMLDivElement>(null);
@@ -423,6 +425,26 @@ export default function Sidebar({
               <div style={{ marginBottom: 12, color: "var(--color-text-faint)" }}>
                 Applies the next time the app opens, not immediately — changing this won't purge anything right now.
               </div>
+
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontWeight: 600,
+                  color: "var(--color-text)",
+                  marginBottom: 12,
+                  cursor: "pointer",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={autoUpdateCheckEnabled}
+                  onChange={(e) => setAutoUpdateCheckEnabled(e.target.checked)}
+                  style={{ accentColor: "var(--color-accent)" }}
+                />
+                Auto-check for updates
+              </label>
 
               <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 6 }}>Theme</div>
               <button
