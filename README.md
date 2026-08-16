@@ -6,9 +6,11 @@ Tauri + React + TypeScript + SQLite
 
 There's no paid code-signing certificate, so no polished one-click installer link, but there are two ways to get a running copy: a pre-built installer, or building it from source yourself.
 
-**Pre-built installers**: [`build-desktop.yml`](.github/workflows/build-desktop.yml) builds a Windows installer (`.msi`/`.exe`) and a macOS one (`.dmg`, a universal build covering both Intel and Apple Silicon) on demand. Grab them from the [Actions tab](https://github.com/Ned-Pearson/todo-app/actions/workflows/build-desktop.yml) → the latest successful run → the "Artifacts" section at the bottom of that run's page; the repo's public, so any (free) GitHub account can get to them, no collaborator access needed. Both are unsigned, so **your OS will flag them on first launch**:
+**Pre-built installers**: [`build-desktop.yml`](.github/workflows/build-desktop.yml) builds a Windows installer (`.msi`/`.exe`) and a macOS one (`.dmg`, a universal build covering both Intel and Apple Silicon) on demand, and publishes them to the [Releases page](https://github.com/Ned-Pearson/todo-app/releases). Grab the `.msi`/`.exe` or `.dmg` from the latest release's Assets; ignore the `.zip`/`.sig`/`latest.json` files alongside them, those are only fetched internally by the app's own update checker, not meant to be run by hand. The repo's public, so any (free) GitHub account can get to them, no collaborator access needed. All of them are unsigned, so **your OS will flag them on this first install**:
 - **Windows** shows a SmartScreen "Windows protected your PC" warning: click **"More info" → "Run anyway"**.
-- **macOS** Gatekeeper blocks it outright rather than just warning: go to **System Settings → Privacy & Security**, find the blocked-app notice near the bottom, and click **"Open Anyway"** (or run `xattr -cr` on the `.app` from Terminal). This needs redoing for each new build you download, since macOS re-flags every fresh file.
+- **macOS** Gatekeeper blocks it outright rather than just warning: go to **System Settings → Privacy & Security**, find the blocked-app notice near the bottom, and click **"Open Anyway"** (or run `xattr -cr` on the `.app` from Terminal).
+
+That's only a one-time thing, though: once installed, the app checks for newer releases on its own launch (toggle in the sidebar's Config panel, on by default, plus a manual "Check for updates now" button) and offers to install them in place, so there's no need to come back to this page for future versions.
 
 **From source**: the straightforward way to try this out if you'd rather not deal with either warning, and only takes a few commands:
 
