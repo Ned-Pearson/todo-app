@@ -14,13 +14,20 @@ import type {
   TemplateNode,
 } from "../types";
 
-let dbInstance: Database | null = null;
+// Cached as an in-flight promise (not just the resolved instance) so that
+// concurrent callers on startup — reload() fires seven of these in a single
+// Promise.all — all await the same Database.load() call instead of each
+// racing to see dbInstance as still null and independently opening their own
+// connection. Multiple simultaneous connections opening/migrating the same
+// SQLite file was silently failing the whole startup load on Windows (its
+// stricter file locking surfaces the race; macOS mostly tolerated it).
+let dbPromise: Promise<Database> | null = null;
 
 export async function getDb(): Promise<Database> {
-  if (!dbInstance) {
-    dbInstance = await Database.load("sqlite:tasks.db");
+  if (!dbPromise) {
+    dbPromise = Database.load("sqlite:tasks.db");
   }
-  return dbInstance;
+  return dbPromise;
 }
 
 function rowToTask(
