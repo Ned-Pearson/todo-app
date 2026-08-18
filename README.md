@@ -31,6 +31,15 @@ If you'd rather build a native installer for your own OS instead of running in d
 
 TODO:
 
+- Add select to callendar page for when inside a selected day
+- Add a visual indication when an item is postponed or skipped 
+- Allow postponing of a recurring task without effecting the following iterations
+  - ie postpone 1 of a weekly recurring task that recurrs on mondays to a tuesday and all other iterations will still be due on mondays
+- Fix bulk postpone so that it simply postpones all by however long without requiring isOverdue() to be true
+- Create open on startup option
+- Create close to background process option
+- Add a single "Notes" page to sidebar that allows the user to jot down ideas etc
+
 ## Project structure~
 
 ```
