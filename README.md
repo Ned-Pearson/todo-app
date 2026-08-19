@@ -39,6 +39,7 @@ TODO:
 - Create open on startup option
 - Create close to background process option
 - Add a single "Notes" page to sidebar that allows the user to jot down ideas etc
+- Add specific styling for the sort by dropdown. (on windows it looks fine on mac it is very inconsistent with the rest of the app)
 
 ## Project structure~
 
